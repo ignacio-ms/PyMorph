@@ -8,20 +8,23 @@ import pandas as pd
 import nibabel as nib
 
 
-def get_refs():
-    ref_path = os.path.join(v.data_path, 'refs.csv')
-    table = pd.read_csv(ref_path)
-
-    return {c: table['ref_name'][table['cluster'] == c].values for c in table['cluster'].unique()}
-
-
 def read_nii(path):
+    """
+    Read single NIfTI file.
+    :param path: Path to NIfTI file.
+    :return: Image as numpy array.
+    """
     img = nib.load(path)
     img = img.get_fdata()
     return img.astype(np.uint8)
 
 
 def read_nii_batch(paths):
+    """
+    Read all NIfTI files in the given path.
+    :param paths: Path to NIfTI files.
+    :return: List of images as numpy arrays.
+    """
     X_names = sorted(glob(paths + '*.nii.gz'))
     X = list(map(nib.load, X_names))
     X = [x.get_fdata() for x in X]
