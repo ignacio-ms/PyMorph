@@ -1,0 +1,309 @@
+import os
+import sys
+import getopt
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+from csbdeep.utils import normalize
+from csbdeep.io import save_tiff_imagej_compatible
+from stardist.models import StarDist3D
+import tensorflow as tf
+
+
+# Custom packages
+try:
+    current_dir = os.path.dirname(__file__)
+except NameError:
+    current_dir = os.getcwd()
+sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
+
+from auxiliary.datasets import HtDataset
+from auxiliary.gpu import (
+    increase_gpu_memory,
+    set_gpu_allocator,
+    clear_session
+)
+from auxiliary import imaging
+from auxiliary.colors import bcolors as c
+from auxiliary.timer import LoadingBar
+
+
+def load_img(img_path, img_type='.nii.gz', normalize_img=True, verbose=0):
+    """
+    Load and normalize image.
+    :param img_path: Path to image.
+    :param img_type: Extension of image[.nii.gz | .tif]. (Default: .nii.gz)
+    :param normalize_img: Normalize image. (Default: True)
+    :param verbose: Verbosity level.
+    :return: Image.
+    """
+    img = imaging.read_nii(img_path) if img_type == '.nii.gz' else None  # To be implemented
+    if normalize_img:
+        img = normalize(img, 1, 99.8, axis=(0, 1, 2))
+
+    if verbose:
+        print(f'{c.OKBLUE}Loading image{c.ENDC}: {img_path}')
+        print(f'{c.BOLD}Image shape{c.ENDC}: {img.shape}')
+
+    return img
+
+
+def load_model(model_idx=1, models_path=None):
+    """
+    Load stardist 3D model.
+    :param models_path: Path to models. (Default: '../models/stardist_models/')
+    :param model_idx: Model index. (Default: 1)
+        - 0: n1_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)
+        - 1: n2_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)
+        - 2: n3_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)
+    :return: Model.
+    """
+    if models_path is None:
+        models_path = '../models/stardist_models/'
+
+    model_names = [
+        'n1_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)',
+        'n2_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)',
+        'n3_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)'
+    ]
+
+    model = StarDist3D(None, name=model_names[model_idx], basedir=models_path)
+    return model
+
+
+def set_gpu_strategy(gpu_strategy=None):
+    """
+    Set GPU strategy.
+    :param gpu_strategy: GPU strategy. (Default: None)
+        - None: No strategy.
+        - 'Mirrored': Mirrored strategy.
+        - 'MultiWorkerMirrored': MultiWorkerMirrored strategy.
+    :return: GPU strategy.
+    """
+    if gpu_strategy is None:
+        return None
+
+    if gpu_strategy == 'Mirrored':
+        strategy = tf.distribute.MirroredStrategy()
+    elif gpu_strategy == 'MultiWorkerMirrored':
+        strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+    else:
+        raise ValueError(f'{c.FAIL}Invalid GPU strategy{c.ENDC}: {gpu_strategy} (Mirrored, MultiWorkerMirrored)')
+
+    return strategy
+
+
+def set_gpu():
+    """
+    Set GPU for TensorFlow.
+    """
+    if not tf.config.list_physical_devices('GPU'):
+        print(f'{c.WARNING}No GPU available{c.ENDC}')
+    else:
+        increase_gpu_memory()
+        set_gpu_allocator()
+
+
+def run(
+    model, img,
+    run_gpu=True, gpu_strategy=None,
+    n_tiles=None, show_tile_progress=False,
+    axes='XYZC', verbose=0
+):
+    """
+    Run stardist 3D model on given image.
+    :param model: Model.
+    :param img: Image.
+    :param run_gpu: Run on GPU. (Default: True)
+    :param gpu_strategy: Strategy for GPU [Mirrored | MultiWorkerMirrored]. (Default: None)
+    :param n_tiles:
+        Out of memory (OOM) errors can occur if the input image is too large.
+        To avoid this problem, the input image is broken up into (overlapping) tiles
+        that are processed independently and re-assembled.
+        This parameter denotes a tuple of the number of tiles for every image axis (see ``axes``).
+        ``None`` denotes that no tiling should be used.
+    :param show_tile_progress: Show progress during tiled predictions. (Default: False)
+    :param verbose: Verbosity level.
+    :return: Prediction. (Labels, Details)
+    """
+
+    def predict():
+        return model.predict_instances(
+            img,
+            n_tiles=n_tiles, show_tile_progress=show_tile_progress,
+            verbose=verbose, axes=axes
+        )
+
+    if run_gpu:
+        set_gpu()
+        strategy = set_gpu_strategy(gpu_strategy)
+        if strategy is not None:
+            with strategy.scope():
+                labels, details = predict()
+                clear_session()
+                return labels, details
+
+    labels, details = predict()
+    clear_session()
+    return labels, details
+
+
+def save_prediction(prediction, path, verbose=0):
+    """
+    Save prediction as tiff image.
+    :param prediction: Prediction.
+    :param path: Path to save prediction.
+    :param verbose: Verbosity level.
+    """
+    labels, details = prediction
+    save_tiff_imagej_compatible(path, labels, axes='XYZ')
+
+    if verbose:
+        print(f'{c.OKGREEN}Saving prediction{c.ENDC}: {path}')
+
+
+def print_usage():
+    """
+    Print usage of the module.
+    """
+    print(
+        'usage: run_stardist.py -i <image> -gr <group> -m <model> -g <gpu> -gs <gpu_strategy> -t <n_tiles>\n'
+        f'{c.BOLD}<image> [str]{c.ENDC}: Path to image\n'
+        f'{c.BOLD}<group> [str]{c.ENDC}: Group to predict all remaining images\n'
+        '\tIf <group> is not provided, <image> is used\n'
+        '\tIf <group> nor <image> are provided, all remaining images are predicted\n'
+        f'{c.BOLD}<model> [int]{c.ENDC}: Model index\n'
+        '\t0: n1_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)\n'
+        '\t1: n2_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)\n'
+        '\t2: n3_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)\n'
+        f'{c.BOLD}<gpu> [bool]{c.ENDC}: Run on GPU\n'
+        f'{c.BOLD}<gpu_strategy> [str]{c.ENDC}: Strategy for GPU [Mirrored | MultiWorkerMirrored]\n'
+        f'{c.BOLD}<n_tiles> [int]{c.ENDC}: Number of tiles to break up the images to be processed\n'
+        f'independently and finally re-assembled\n'
+    )
+    sys.exit(2)
+
+
+def arg_check(opt, arg, valid, valid_long, type=None):
+    """
+    Check input arguments.
+    :param opt: Option.
+    :param arg: Argument.
+    :param valid: Valid option.
+    :param valid_long: Valid long option.
+    :param type: Dtype of argument.
+    :return: Argument.
+    """
+    if opt in (valid, valid_long):
+        if type is not None:
+            try:
+                arg = type(arg)
+            except ValueError:
+                print(f"{c.FAIL}Error{c.ENDC}: {valid_long} must be {type}.")
+                print_usage()
+        return arg
+
+
+if __name__ == '__main__':
+    argv = sys.argv[1:]
+
+    img, group, model, axes, gpu, gpu_strategy, n_tiles, verbose = None, None, None, None, None, None, None, None
+
+    try:
+        opts, args = getopt.getopt(argv, 'i:gr:m:a:g:gs:t:v:', [
+            'img=', 'group=', 'model=', 'axes=', 'gpu=', 'gpu_strategy=', 'n_tiles=', 'verbose='
+        ])
+
+        if len(opts) == 0 or len(opts) > 6:
+            print_usage()
+
+        for opt, arg in opts:
+            if opt in ('-i', '--img'):
+                img = arg_check(opt, arg, '-i', '--img', str)
+            elif opt in ('-gr', '--group'):
+                group = arg_check(opt, arg, '-gr', '--group', str)
+            elif opt in ('-m', '--model'):
+                model = arg_check(opt, arg, '-m', '--model', int)
+            elif opt in ('-a', '--axes'):
+                axes = arg_check(opt, arg, '-a', '--axes', str)
+            elif opt in ('-g', '--gpu'):
+                gpu = arg_check(opt, arg, '-g', '--gpu', bool)
+            elif opt in ('-gs', '--gpu_strategy'):
+                gpu_strategy = arg_check(opt, arg, '-gs', '--gpu_strategy', str)
+            elif opt in ('-t', '--n_tiles'):
+                n_tiles = arg_check(opt, arg, '-t', '--n_tiles', int)
+            elif opt in ('-v', '--verbose'):
+                verbose = arg_check(opt, arg, '-v', '--verbose', int)
+            else:
+                print(f'{c.FAIL}Invalid option{c.ENDC}: {opt}')
+                print_usage()
+
+            if model is None:
+                print(f'{c.BOLD}Model not provided{c.ENDC}: Running with default model (n2_stardist_96)')
+                model = 1
+
+            if axes is None:
+                print(f'{c.BOLD}Axes not specified{c.ENDC}: Set as XYZC')
+                axes = 'XYZC'
+
+            dataset = HtDataset()
+
+            if group is not None:
+                if verbose:
+                    print(f'Running prediction for group: {c.BOLD}{group}{c.ENDC}')
+
+                dataset.check_specimens(verbose=0)
+                dataset.read_img_paths(type='RawImages')
+
+                if group not in dataset.specimens.keys():
+                    print(f'{c.FAIL}Invalid group{c.ENDC}: {group}')
+                    print(f'{c.BOLD}Available groups{c.ENDC}: {list(dataset.specimens.keys())}')
+                    sys.exit(2)
+
+                specimens = dataset.specimens[group]
+                img_paths = dataset.raw_nuclei_path
+                img_paths = [
+                    img_path for img_path in img_paths if any(
+                        specimen in img_path for specimen in specimens
+                    )
+                ]
+                img_paths_out = [
+                    img_path.replace('RawImages', 'Segmentation')
+                    for img_path in img_paths
+                ]
+
+            elif img is not None:
+                if verbose:
+                    print(f'Running prediction for image: {c.BOLD}{img}{c.ENDC}')
+
+                img_paths = [img]
+                img_paths_out = [img.replace('RawImages', 'Segmentation')]
+
+            else:
+                if verbose:
+                    print(f'Running prediction for all remaining images')
+
+                dataset.check_specimens(verbose=verbose)
+                img_paths = dataset.missing_nuclei
+                img_paths_out = dataset.missing_nuclei_out
+
+            if len(img_paths) == 0:
+                print(f'{c.OKGREEN}No images to predict{c.ENDC}')
+                sys.exit(2)
+
+            bar = LoadingBar(len(img_paths), length=50)
+            for img_path, img_path_out in zip(img_paths, img_paths_out):
+                img = load_img(img_path, verbose=verbose)
+                model = load_model(model)
+
+                labels, details = run(
+                    model, img, verbose=verbose,
+                    run_gpu=gpu, gpu_strategy=gpu_strategy,
+                    n_tiles=n_tiles, axes=axes
+                )
+
+                bar.update()
+                save_prediction(labels, img_path_out, verbose=verbose)
+
+    except getopt.GetoptError:
+        print_usage()

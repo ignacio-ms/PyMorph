@@ -2,6 +2,6 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/nuclei_segmentation_cellpose/TFM" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/nuclei_segmentation/TFM" vcs="Git" />
   </component>
 </project>

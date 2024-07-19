@@ -14,8 +14,12 @@ def read_nii(path):
     :param path: Path to NIfTI file.
     :return: Image as numpy array.
     """
-    img = nib.load(path)
-    img = img.get_fdata()
+    try:
+        img = nib.load(path)
+        img = img.get_fdata()
+    except FileNotFoundError:
+        print(f'File not found: {path}')
+        return None
     return img.astype(np.uint8)
 
 

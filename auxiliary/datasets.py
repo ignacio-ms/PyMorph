@@ -8,9 +8,12 @@ from auxiliary.colors import bcolors as c
 
 
 class HtDataset:
-    def __init__(self):
-        self.data_path = v.data_path
-        self.specimens = v.specimens
+    def __init__(self, data_path=None, specimens=None):
+        if data_path is None:
+            self.data_path = v.data_path
+
+        if specimens is None:
+            self.specimens = v.specimens
 
         self.raw_nuclei_path = []
         self.raw_membrane_path = []
@@ -19,9 +22,11 @@ class HtDataset:
         self.seg_membrane_path = []
 
         self.missing_nuclei = []
+        self.missing_nuclei_out = []
         self.missing_membrane = []
+        self.missing_membrane_out = []
 
-    def get_img_paths(self, type='Segmentation', verbose=0):
+    def read_img_paths(self, type='Segmentation', verbose=0):
         """
         Get paths for both Nuclei and Membrane images.
         :param type: Type of images to get. (Segmentation, RawImages)
@@ -32,7 +37,7 @@ class HtDataset:
         for group in self.specimens.keys():
             for level in ['Nuclei', 'Membrane']:
                 try:
-                    f_raw_dir = os.path.join(self.data_path, group, 'Segmentation', level)
+                    f_raw_dir = os.path.join(self.data_path, group, type, level)
                     walk = os.walk(f_raw_dir).__next__()
                 except StopIteration:
                     if verbose:
@@ -70,8 +75,8 @@ class HtDataset:
         Get a list of not segmented images. (missing_nuclei, missing_membrane)
         :param verbose: Verbosity level.
         """
-        todo_membrane = []
-        todo_nuclei = []
+        todo_membrane, todo_membrane_out = [], []
+        todo_nuclei, todo_nuclei_out = [], []
 
         for group in self.specimens.keys():
             if verbose:
@@ -102,22 +107,33 @@ class HtDataset:
                 for i in spec_set:
                     if verbose:
                         print(f'\t{c.FAIL}Missing{c.ENDC}: {i}')
+
                     aux = os.path.join(
                         self.data_path, group, 'RawImages', level,
                         f'2019{i}_DAPI_decon_0.5.nii.gz' if level == 'Nuclei' else f'2019{i}_mGFP_decon_0.5.nii.gz'
                     )
 
+                    aux_out = aux.replace('RawImages', 'Segmentation')
+                    aux_out = aux_out.replace(
+                        '_DAPI_decon_0.5' if level == 'Nuclei' else '_mGFP_decon_0.5',
+                        'mask'
+                    )
+
                     if os.path.exists(aux):
                         if level == 'Nuclei':
+                            todo_nuclei_out.append(aux_out)
                             todo_nuclei.append(aux)
                         else:
+                            todo_membrane_out.append(aux_out)
                             todo_membrane.append(aux)
                     else:
                         if verbose:
                             print(f'\t{c.FAIL}No raw image: {aux}{c.ENDC}')
 
         self.missing_nuclei = todo_nuclei
+        self.missing_nuclei_out = todo_nuclei_out
         self.missing_membrane = todo_membrane
+        self.missing_membrane_out = todo_membrane_out
 
     def get_raw_img_paths(self):
         """
@@ -126,7 +142,7 @@ class HtDataset:
         """
 
         if len(self.raw_nuclei_path) == 0 and len(self.raw_membrane_path) == 0:
-            self.get_img_paths(type='RawImages')
+            self.read_img_paths(type='RawImages')
             return self.raw_nuclei_path, self.raw_membrane_path
 
         return self.raw_nuclei_path, self.raw_membrane_path
@@ -138,7 +154,7 @@ class HtDataset:
         """
 
         if len(self.seg_nuclei_path) == 0 and len(self.seg_membrane_path) == 0:
-            self.get_img_paths(type='Segmentation')
+            self.read_img_paths(type='Segmentation')
             return self.seg_nuclei_path, self.seg_membrane_path
 
         return self.seg_nuclei_path, self.seg_membrane_path
@@ -154,3 +170,15 @@ class HtDataset:
             return self.missing_nuclei, self.missing_membrane
 
         return self.missing_nuclei, self.missing_membrane
+
+    def get_missing_img_out_paths(self):
+        """
+        Get paths for both Nuclei and Membrane without segmentation images.
+        :return: List of paths. (missing_nuclei_out, missing_membrane_out)
+        """
+
+        if len(self.missing_nuclei_out) == 0 and len(self.missing_membrane_out) == 0:
+            self.check_specimens()
+            return self.missing_nuclei_out, self.missing_membrane_out
+
+        return self.missing_nuclei_out, self.missing_membrane_out
