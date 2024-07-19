@@ -1,3 +1,4 @@
+# Standard packages
 import os
 import sys
 import getopt
@@ -214,7 +215,7 @@ if __name__ == '__main__':
             'img=', 'group=', 'model=', 'axes=', 'gpu=', 'gpu_strategy=', 'n_tiles=', 'verbose='
         ])
 
-        if len(opts) == 0 or len(opts) > 6:
+        if len(opts) == 0 or len(opts) > 8:
             print_usage()
 
         for opt, arg in opts:
