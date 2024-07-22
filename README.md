@@ -32,24 +32,4 @@ the medoid shape of each one of the 10 stages.
 
 ### 1. Nuclei segmentation
 
-### 2. Cell segmentation evaluation
 
-[//]: # (For the evaluation of the cell segmentation, it was used the proposed implementation of the paper )
-
-[//]: # ("Evaluation of cell segmentation methods without reference segmentations" &#40;https://doi.org/10.1091/mbc.E22-08-0364&#41;. )
-
-[//]: # (An open source implementation of the evaluation method is available at https://github.com/murphygroup/CellSegmentationEvaluator/tree/master.)
-
-[//]: # ()
-[//]: # (There repository contains two implementations of the evaluator:)
-
-[//]: # ()
-[//]: # (1. ``SimpleCSE``: Calculates the metrics and quality scores for one or more images and corresponding cell segmentation masks.)
-
-[//]: # (2. ``full_pipeline``: Runs different cell segmentation methods on a given multichannel image and evaluates the resulting segmentations using the metrics.)
-
-### 3. Feature extraction
-
-### 4. Cellular division detection
-
-### 5. Morphogenesis characterization

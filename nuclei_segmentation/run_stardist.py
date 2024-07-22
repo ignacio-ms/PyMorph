@@ -6,7 +6,6 @@ import getopt
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 from csbdeep.utils import normalize
-from csbdeep.io import save_tiff_imagej_compatible
 from stardist.models import StarDist3D
 import tensorflow as tf
 
@@ -18,15 +17,16 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary.datasets import HtDataset
-from auxiliary.gpu import (
+from auxiliary.data.dataset_ht import HtDataset
+from auxiliary.gpu.gpu_tf import (
     increase_gpu_memory,
     set_gpu_allocator,
     clear_session
 )
-from auxiliary import imaging
-from auxiliary.colors import bcolors as c
-from auxiliary.timer import LoadingBar
+from auxiliary.data import imaging
+from auxiliary.utils.colors import bcolors as c
+from auxiliary.utils.timer import LoadingBar
+from auxiliary.utils.bash import arg_check
 
 
 def load_img(img_path, img_type='.nii.gz', normalize_img=True, verbose=0):
@@ -149,30 +149,18 @@ def run(
     return labels, details
 
 
-def save_prediction(prediction, path, verbose=0):
-    """
-    Save prediction as tiff image.
-    :param prediction: Prediction.
-    :param path: Path to save prediction.
-    :param verbose: Verbosity level.
-    """
-    labels, details = prediction
-    save_tiff_imagej_compatible(path, labels, axes='XYZ')
-
-    if verbose:
-        print(f'{c.OKGREEN}Saving prediction{c.ENDC}: {path}')
-
-
 def print_usage():
     """
     Print usage of the module.
     """
     print(
-        'usage: run_stardist.py -i <image> -gr <group> -m <model> -g <gpu> -gs <gpu_strategy> -t <n_tiles>\n'
+        'usage: run_stardist.py -i <image> -s <specimen> -gr <group> -m <model> -g <gpu> -gs <gpu_strategy> -t <n_tiles>\n'
+        f'\n\n{c.BOLD}Options{c.ENDC}:'
         f'{c.BOLD}<image> [str]{c.ENDC}: Path to image\n'
+        f'{c.BOLD}<specimen> [str]{c.ENDC}: Specimen to predict\n'
         f'{c.BOLD}<group> [str]{c.ENDC}: Group to predict all remaining images\n'
         '\tIf <group> is not provided, <image> is used\n'
-        '\tIf <group> nor <image> are provided, all remaining images are predicted\n'
+        '\tIf not <group> nor <image> nor <specimen> are provided, all remaining images are predicted\n'
         f'{c.BOLD}<model> [int]{c.ENDC}: Model index\n'
         '\t0: n1_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)\n'
         '\t1: n2_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)\n'
@@ -185,34 +173,14 @@ def print_usage():
     sys.exit(2)
 
 
-def arg_check(opt, arg, valid, valid_long, type=None):
-    """
-    Check input arguments.
-    :param opt: Option.
-    :param arg: Argument.
-    :param valid: Valid option.
-    :param valid_long: Valid long option.
-    :param type: Dtype of argument.
-    :return: Argument.
-    """
-    if opt in (valid, valid_long):
-        if type is not None:
-            try:
-                arg = type(arg)
-            except ValueError:
-                print(f"{c.FAIL}Error{c.ENDC}: {valid_long} must be {type}.")
-                print_usage()
-        return arg
-
-
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    img, group, model, axes, gpu, gpu_strategy, n_tiles, verbose = None, None, None, None, None, None, None, None
+    img, spec, group, model, axes, gpu, gpu_strategy, n_tiles, verbose = None, None, None, None, None, None, None, None, None
 
     try:
-        opts, args = getopt.getopt(argv, 'i:gr:m:a:g:gs:t:v:', [
-            'img=', 'group=', 'model=', 'axes=', 'gpu=', 'gpu_strategy=', 'n_tiles=', 'verbose='
+        opts, args = getopt.getopt(argv, 'i:s:gr:m:a:g:gs:t:v:', [
+            'img=', 'specimen=', 'group=', 'model=', 'axes=', 'gpu=', 'gpu_strategy=', 'n_tiles=', 'verbose='
         ])
 
         if len(opts) == 0 or len(opts) > 8:
@@ -220,21 +188,23 @@ if __name__ == '__main__':
 
         for opt, arg in opts:
             if opt in ('-i', '--img'):
-                img = arg_check(opt, arg, '-i', '--img', str)
+                img = arg_check(opt, arg, '-i', '--img', str, print_usage)
+            if opt in ('-s', '--specimen'):
+                spec = arg_check(opt, arg, '-s', '--specimen', str, print_usage)
             elif opt in ('-gr', '--group'):
-                group = arg_check(opt, arg, '-gr', '--group', str)
+                group = arg_check(opt, arg, '-gr', '--group', str, print_usage)
             elif opt in ('-m', '--model'):
-                model = arg_check(opt, arg, '-m', '--model', int)
+                model = arg_check(opt, arg, '-m', '--model', int, print_usage)
             elif opt in ('-a', '--axes'):
-                axes = arg_check(opt, arg, '-a', '--axes', str)
+                axes = arg_check(opt, arg, '-a', '--axes', str, print_usage)
             elif opt in ('-g', '--gpu'):
-                gpu = arg_check(opt, arg, '-g', '--gpu', bool)
+                gpu = arg_check(opt, arg, '-g', '--gpu', bool, print_usage)
             elif opt in ('-gs', '--gpu_strategy'):
-                gpu_strategy = arg_check(opt, arg, '-gs', '--gpu_strategy', str)
+                gpu_strategy = arg_check(opt, arg, '-gs', '--gpu_strategy', str, print_usage)
             elif opt in ('-t', '--n_tiles'):
-                n_tiles = arg_check(opt, arg, '-t', '--n_tiles', int)
+                n_tiles = arg_check(opt, arg, '-t', '--n_tiles', int, print_usage)
             elif opt in ('-v', '--verbose'):
-                verbose = arg_check(opt, arg, '-v', '--verbose', int)
+                verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
             else:
                 print(f'{c.FAIL}Invalid option{c.ENDC}: {opt}')
                 print_usage()
@@ -253,7 +223,7 @@ if __name__ == '__main__':
                 if verbose:
                     print(f'Running prediction for group: {c.BOLD}{group}{c.ENDC}')
 
-                dataset.check_specimens(verbose=0)
+                dataset.check_specimens(verbose=verbose)
                 dataset.read_img_paths(type='RawImages')
 
                 if group not in dataset.specimens.keys():
@@ -268,9 +238,11 @@ if __name__ == '__main__':
                         specimen in img_path for specimen in specimens
                     )
                 ]
+                img_paths_out = dataset.missing_nuclei_out
                 img_paths_out = [
-                    img_path.replace('RawImages', 'Segmentation')
-                    for img_path in img_paths
+                    img_path_out for img_path_out in img_paths_out if any(
+                        specimen in img_path_out for specimen in specimens
+                    )
                 ]
 
             elif img is not None:
@@ -279,6 +251,14 @@ if __name__ == '__main__':
 
                 img_paths = [img]
                 img_paths_out = [img.replace('RawImages', 'Segmentation')]
+
+            elif spec is not None:
+                if verbose:
+                    print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {spec}')
+
+                img_path, img_path_out, _, _ = dataset.read_specimen(spec, verbose=verbose)
+                img_paths = [img_path]
+                img_path_out = [img_path_out]
 
             else:
                 if verbose:
@@ -289,7 +269,7 @@ if __name__ == '__main__':
                 img_paths_out = dataset.missing_nuclei_out
 
             if len(img_paths) == 0:
-                print(f'{c.OKGREEN}No images to predict{c.ENDC}')
+                print(f'{c.WARNING}No images to predict{c.ENDC}')
                 sys.exit(2)
 
             bar = LoadingBar(len(img_paths), length=50)
@@ -304,7 +284,7 @@ if __name__ == '__main__':
                 )
 
                 bar.update()
-                save_prediction(labels, img_path_out, verbose=verbose)
+                imaging.save_prediction(labels, img_path_out, verbose=verbose)
 
     except getopt.GetoptError:
         print_usage()

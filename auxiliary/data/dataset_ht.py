@@ -4,7 +4,7 @@ import re
 
 # Custom packages
 from auxiliary import values as v
-from auxiliary.colors import bcolors as c
+from auxiliary.utils.colors import bcolors as c
 
 
 class HtDataset:
@@ -134,6 +134,47 @@ class HtDataset:
         self.missing_nuclei_out = todo_nuclei_out
         self.missing_membrane = todo_membrane
         self.missing_membrane_out = todo_membrane_out
+
+    def read_specimen(self, spec, verbose=0):
+        """
+        Read image for a specific specimen.
+        :param spec: Specimen to read.
+        :return: (nuclei, nuclei output, membrane, membrane output)
+        """
+
+        nuclei_path, membrane_path = None, None
+        nuclei_out_path, membrane_out_path = None, None
+
+        for group in self.specimens.keys():
+            for level in ['Nuclei', 'Membrane']:
+                try:
+                    f_raw_dir = os.path.join(self.data_path, group, 'RawImages', level)
+                    walk = os.walk(f_raw_dir).__next__()
+                except StopIteration:
+                    if verbose:
+                        print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                    continue
+
+                spec_set = set(self.specimens[group])
+
+                for img in walk[2]:
+                    if spec in spec_set and re.search(spec, img):
+                        if verbose:
+                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
+                        if level == 'Nuclei':
+                            nuclei_path = os.path.join(f_raw_dir, img)
+                            nuclei_out_path = nuclei_path.replace('RawImages', 'Segmentation')
+                            nuclei_out_path = nuclei_out_path.replace('_DAPI_decon_0.5', 'mask')
+                        else:
+                            membrane_path = os.path.join(f_raw_dir, img)
+                            membrane_out_path = membrane_path.replace('RawImages', 'Segmentation')
+                            membrane_out_path = membrane_out_path.replace('_mGFP_decon_0.5', 'mask')
+                        return nuclei_path, nuclei_out_path, membrane_path, membrane_out_path
+
+                if verbose:
+                    print(f'\t{c.FAIL}Missing{c.ENDC}: {spec}')
+
+                raise FileNotFoundError(f'No specimen found: {spec}')
 
     def get_raw_img_paths(self):
         """

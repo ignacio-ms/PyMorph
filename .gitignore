@@ -1,1 +1,3 @@
-/data/Gr4/
+*.tif
+*.nii.gz
+nuclei_segmentation/TFM/
