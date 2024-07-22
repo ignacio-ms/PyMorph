@@ -135,91 +135,65 @@ class HtDataset:
         self.missing_membrane = todo_membrane
         self.missing_membrane_out = todo_membrane_out
 
-    def read_specimen(self, spec, verbose=0):
+    def read_specimen(self, spec, level='Nuclei', verbose=0):
         """
         Read image for a specific specimen.
         :param spec: Specimen to read.
-        :return: (nuclei, nuclei output, membrane, membrane output)
+        :param level: Level of the image to read. (Nuclei, Membrane)
+        :param verbose: Verbosity level.
+        :return: (Image path, Output path)
         """
-
-        nuclei_path, membrane_path = None, None
-        nuclei_out_path, membrane_out_path = None, None
 
         for group in self.specimens.keys():
-            for level in ['Nuclei', 'Membrane']:
-                try:
-                    f_raw_dir = os.path.join(self.data_path, group, 'RawImages', level)
-                    walk = os.walk(f_raw_dir).__next__()
-                except StopIteration:
-                    if verbose:
-                        print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
-                    continue
-
-                spec_set = set(self.specimens[group])
-
-                for img in walk[2]:
-                    if spec in spec_set and re.search(spec, img):
-                        if verbose:
-                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
-                        if level == 'Nuclei':
-                            nuclei_path = os.path.join(f_raw_dir, img)
-                            nuclei_out_path = nuclei_path.replace('RawImages', 'Segmentation')
-                            nuclei_out_path = nuclei_out_path.replace('_DAPI_decon_0.5', 'mask')
-                        else:
-                            membrane_path = os.path.join(f_raw_dir, img)
-                            membrane_out_path = membrane_path.replace('RawImages', 'Segmentation')
-                            membrane_out_path = membrane_out_path.replace('_mGFP_decon_0.5', 'mask')
-                        return nuclei_path, nuclei_out_path, membrane_path, membrane_out_path
-
+            try:
+                f_raw_dir = os.path.join(self.data_path, group, 'RawImages', level)
+                walk = os.walk(f_raw_dir).__next__()
+            except StopIteration:
                 if verbose:
-                    print(f'\t{c.FAIL}Missing{c.ENDC}: {spec}')
+                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                continue
 
-                raise FileNotFoundError(f'No specimen found: {spec}')
+            for img in walk[2]:
+                if re.search(spec, img):
+                    if verbose:
+                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
 
-    def get_raw_img_paths(self):
+                    path = os.path.join(f_raw_dir, img)
+                    out_path = path.replace('RawImages', 'Segmentation')
+                    out_path = out_path.replace(
+                        '_DAPI_decon_0.5' if level == 'Nuclei' else '_mGFP_decon_0.5',
+                        'mask'
+                    )
+
+                    return path, out_path
+
+            raise FileNotFoundError(f'No specimen found: {spec}')
+
+    def read_line(self, spec, verbose=0):
         """
-        Get paths for both Nuclei and Membrane raw images.
-        :return: List of paths. (raw_nuclei_path, raw_membrane_path)
+        Read line image for a specific specimen.
+        :param spec: Specimen to read.
+        :param verbose: Verbosity level.
+        :return:
         """
+        for group in self.specimens.keys():
+            try:
+                f_raw_dir = os.path.join(self.data_path, group, 'Segmentation', 'LinesTissue')
+                walk = os.walk(f_raw_dir).__next__()
+            except StopIteration:
+                if verbose:
+                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                continue
 
-        if len(self.raw_nuclei_path) == 0 and len(self.raw_membrane_path) == 0:
-            self.read_img_paths(type='RawImages')
-            return self.raw_nuclei_path, self.raw_membrane_path
+            for img in walk[2]:
+                if re.search(spec, img):
+                    if verbose:
+                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
 
-        return self.raw_nuclei_path, self.raw_membrane_path
+                    path = os.path.join(f_raw_dir, img)
+                    out_path = path.replace('RawImages', 'Segmentation')
+                    out_path = out_path.replace('line','cardiac_region')
 
-    def get_seg_img_paths(self):
-        """
-        Get paths for both Nuclei and Membrane segmented images.
-        :return: List of paths. (seg_nuclei_path, seg_membrane_path)
-        """
+                    return path, out_path
 
-        if len(self.seg_nuclei_path) == 0 and len(self.seg_membrane_path) == 0:
-            self.read_img_paths(type='Segmentation')
-            return self.seg_nuclei_path, self.seg_membrane_path
-
-        return self.seg_nuclei_path, self.seg_membrane_path
-
-    def get_missing_img_paths(self):
-        """
-        Get paths for both Nuclei and Membrane without segmentation images.
-        :return: List of paths. (missing_nuclei, missing_membrane)
-        """
-
-        if len(self.missing_nuclei) == 0 and len(self.missing_membrane) == 0:
-            self.check_specimens()
-            return self.missing_nuclei, self.missing_membrane
-
-        return self.missing_nuclei, self.missing_membrane
-
-    def get_missing_img_out_paths(self):
-        """
-        Get paths for both Nuclei and Membrane without segmentation images.
-        :return: List of paths. (missing_nuclei_out, missing_membrane_out)
-        """
-
-        if len(self.missing_nuclei_out) == 0 and len(self.missing_membrane_out) == 0:
-            self.check_specimens()
-            return self.missing_nuclei_out, self.missing_membrane_out
-
-        return self.missing_nuclei_out, self.missing_membrane_out
+            raise FileNotFoundError(f'No specimen found: {spec}')

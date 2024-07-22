@@ -37,7 +37,7 @@ def load_img(img_path, img_type='.nii.gz', equalize_img=True, verbose=0):
     :param verbose: Verbosity level.
     :return: Image.
     """
-    img = imaging.read_nii(img_path) if img_type == '.nii.gz' else None  # To be implemented
+    img = imaging.read_nii(img_path, axes='ZXY') if img_type == '.nii.gz' else None  # To be implemented
     if equalize_img:
         img = exposure.equalize_hist(img)
 

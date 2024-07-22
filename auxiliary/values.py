@@ -1,4 +1,20 @@
-data_path = '/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_MT/LAB/ForIgnacio(Morena)/'
+data_path = '/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_MT/LAB/Ignacio/'
+
+lines = {
+    'background': 0,
+    'myocardium': 1,
+    'embryo': 2,
+    'pocket': 3,
+    'somatic': 4,
+    'splanchnic': 5,
+    'proximal': 6,
+    'aorta': 7,
+    'lumen': 8,
+    'middle plane': 9,
+    'keep dorsal open myo': 10,
+    'keep dorsal open spl': 11,
+    'notochord': 12
+}
 
 specimens = {
     "Gr1": [
