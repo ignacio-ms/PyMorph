@@ -9,9 +9,11 @@ from auxiliary.utils.colors import bcolors as c
 
 class HtDataset:
     def __init__(self, data_path=None, specimens=None):
+        self.data_path = data_path
         if data_path is None:
             self.data_path = v.data_path
 
+        self.specimens = specimens
         if specimens is None:
             self.specimens = v.specimens
 
@@ -135,18 +137,19 @@ class HtDataset:
         self.missing_membrane = todo_membrane
         self.missing_membrane_out = todo_membrane_out
 
-    def read_specimen(self, spec, level='Nuclei', verbose=0):
+    def read_specimen(self, spec, level='Nuclei', type='RawImages', verbose=0):
         """
         Read image for a specific specimen.
         :param spec: Specimen to read.
         :param level: Level of the image to read. (Nuclei, Membrane)
+        :param type: Type of image to read. (RawImages, Segmentation)
         :param verbose: Verbosity level.
         :return: (Image path, Output path)
         """
 
         for group in self.specimens.keys():
             try:
-                f_raw_dir = os.path.join(self.data_path, group, 'RawImages', level)
+                f_raw_dir = os.path.join(self.data_path, group, type, level)
                 walk = os.walk(f_raw_dir).__next__()
             except StopIteration:
                 if verbose:
@@ -162,7 +165,7 @@ class HtDataset:
                     out_path = path.replace('RawImages', 'Segmentation')
                     out_path = out_path.replace(
                         '_DAPI_decon_0.5' if level == 'Nuclei' else '_mGFP_decon_0.5',
-                        'mask'
+                        '_mask'
                     )
 
                     return path, out_path
@@ -191,7 +194,7 @@ class HtDataset:
                         print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
 
                     path = os.path.join(f_raw_dir, img)
-                    out_path = path.replace('RawImages', 'Segmentation')
+                    out_path = path.replace('Nuclei', 'Myocardium')
                     out_path = out_path.replace('line','cardiac_region')
 
                     return path, out_path

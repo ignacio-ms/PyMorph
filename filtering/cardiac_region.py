@@ -110,6 +110,8 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
 
     try:
         tissue = v.lines[tissue_name]
+        if img.ndim == 4:
+            img = img[..., 0]
         filtered = np.zeros_like(img)
 
         if dilate and dilate_size:
@@ -121,6 +123,7 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
             lines = cv2.dilate(lines, kernel, iterations=dilate)
 
         bar = LoadingBar(lines.shape[-1])
+
         for z in range(lines.shape[-1]):
             if verbose:
                 bar.update()

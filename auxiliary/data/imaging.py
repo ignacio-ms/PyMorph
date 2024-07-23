@@ -117,6 +117,13 @@ def save_prediction(labels, out_path, verbose=0):
     :param verbose: Verbosity level.
     """
 
+    if out_path.endswith('.nii.gz'):
+        out_path = out_path.replace('.nii.gz', '.tif')
+
+    # Check axes (test)
+    if labels.shape[0] < labels.shape[1]:
+        labels = np.swapaxes(labels, 0, 2)
+
     save_tiff_imagej_compatible(out_path, labels, axes='XYZ')
 
     if verbose:

@@ -14,6 +14,7 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
+from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset
@@ -39,10 +40,12 @@ def load_img(img_path, img_type='.nii.gz', equalize_img=True, verbose=0):
     """
     img = imaging.read_nii(img_path, axes='ZXY') if img_type == '.nii.gz' else None  # To be implemented
     if equalize_img:
+        if verbose:
+            print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
         img = exposure.equalize_hist(img)
 
     if verbose:
-        print(f'{c.OKBLUE}Loading image{c.ENDC}: {img_path}')
+        print(f'{c.OKBLUE}Loaded image{c.ENDC}: {img_path}')
         print(f'{c.BOLD}Image shape{c.ENDC}: {img.shape}')
 
     return img
@@ -75,7 +78,7 @@ def load_model(model_type='nuclei', model_path=None):
 def run(
         model, img,
         diameter=None, channels=None,
-        normalize=True,
+        normalize=True, verbose=0
 ):
     """
     Run cellpose on image.
@@ -100,6 +103,9 @@ def run(
         normalize=normalize,
         do_3D=True
     )
+
+    if verbose:
+        print(f'{c.OKGREEN}Masks shape{c.ENDC}: {masks.shape}')
 
     return masks
 
@@ -133,44 +139,51 @@ def print_usage():
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    img, spec, group, model, normalize, equalize, diameter, channels, verbose = None, None, None, None, None, None, None, None, None
+    data_path, img, spec, group, model, normalize, equalize, diameter, channels, verbose = None, None, None, None, None, None, None, None, None, None
 
     try:
-        opts, args = getopt.getopt(argv, "i:s:gr:m:n:e:d:c:v:", [
-            "image=", "specimen=", "group=", "model=", "normalize=", "equalize=", "diameter=", "channels=", "verbose="
+        opts, args = getopt.getopt(argv, "hp:i:s:g:m:n:e:d:c:v:", [
+            'help', "data_path=", "image=", "specimen=", "group=", "model=", "normalize=", "equalize=", "diameter=", "channels=", "verbose="
         ])
 
         if len(opts) == 0 or len(opts) > 8:
             print_usage()
 
         for opt, arg in opts:
-            if opt in ("-i", "--image"):
+            if opt in ("-h", "--help"):
+                print_usage()
+            elif opt in ("-p", "--data_path"):
+                data_path = arg_check(opt, arg, "-p", "--data_path", str, print_usage)
+            elif opt in ("-i", "--image"):
                 img = arg_check(opt, arg, "-i", "--image", str, print_usage)
-            if opt in ("-s", "--specimen"):
+            elif opt in ("-s", "--specimen"):
                 spec = arg_check(opt, arg, "-s", "--specimen", str, print_usage)
-            if opt in ("-gr", "--group"):
-                group = arg_check(opt, arg, "-gr", "--group", str, print_usage)
-            if opt in ("-m", "--model"):
+            elif opt in ("-g", "--group"):
+                group = arg_check(opt, arg, "-g", "--group", str, print_usage)
+            elif opt in ("-m", "--model"):
                 model = arg_check(opt, arg, "-m", "--model", str, print_usage)
-            if opt in ("-n", "--normalize"):
+            elif opt in ("-n", "--normalize"):
                 normalize = arg_check(opt, arg, "-n", "--normalize", bool, print_usage)
-            if opt in ("-e", "--equalize"):
+            elif opt in ("-e", "--equalize"):
                 equalize = arg_check(opt, arg, "-e", "--equalize", bool, print_usage)
-            if opt in ("-d", "--diameter"):
+            elif opt in ("-d", "--diameter"):
                 diameter = arg_check(opt, arg, "-d", "--diameter", int, print_usage)
-            if opt in ("-c", "--channels"):
+            elif opt in ("-c", "--channels"):
                 channels = arg_check(opt, arg, "-c", "--channels", list, print_usage)
-            if opt in ("-v", "--verbose"):
+            elif opt in ("-v", "--verbose"):
                 verbose = arg_check(opt, arg, "-v", "--verbose", int, print_usage)
             else:
                 print(f"{c.FAIL}Invalid option{c.ENDC}: {opt}")
                 print_usage()
 
+        if data_path is None:
+            data_path = v.data_path
+
         if model is None:
             print(f'{c.BOLD}Model not provided{c.ENDC}: Running with default model (nuclei)')
             model = 'nuclei'
 
-        dataset = HtDataset()
+        dataset = HtDataset(data_path=data_path)
 
         if group is not None:
             if verbose:
@@ -191,10 +204,6 @@ if __name__ == '__main__':
                     specimen in img_path for specimen in specimens
                 )
             ]
-            img_paths_out = [
-                img_path.replace('RawImages', 'Segmentation')
-                for img_path in img_paths
-            ]
 
             img_paths_out = dataset.missing_nuclei_out
             img_paths_out = [
@@ -209,15 +218,15 @@ if __name__ == '__main__':
 
             img_paths = [img]
             img_paths_out = [img.replace('RawImages', 'Segmentation')]
-            img_paths_out = [img_paths_out[0].replace('_DAPI_decon_0.5', 'mask')]
+            img_paths_out = [img_paths_out[0].replace('_DAPI_decon_0.5', '_mask')]
 
         elif spec is not None:
             if verbose:
                 print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {spec}')
 
-            img_path, img_path_out, _, _ = dataset.read_specimen(spec, verbose=verbose)
+            img_path, img_path_out = dataset.read_specimen(spec, verbose=verbose)
             img_paths = [img_path]
-            img_path_out = [img_path_out]
+            img_paths_out = [img_path_out]
 
         else:
             if verbose:
@@ -239,11 +248,12 @@ if __name__ == '__main__':
             masks = run(
                 model, img,
                 diameter=diameter, channels=channels,
-                normalize=normalize
+                normalize=normalize, verbose=verbose
             )
 
-            bar.update()
             imaging.save_prediction(masks, img_path_out, verbose=verbose)
+
+            bar.update()
 
     except getopt.GetoptError:
         print_usage()
