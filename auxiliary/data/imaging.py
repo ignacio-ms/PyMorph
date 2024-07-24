@@ -32,6 +32,10 @@ def read_nii(path, axes='XYZ', verbose=0):
     except FileNotFoundError:
         print(f'File not found: {path}')
         return None
+
+    if img.ndim == 4:
+        img = img[:, :, :, 0]
+
     return img
 
 
@@ -106,7 +110,26 @@ def read_tiff(path, axes='XYZ', verbose=0):
     elif axes not in ['XYZ', 'ZXY', 'ZYX']:
         print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - TIFF')
 
+    if img.ndim == 4:
+        img = img[:, :, :, 0]
+
     return img
+
+
+def read_image(path, axes='XYZ', verbose=0):
+    """
+    Read single image.
+    :param path: Path to image.
+    :param axes: Axes of the image. (Default: XYZ)
+    :param verbose: Verbosity level.
+    :return: Image as numpy array.
+    """
+    if path.endswith('.nii.gz'):
+        return read_nii(path, axes, verbose)
+    elif path.endswith('.tif') or path.endswith('.tiff'):
+        return read_tiff(path, axes, verbose)
+    else:
+        print(f'{c.FAIL}Invalid image format{c.ENDC}: {path}')
 
 
 def save_prediction(labels, out_path, verbose=0):

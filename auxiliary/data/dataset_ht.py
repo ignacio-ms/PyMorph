@@ -68,8 +68,8 @@ class HtDataset:
                 print(f'{c.OKGREEN}Raw Images - Nuclei{c.ENDC}: {len(self.raw_nuclei_path)}')
                 print(f'{c.OKGREEN}Raw Images - Membrane{c.ENDC}: {len(self.raw_membrane_path)}')
             else:
-                print(f'{c.OKGREEN}Segmented Nuclei{c.ENDC}: {len(self.seg_nuclei_path)}')
-                print(f'{c.OKGREEN}Segmented Membrane{c.ENDC}: {len(self.seg_membrane_path)}')
+                print(f'{c.OKGREEN}Segmented - Nuclei{c.ENDC}: {len(self.seg_nuclei_path)}')
+                print(f'{c.OKGREEN}Segmented - Membrane{c.ENDC}: {len(self.seg_membrane_path)}')
 
     def check_segmentation(self, verbose=0):
         """
@@ -170,7 +170,7 @@ class HtDataset:
 
                     return path, out_path
 
-            raise FileNotFoundError(f'No specimen found: {spec}')
+        raise FileNotFoundError(f'No specimen found: {spec}')
 
     def read_line(self, spec, verbose=0):
         """
@@ -199,7 +199,7 @@ class HtDataset:
 
                     return path, out_path
 
-            raise FileNotFoundError(f'No specimen found: {spec}')
+        raise FileNotFoundError(f'No specimen found: {spec}')
 
     def check_features(self, verbose=0):
         """
