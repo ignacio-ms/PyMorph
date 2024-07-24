@@ -124,11 +124,12 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
 
         bar = LoadingBar(lines.shape[-1])
 
+        cell_ids = np.unique(img[lines == tissue])
+
         for z in range(lines.shape[-1]):
             if verbose:
                 bar.update()
 
-            cell_ids = np.unique(img[..., z][lines[..., z] == tissue])
             mask = np.isin(img[..., z], cell_ids)
             filtered[..., z] = np.where(mask, img[..., z], 0)
 
