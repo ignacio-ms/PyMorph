@@ -189,7 +189,7 @@ if __name__ == '__main__':
             if verbose:
                 print(f'{c.OKBLUE}Running prediction on group{c.ENDC}: {group}')
 
-            dataset.check_specimens(verbose=verbose)
+            dataset.check_segmentation(verbose=verbose)
             dataset.read_img_paths(type='RawImages')
 
             if group not in dataset.specimens.keys():
@@ -232,7 +232,7 @@ if __name__ == '__main__':
             if verbose:
                 print(f'Running prediction for all remaining images')
 
-            dataset.check_specimens(verbose=verbose)
+            dataset.check_segmentation(verbose=verbose)
             img_paths = dataset.missing_nuclei
             img_paths_out = dataset.missing_nuclei_out
 

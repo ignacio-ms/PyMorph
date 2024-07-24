@@ -32,7 +32,7 @@ def read_nii(path, axes='XYZ', verbose=0):
     except FileNotFoundError:
         print(f'File not found: {path}')
         return None
-    return img.astype(np.uint8)
+    return img
 
 
 def read_nii_batch(paths):
@@ -44,7 +44,7 @@ def read_nii_batch(paths):
     X_names = sorted(glob(paths + '*.nii.gz'))
     X = list(map(nib.load, X_names))
     X = [x.get_fdata() for x in X]
-    return [x.astype(np.uint8) for x in X]
+    return X
 
 
 def load_metadata(path):
@@ -127,4 +127,4 @@ def save_prediction(labels, out_path, verbose=0):
     save_tiff_imagej_compatible(out_path, labels, axes='XYZ')
 
     if verbose:
-        print(f'{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')
+        print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')

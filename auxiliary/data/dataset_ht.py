@@ -71,7 +71,7 @@ class HtDataset:
                 print(f'{c.OKGREEN}Segmented Nuclei{c.ENDC}: {len(self.seg_nuclei_path)}')
                 print(f'{c.OKGREEN}Segmented Membrane{c.ENDC}: {len(self.seg_membrane_path)}')
 
-    def check_specimens(self, verbose=0):
+    def check_segmentation(self, verbose=0):
         """
         Check if both Nuclei and Membrane segmentation images are available for each specimen.
         Get a list of not segmented images. (missing_nuclei, missing_membrane)
@@ -200,3 +200,44 @@ class HtDataset:
                     return path, out_path
 
             raise FileNotFoundError(f'No specimen found: {spec}')
+
+    def check_features(self, verbose=0):
+        """
+        Check if features have been extracted for each specimen.
+        :param verbose: Verbosity level.
+        :return: List of specimens with missing features and their output paths.
+        """
+        todo_specimens, todo_out_paths = [], []
+
+        for group in self.specimens.keys():
+            if verbose:
+                print(f'{c.OKBLUE}Group{c.ENDC}: {group}')
+
+                try:
+                    f_raw_dir = os.path.join(self.data_path, group, 'Features')
+                    walk = os.walk(f_raw_dir).__next__()
+                except StopIteration:
+                    if verbose:
+                        print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                    continue
+
+                spec_set = set(self.specimens[group])
+
+                for file in walk[2]:
+                    for specimen in spec_set:
+                        if re.search(specimen, file):
+                            if verbose:
+                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                            spec_set.remove(specimen)
+                            break
+
+                for i in spec_set:
+                    if verbose:
+                        print(f'\t{c.FAIL}Missing features{c.ENDC}: {i}')
+
+                    todo_specimens.append(i)
+                    todo_out_paths.append(
+                        os.path.join(f_raw_dir, f'2019{i}_cell_properties_radiomics.csv')
+                    )
+
+        return todo_specimens, todo_out_paths

@@ -21,11 +21,12 @@ from auxiliary.utils.colors import bcolors as c
 import auxiliary.values as v
 
 
-def get_margins(line_path, img_path, ma=5, resolution=1024, verbose=0):
+def get_margins(line_path, img_path, tissue=None, ma=5, resolution=1024, verbose=0):
     """
     Get margins around the line to crop the image.
     :param line_path: Path to line image.
     :param img_path: Path to image to be cropped.
+    :param tissue: Tissue to filter by. (Default: None)
     :param ma: Margin around the line to crop. (Default: 5)
     :param resolution: Resolution of image. (Default: 1024)
     :param verbose: Verbosity level.
@@ -40,7 +41,13 @@ def get_margins(line_path, img_path, ma=5, resolution=1024, verbose=0):
         print(f'{c.BOLD}Line metadata{c.ENDC}: {metadata_line}')
         print(f'{c.BOLD}Line shape{c.ENDC}: {line.shape}')
 
-    coords = np.where(line > 0)
+    try:
+        coords = np.where(line == v.lines[tissue] if tissue else line > 1)
+    except KeyError:
+        print(f'{c.FAIL}Invalid tissue{c.ENDC}: {tissue}')
+        print(f'{c.BOLD}Available tissues{c.ENDC}: {list(v.lines.keys())}')
+        sys.exit(2)
+
     margins = (
         np.min(coords, axis=1),
         np.max(coords, axis=1)
