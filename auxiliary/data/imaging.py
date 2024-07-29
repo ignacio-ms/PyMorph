@@ -29,6 +29,7 @@ def read_nii(path, axes='XYZ', verbose=0):
             img = np.swapaxes(img, 0, 2)
         elif axes not in ['XYZ', 'ZXY', 'ZYX']:
             print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - NIfTI')
+
     except FileNotFoundError:
         print(f'File not found: {path}')
         return None
