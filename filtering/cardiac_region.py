@@ -75,15 +75,17 @@ def get_margins(line_path, img_path, tissue=None, ma=5, resolution=1024, verbose
     return margins
 
 
-def crop_img(img_path, margins, verbose=0):
+def crop_img(img, margins, verbose=0):
     """
     Crop image.
-    :param img_path: Path to image to be cropped.
+    :param img: Path to image to be cropped or already loaded image.
     :param margins: Margins to crop the image.
     :param verbose: Verbosity level.
     :return: Cropped image.
     """
-    img = read_nii(img_path) if img_path.endswith('.nii.gz') else read_tiff(img_path)
+    if isinstance(img, str):
+        img = read_nii(img) if img.endswith('.nii.gz') else read_tiff(img)
+
     img = img[
         margins[0][0]:margins[1][0],
         margins[0][1]:margins[1][1],
@@ -91,7 +93,6 @@ def crop_img(img_path, margins, verbose=0):
     ]
 
     if verbose:
-        print(f'{c.OKBLUE}Cropping image{c.ENDC}: {img_path}')
         print(f'{c.BOLD}Cropped image shape{c.ENDC}: {img.shape}')
 
     return img
@@ -104,8 +105,8 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
     :param lines: Lines image.
     :param tissue_name: Tissue to filter by. (Default: myocardium)
         Available tissues:
-        - background - myocardium- embryo-pocket- somatic - splanchnic - proximal - aort
-        - lumen-middle plane - keep dorsal open myo - keep dorsal open spl
+        - background - myocardium - embryo - pocket - somatic - splanchnic - proximal - aort
+        - lumen - middle plane - keep dorsal open myo - keep dorsal open spl
         - notochord
     :param dilate: Dilation of the mask. (Default: 0)
     :param dilate_size: Size of the dilation kernel. Must be an odd number. (Default: 3)
@@ -123,11 +124,15 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
 
         if dilate and dilate_size:
             if verbose:
-                print(f'{c.BOLD}Dilating mask{c.ENDC}: {dilate} times...')
+                print(f'{c.BOLD}Dilating mask{c.ENDC}: ({dilate_size}x{dilate_size}) {dilate} times...')
 
             ds = dilate_size if dilate_size % 2 else dilate_size + 1
             kernel = np.ones((ds, ds), np.uint8)
-            lines = cv2.dilate(lines, kernel, iterations=dilate)
+            if lines.ndim == 2:
+                lines = cv2.dilate(lines, kernel, iterations=dilate)
+            else:
+                for z in range(lines.shape[-1]):
+                    lines[..., z] = cv2.dilate(lines[..., z], kernel, iterations=dilate)
 
         bar = LoadingBar(lines.shape[-1])
 

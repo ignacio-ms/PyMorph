@@ -78,7 +78,8 @@ def load_model(model_type='nuclei', model_path=None):
 def run(
         model, img,
         diameter=None, channels=None,
-        normalize=True, verbose=0
+        normalize=True, anisotropy=1,
+        verbose=0
 ):
     """
     Run cellpose on image.
@@ -86,6 +87,7 @@ def run(
     :param img: Image.
     :param diameter: Diameter of nuclei. (Default: 0)
     :param channels: Channels to use. (Default: [0, 0])
+    :param anisotropy: Anisotropy of image for sampling difference between XY and Z. (Default: 1)
     :param verbose: Verbosity level.
     :return: Masks.
     """
@@ -101,6 +103,7 @@ def run(
         diameter=diameter,
         channels=channels,
         normalize=normalize,
+        anisotropy=anisotropy,
         do_3D=True
     )
 
@@ -245,10 +248,14 @@ if __name__ == '__main__':
             img = load_img(img_path, equalize_img=equalize, verbose=verbose)
             model = load_model(model_type=model)
 
+            metadata = imaging.load_metadata(img_path)
+            anisotropy = metadata['z_res'] / metadata['x_res']
+
             masks = run(
                 model, img,
                 diameter=diameter, channels=channels,
-                normalize=normalize, verbose=verbose
+                normalize=normalize, anisotropy=anisotropy,
+                verbose=verbose
             )
 
             imaging.save_prediction(masks, img_path_out, verbose=verbose)
