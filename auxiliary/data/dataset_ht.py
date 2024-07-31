@@ -201,9 +201,11 @@ class HtDataset:
 
         raise FileNotFoundError(f'No specimen found: {spec}')
 
-    def check_features(self, verbose=0):
+    def check_features(self, type='NA', verbose=0):
         """
         Check if features have been extracted for each specimen.
+        Get a list of not extracted features. (missing_features)
+        :param type: Type of features for output path. (Membrane, Nuclei) (Default: NA)
         :param verbose: Verbosity level.
         :return: List of specimens with missing features and their output paths.
         """
@@ -213,31 +215,38 @@ class HtDataset:
             if verbose:
                 print(f'{c.OKBLUE}Group{c.ENDC}: {group}')
 
-                try:
-                    f_raw_dir = os.path.join(self.data_path, group, 'Features')
-                    walk = os.walk(f_raw_dir).__next__()
-                except StopIteration:
-                    if verbose:
-                        print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
-                    continue
+            try:
+                f_raw_dir = os.path.join(self.data_path, group, 'Features')
+                walk = os.walk(f_raw_dir).__next__()
+            except StopIteration:
+                if verbose:
+                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                continue
 
-                spec_set = set(self.specimens[group])
+            spec_set = set(self.specimens[group])
 
-                for file in walk[2]:
-                    for specimen in spec_set:
-                        if re.search(specimen, file):
-                            if verbose:
-                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
-                            spec_set.remove(specimen)
-                            break
+            for file in walk[2]:
+                for specimen in spec_set:
+                    if re.search(specimen, file):
+                        if verbose:
+                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                        spec_set.remove(specimen)
+                        break
 
-                for i in spec_set:
-                    if verbose:
-                        print(f'\t{c.FAIL}Missing features{c.ENDC}: {i}')
+            for i in spec_set:
+                if verbose:
+                    print(f'\t{c.FAIL}Missing features{c.ENDC}: {i}')
 
-                    todo_specimens.append(i)
-                    todo_out_paths.append(
-                        os.path.join(f_raw_dir, f'2019{i}_cell_properties_radiomics.csv')
-                    )
+                todo_specimens.append(i)
+                todo_out_paths.append(
+                    os.path.join(f_raw_dir, f'2019{i}_cell_properties_radiomics_{type}.csv')
+                )
 
         return todo_specimens, todo_out_paths
+
+
+def find_group(specimen):
+    for group, specimen_list in v.specimens.items():
+        if specimen in specimen_list:
+            return group
+    return None

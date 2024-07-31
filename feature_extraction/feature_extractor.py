@@ -20,13 +20,14 @@ except NameError:
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
 from auxiliary.utils.colors import bcolors as c
+from auxiliary.utils.timer import LoadingBar
 
 from auxiliary.data.dataset_ht import HtDataset
 from auxiliary.data import imaging
 
 from auxiliary import values as v
 
-from filtering import cardiac_region as c
+from filtering import cardiac_region as cr
 
 
 def filter_by_volume(seg_img, percentile=98, verbose=0):
@@ -88,6 +89,7 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
 
     return seg_img
 
+
 def compute_most_common(lines, props):
     """
     Compute the most common value in a list.
@@ -95,30 +97,149 @@ def compute_most_common(lines, props):
     :param props: List of properties.
     :return: Most common value.
     """
-    counter = Counter(lines[props.slices].flatten())
+    most_commons = []
+    for p in props:
+        counter = Counter(lines[p.slices].flatten())
 
-    if len(list(counter)) == 1:
-        m = list(counter)[0]
-    else:
-        d = {k: v for k, v in counter.items() if k != 0}
-        m = max(d, key=d.get)
-
-    return m
-
-
-def shape_features(props, centroids_labels):
-    pass
+        if len(list(counter)) == 1:
+            m = list(counter)[0]
+        else:
+            d = {k: v for k, v in counter.items() if k != 0}
+            m = max(d, key=d.get)
+        most_commons.append(m)
+    return most_commons
 
 
-def extract(seg_img, raw_img, raw_img_path, verbose=0):
+def standard_features(lines, props, centroids, centroids_labels, type, verbose=0):
+    """
+    Compute shape features:
+        - cell_in_props
+        - volumes
+        - sphericities
+        - original_labels
+        - centroids
+        - lines
+        - axis_major_length
+        - axis_minor_length
+        - solidity
+        - feret_diameter_max
+    :param lines: Lines image.
+    :param props: Properties.
+    :param centroids: Centroids.
+    :param centroids_labels: Centroids labels.
+    :param type: Type of features to extract [Membrane | Nuclei].
+    :param verbose: Verbosity level. (default: 0)
+    :return: Dataframe with shape features.
+    """
+    bar = LoadingBar(len(props))
+    if verbose:
+        print(f'{c.OKBLUE}Computing standard features...{c.ENDC}')
+
+    new_rows = []
+    most_commons = compute_most_common(lines, props)
+
+    for i, p in enumerate(props):
+        if centroids_labels[i] == 0:
+            continue
+
+        if type == 'Membrane':
+            new_rows.append({
+                "cell_in_props": i,
+                "volumes": p.volume,
+                "sphericities": p.sphericity,
+                "original_labels": centroids_labels[i],
+                "centroids": centroids[i],
+                "lines": most_commons[i],
+                "axis_major_length": p.axis_major_length,
+                "axis_minor_length": p.axis_minor_length,
+                "solidity": p.solidity
+            })
+        else:
+            new_rows.append({
+                "cell_in_props": i,
+                "volumes": p.volume,
+                "sphericities": p.sphericity,
+                "original_labels": centroids_labels[i],
+                "centroids": centroids[i],
+            })
+
+        if verbose:
+            bar.update()
+
+    return pd.DataFrame(new_rows)
+
+
+def resample_img(img, mask, raw_img_path):
+    """
+    Resample the image and mask. The resampling is done based on the XYZ resolutions.
+    :param img: Image.
+    :param mask: Mask.
+    :param raw_img_path: Raw image path.
+    :param verbose: Verbosity level. (default: 0)
+    :return: Resampled image and mask.
+    """
+    metadata = cr.load_metadata(raw_img_path)
+    spacing = [
+        float(metadata['x_res']),
+        float(metadata['y_res']),
+        float(metadata['z_res'])
+    ]
+
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+    resampler.SetSize([
+        int(round(img.GetSize()[0] * spacing[0])),
+        int(round(img.GetSize()[1] * spacing[1])),
+        int(round(img.GetSize()[2] * spacing[2]))
+    ])
+
+    img = resampler.Execute(img)
+    mask = resampler.Execute(mask)
+
+    return img, mask
+
+
+def shape_features(img, mask):
+    """
+    Compute shape features.
+    :param img: Image.
+    :param mask: Mask.
+    :return: Results list with shape features.
+    """
+    sf = shape.RadiomicsShape(img, mask)
+    sf.enableAllFeatures()
+    result = sf.execute()
+
+    return result
+
+
+def first_order_features(img, mask):
+    """
+    Compute first order features.
+    :param img: Image.
+    :param mask: Mask.
+    :return: Results list with first order features.
+    """
+    fo = firstorder.RadiomicsFirstOrder(img, mask)
+    result = fo.execute()
+
+    return result
+
+
+def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
     """
     Extract features from the segmented image.
     :param seg_img: Segmented image.
     :param raw_img: Raw image.
+    :param lines: Lines image.
     :param raw_img_path: Path to raw image.
+    :param f_type: Type of features to extract[Membrane | Nuclei]. (default: Nuclei)
     :param verbose: Verbosity level. (default: 0)
     :return: Features.
     """
+    if f_type not in ['Membrane', 'Nuclei']:
+        raise ValueError(f'Invalid type: {f_type}')
+
     if verbose:
         print(f'{c.OKBLUE}Extracting features...{c.ENDC}')
 
@@ -129,7 +250,42 @@ def extract(seg_img, raw_img, raw_img_path, verbose=0):
     if verbose:
         print(f'\tFound{c.BOLD} {len(props)} {c.ENDC} cells')
 
-    new_rows = []
+    df = standard_features(lines, props, centroids, centroids_labels, f_type, verbose=verbose)
+
+    bar = LoadingBar(len(props))
+
+    if verbose:
+        print(f'{c.OKBLUE}Computing {f_type} features...{c.ENDC}')
+
+    results = []
+
+    for cell in range(len(props)):
+        img = np.swapaxes(np.swapaxes(raw_img[props[cell].slice], 0, 2), 1, 2)
+        m = np.swapaxes(np.swapaxes(props[cell].mask, 0, 2), 1, 2)
+
+        sitk_img = sitk.GetImageFromArray(img)
+        sitk_img = sitk.JoinSeries(sitk_img)[:, :, :, 0]
+
+        sitk_mask = sitk.GetImageFromArray(m.astype("uint16"))
+        sitk_mask = sitk.JoinSeries(sitk_mask)[:, :, :, 0]
+
+        sitk_img, sitk_mask = resample_img(sitk_img, sitk_mask, raw_img_path)
+
+        result = {}
+        if f_type == 'Membrane' or f_type == 'Nuclei':
+            result.update(shape_features(sitk_img, sitk_mask))
+        if f_type == 'Nuclei':
+            result.update(first_order_features(sitk_img, sitk_mask))
+
+        result['cell_in_props'] = cell
+        results.append(result)  # :)
+
+        if verbose:
+            bar.update()
+
+    df_radiomics = pd.DataFrame(results)
+    df = df.merge(df_radiomics, on='cell_in_props')
+    return df
 
 
 

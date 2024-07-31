@@ -105,7 +105,7 @@ def run():
 
         line_paths = [ds.read_line(spec, verbose=verbose)[0]]
 
-    if group is not None:
+    elif group is not None:
         if verbose:
             print(f'{c.OKBLUE}Filtering group:{c.ENDC} {group}')
 
