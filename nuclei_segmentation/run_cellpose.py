@@ -18,7 +18,7 @@ from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset
-from auxiliary.utils.timer import LoadingBar
+from auxiliary.utils.timer import LoadingBar, timed
 from auxiliary.data import imaging
 
 # Configurations
@@ -75,6 +75,7 @@ def load_model(model_type='nuclei', model_path=None):
     return models.Cellpose(gpu=use_gpu, model_type=model_type)
 
 
+@timed
 def run(
         model, img,
         diameter=None, channels=None,
@@ -261,6 +262,8 @@ if __name__ == '__main__':
             imaging.save_prediction(masks, img_path_out, verbose=verbose)
 
             bar.update()
+
+        bar.end()
 
     except getopt.GetoptError:
         print_usage()

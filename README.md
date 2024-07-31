@@ -57,7 +57,6 @@ Organization of the project:
 ```
 
 ### 1. Nuclei segmentation
-<span style="color:red">**TODO:**</span> Check Cellpose parameters.
 
 The nuclei were segmented using **Cellpose**, to run the segmentation, use the following command:
 
@@ -114,7 +113,6 @@ independently and finally re-assembled
 ```
 
 ### 2. Tissue filtering
-<span style="color:red">**TODO:**</span> Add option to crop the image by the tissue region.
 
 In order to filter the segmented images by any tissue of interest, use the following command:
 
@@ -127,6 +125,7 @@ Usage: python run_filter_tissue.py -i <img> -t <tissue> -o <output> -p <data_pat
 Options:
 <img> Input segmented image path (nii.gz or tiff).
 <tissue> Tissue to filter by. (Default: myocardium)
+<level> Nuclei level or Membrane level. (Default: Nuclei)
 <output> Output path for filtered image. (Default: input image path with tissue name)
 <data_path> Path to data directory. (Default: v.data_path)
 <specimen> Specimen to filter. (Default: None)
@@ -134,3 +133,26 @@ Options:
 <verbose> Verbosity level. (Default: 0)
 
 ```
+
+### 3. Feature extraction
+
+To extract features from the segmented images, use the following command:
+
+```bash
+
+python feature_extraction/run_extractor.py 
+
+Usage: run_extractor.py -d <data_path> -s <specimen> -g <group> -t <type> -v <verbose>
+
+Options:
+
+<data_path>: Path to data directory.
+<specimen>: Specimen to run prediction on.
+<group>: Group to run prediction on.
+<type>: Type of image (Nuclei, Membrane).
+<tissue>: Tissue to filter by.
+<verbose>: Verbosity level.
+
+```
+
+### 4. Proliferation characterization

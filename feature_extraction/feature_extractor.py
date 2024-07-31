@@ -166,6 +166,8 @@ def standard_features(lines, props, centroids, centroids_labels, type, verbose=0
         if verbose:
             bar.update()
 
+    bar.end()
+
     return pd.DataFrame(new_rows)
 
 
@@ -282,6 +284,8 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
 
         if verbose:
             bar.update()
+
+    bar.end()
 
     df_radiomics = pd.DataFrame(results)
     df = df.merge(df_radiomics, on='cell_in_props')

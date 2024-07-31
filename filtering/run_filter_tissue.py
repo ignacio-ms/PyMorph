@@ -166,6 +166,8 @@ def run():
             os.makedirs(tissue_folder, exist_ok=True)
             imaging.save_prediction(filtered_img, img_path_out, verbose=verbose)
 
+    bar.end()
+
 
 def print_usage():
     print(

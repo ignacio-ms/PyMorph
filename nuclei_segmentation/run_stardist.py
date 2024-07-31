@@ -310,5 +310,7 @@ if __name__ == '__main__':
 
             bar.update()
 
+        bar.end()
+
     except getopt.GetoptError:
         print_usage()

@@ -145,6 +145,8 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
             mask = np.isin(img[..., z], cell_ids)
             filtered[..., z] = np.where(mask, img[..., z], 0)
 
+        bar.end()
+
     except KeyError:
         print(f'{c.FAIL}Invalid tissue{c.ENDC}: {tissue_name}')
         print(f'{c.BOLD}Available tissues{c.ENDC}: {list(v.lines.keys())}')
