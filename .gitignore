@@ -1,3 +1,4 @@
 *.tif
 *.nii.gz
 daniela/
+*.h5
