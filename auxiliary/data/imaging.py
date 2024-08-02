@@ -152,3 +152,18 @@ def save_prediction(labels, out_path, verbose=0):
 
     if verbose:
         print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')
+
+
+def crop(img, x1, x2, y1, y2, z1, z2):
+    """
+    Crop image.
+    :param img: Image.
+    :param x1: Start of x-axis.
+    :param x2: End of x-axis.
+    :param y1: Start of y-axis.
+    :param y2: End of y-axis.
+    :param z1: Start of z-axis.
+    :param z2: End of z-axis.
+    :return: Cropped image.
+    """
+    return img[x1:x2, y1:y2, z1:z2]

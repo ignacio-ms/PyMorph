@@ -68,7 +68,7 @@ def load_model(model_type='nuclei', model_path=None):
     :param model_path: Path to model. (Default: None)
     :return: Model.
     """
-    # Not needed at the moment
+    # Not implemented
     if model_path is None:
         model_path = '../models/cellpose_models/'
 
@@ -222,7 +222,12 @@ if __name__ == '__main__':
 
             img_paths = [img]
             img_paths_out = [img.replace('RawImages', 'Segmentation')]
-            img_paths_out = [img_paths_out[0].replace('_DAPI_decon_0.5', '_mask')]
+            img_paths_out = [
+                img_paths_out[0].replace(
+                    '_DAPI_decon_0.5',
+                    f'{model}_mask'
+                )
+            ]
 
         elif spec is not None:
             if verbose:
