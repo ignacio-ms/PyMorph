@@ -33,3 +33,5 @@ for model in "${models[@]}"
 do
     echo "python nuclei_segmentation/run_cellpose.py -p $data_path -i $image_path -m $model -v 1" | qsub -P $project -A $accounting -N $job_name -l h_vmem=128G -t 1-6
 done
+
+# echo "run_cellpose.sh -p "heart_tube/data/" -i "RawImages/Nuclei/20190806_E6_DAPI_decon_0.5.nii.gz" | qsub -P MT -A "LAB_MT" -N "Cellpose hyper-tunning crop"
