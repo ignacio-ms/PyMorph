@@ -132,8 +132,11 @@ if __name__ == '__main__':
                 if verbose:
                     print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {s}')
 
-                features = run(ds, s, type, tissue=tissue, verbose=verbose)
-                features.to_csv(todo_out_paths[todo_specimens.index(s)], index=False)
+                try:
+                    features = run(ds, s, type, tissue=tissue, verbose=verbose)
+                    features.to_csv(todo_out_paths[todo_specimens.index(s)], index=False)
+                except Exception as e:
+                    print(f'{c.FAIL}Error{c.ENDC}: {e}')
 
         elif spec is not None:
             if verbose:

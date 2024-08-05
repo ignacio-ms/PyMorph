@@ -5,7 +5,8 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import (
     Conv2D, Dense,
     Flatten, Dropout,
-    BatchNormalization
+    BatchNormalization,
+    Activation
 )
 from tensorflow.keras.callbacks import (
     EarlyStopping,
@@ -17,7 +18,13 @@ from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 
 # Custom Packages
-from cell_division.nets.custom_layers import LSEPooling, w_cel_loss, focal_loss
+from cell_division.nets.custom_layers import (
+    LSEPooling,
+    w_cel_loss,
+    focal_loss,
+    extended_w_cel_loss,
+    ExtendedLSEPooling
+)
 from auxiliary import values as v
 
 
@@ -37,17 +44,26 @@ class CNN:
         )
 
         for layer in self.base_model.layers:
-            layer.trainable = fine_tune
+            layer.trainable = False
 
-    def build_top(self, activation='softmax', b_type='CAM'):
+    def build_top(self, activation='softmax', b_type='CAM', pooling=None):
         x = self.base_model.output
 
         if b_type == 'CAM':
+            if pooling is None:
+                pooling = ExtendedLSEPooling
+
             x_trans = Conv2D(
-                1024, kernel_size=3, strides=1, padding='same',
-                activation='relu', name='transition_layer'
+                1024, kernel_size=1, strides=1,
+                padding='same', name='transition_layer'
             )(x)
-            x_pool = LSEPooling(name='lse_pooling')(x_trans)
+            x_trans = BatchNormalization()(x_trans)
+            x_trans = Activation('relu')(x_trans)
+            x_trans = Dropout(rate=0.5)(x_trans)
+
+            x_pool = pooling(name='lse_pooling')(x_trans)
+            x_pool = Dropout(rate=0.5)(x_pool)
+
             predictions = Dense(
                 self.n_classes, activation=activation,
                 name='prediction_layer'
@@ -58,16 +74,23 @@ class CNN:
             x = Dense(1024, activation='relu')(x)
             x = BatchNormalization()(x)
             x = Dropout(0.5)(x)
+            x = Dense(512, activation='relu')(x)
+            x = BatchNormalization()(x)
+            x = Dropout(0.5)(x)
             predictions = Dense(self.n_classes, activation=activation)(x)
 
         self.model = Model(inputs=self.base_model.input, outputs=predictions)
+
+        n_layers = 7 if b_type == 'CAM' else 8
+        for layer in self.model.layers[-n_layers:]:
+            layer.trainable = True
 
     def compile(self, lr=1e-3, metrics=None, loss=None, optimizer=None):
         if metrics is None:
             metrics = [tf.keras.metrics.AUC(name='auc')]
 
         if loss is None:
-            loss = w_cel_loss()
+            loss = focal_loss()
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
