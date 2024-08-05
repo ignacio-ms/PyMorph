@@ -220,7 +220,7 @@ if __name__ == '__main__':
             if verbose:
                 print(f'{c.OKBLUE}Running prediction on image{c.ENDC}: {img}')
 
-            img_paths = [img]
+            img_paths = [v.data_path + img]
             img_paths_out = [img.replace('RawImages', 'Segmentation')]
             img_paths_out = [
                 img_paths_out[0].replace(
