@@ -62,6 +62,7 @@ class CNN:
             x_trans = Dropout(rate=0.5)(x_trans)
 
             x_pool = pooling(name='lse_pooling')(x_trans)
+            x_pool = Flatten()(x_pool)
             x_pool = Dropout(rate=0.5)(x_pool)
 
             predictions = Dense(
@@ -81,7 +82,7 @@ class CNN:
 
         self.model = Model(inputs=self.base_model.input, outputs=predictions)
 
-        n_layers = 7 if b_type == 'CAM' else 8
+        n_layers = 8 if b_type == 'CAM' else 8
         for layer in self.model.layers[-n_layers:]:
             layer.trainable = True
 
@@ -110,7 +111,7 @@ class CNN:
         if save:
             callbacks.append(
                 ModelCheckpoint(
-                    v.data_path + f'models/cellular_division_models/{self.base_model.name}.h5',
+                    f'../models/cellular_division_models/{self.base_model.name}.h5',
                     save_best_only=True, save_weights_only=True,
                     monitor='val_auc'
                 )
@@ -122,7 +123,7 @@ class CNN:
             epochs=epochs,
             batch_size=batch_size,
             callbacks=callbacks,
-            verbose=verbose
+            verbose=1 if verbose else 0
         )
 
         if verbose > 1:
@@ -134,7 +135,7 @@ class CNN:
             loss = history.history['loss']
             val_loss = history.history['val_loss']
 
-            plt.figure(figsize=(8, 8))
+            plt.figure(figsize=(12, 8))
             plt.subplot(1, 2, 1)
             plt.plot(acc, label='Training AUC')
             plt.plot(val_acc, label='Validation AUC')

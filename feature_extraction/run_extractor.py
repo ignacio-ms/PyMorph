@@ -48,7 +48,7 @@ def run(ds, s, type, tissue=None, verbose=0):
 
     return extract(
         seg_img, raw_img, lines, path_raw,
-        f_type='all' if type == 'Nuclei' else 'shape',
+        f_type=type,
         verbose=verbose
     )
 
@@ -153,8 +153,24 @@ if __name__ == '__main__':
             features.to_csv(out_dir, index=False)
 
         else:
-            print(f'{c.FAIL}No group or specimen provided{c.ENDC}')
-            print_usage()
+            print(f'{c.FAIL}No group or specimen provided, running all{c.ENDC}')
+
+            ds = HtDataset(data_path=data_path)
+            todo_specimens, todo_out_paths = ds.check_features(verbose=verbose, type=type)
+
+            if len(todo_specimens) == 0:
+                print(f'{c.OKGREEN}All features extracted{c.ENDC}')
+                sys.exit(0)
+
+            for s in todo_specimens:
+                if verbose:
+                    print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {s}')
+
+                try:
+                    features = run(ds, s, type, tissue=tissue, verbose=verbose)
+                    features.to_csv(todo_out_paths[todo_specimens.index(s)], index=False)
+                except Exception as e:
+                    print(f'{c.FAIL}Error{c.ENDC}: {e}')
 
     except getopt.GetoptError:
         print_usage()
