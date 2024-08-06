@@ -35,7 +35,7 @@ class CNN:
 
         self.model = None
         if base is None:
-            base = tf.keras.applications.DenseNet169
+            base = tf.keras.applications.VGG16
 
         self.base_model = base(
             include_top=False,
@@ -44,7 +44,7 @@ class CNN:
         )
 
         for layer in self.base_model.layers:
-            layer.trainable = False
+            layer.trainable = fine_tune
 
         # Completely remove last 8 layers
         for i in range(8):
@@ -95,7 +95,7 @@ class CNN:
             metrics = [tf.keras.metrics.AUC(name='auc')]
 
         if loss is None:
-            loss = focal_loss()
+            loss = extended_w_cel_loss()
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
@@ -115,7 +115,7 @@ class CNN:
         if save:
             callbacks.append(
                 ModelCheckpoint(
-                    f'../models/cellular_division_models/{self.base_model.name}.h5',
+                    f'../models/cellular_division_models/{self.base_model.name}.ckpt',
                     save_best_only=True,
                     monitor='val_auc'
                 )
@@ -160,6 +160,9 @@ class CNN:
             path,
             custom_objects={
                 'LSEPooling': LSEPooling,
-                'w_cel_loss': w_cel_loss()
+                'ExtendedLSEPooling': ExtendedLSEPooling,
+                'weighted_cross_entropy_with_logits': w_cel_loss(),
+                'focal_loss': focal_loss(),
+                'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss(),
             }
         )
