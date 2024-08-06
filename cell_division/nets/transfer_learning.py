@@ -46,6 +46,10 @@ class CNN:
         for layer in self.base_model.layers:
             layer.trainable = False
 
+        # Completely remove last 8 layers
+        for i in range(8):
+            self.base_model.layers.pop()
+
     def build_top(self, activation='softmax', b_type='CAM', pooling=None):
         x = self.base_model.output
 
@@ -62,7 +66,7 @@ class CNN:
             x_trans = Dropout(rate=0.5)(x_trans)
 
             x_pool = pooling(name='lse_pooling')(x_trans)
-            x_pool = Flatten()(x_pool)
+            x_pool = Flatten(name='lse_flatten')(x_pool)
             x_pool = Dropout(rate=0.5)(x_pool)
 
             predictions = Dense(
@@ -112,7 +116,7 @@ class CNN:
             callbacks.append(
                 ModelCheckpoint(
                     f'../models/cellular_division_models/{self.base_model.name}.h5',
-                    save_best_only=True, save_weights_only=True,
+                    save_best_only=True,
                     monitor='val_auc'
                 )
             )

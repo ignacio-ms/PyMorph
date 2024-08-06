@@ -74,3 +74,6 @@ class CellDataset(tf.keras.utils.Sequence):
 
     def oh2name(self, oh):
         return self.CLASS_NAMES[np.argmax(oh)]
+
+    def class2oh(self, c):
+        return tf.one_hot(np.int8(c), self.N_CLASSES, dtype=tf.int8)
