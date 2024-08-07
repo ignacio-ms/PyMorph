@@ -2,3 +2,4 @@
 *.nii.gz
 daniela/
 *.h5
+*.ckpt
