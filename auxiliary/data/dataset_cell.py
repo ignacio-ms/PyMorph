@@ -1,4 +1,5 @@
 # Standard Packages
+import pandas as pd
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -29,15 +30,21 @@ class CellDataset(tf.keras.utils.Sequence):
         def format_names(idx):
             return f'{idx:03}.tif'
 
-        with open(labels_path, 'r') as f:
-            for line in f:
-                if line.startswith('id'):
-                    continue
+        if isinstance(labels_path, pd.DataFrame):
+            for idx, row in labels_path.iterrows():
+                img_names.append(os.path.join(img_path, format_names(row['id'])))
+                img_labels.append(row['label'])
 
-                items = line.split()[0].split(',')
+        else:
+            with open(labels_path, 'r') as f:
+                for line in f:
+                    if line.startswith('id'):
+                        continue
 
-                img_names.append(os.path.join(img_path, format_names(int(items[0]))))
-                img_labels.append(items[1])
+                    items = line.split()[0].split(',')
+
+                    img_names.append(os.path.join(img_path, format_names(int(items[0]))))
+                    img_labels.append(items[1])
 
         self.img_names = np.array(img_names)
         self.img_labels = np.array(img_labels)

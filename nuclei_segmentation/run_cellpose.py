@@ -183,6 +183,12 @@ if __name__ == '__main__':
         if data_path is None:
             data_path = v.data_path
 
+        if normalize is None:
+            normalize = True
+
+        if equalize is None:
+            equalize = True
+
         if model is None:
             print(f'{c.BOLD}Model not provided{c.ENDC}: Running with default model (nuclei)')
             model = 'nuclei'
@@ -221,11 +227,11 @@ if __name__ == '__main__':
                 print(f'{c.OKBLUE}Running prediction on image{c.ENDC}: {img}')
 
             img_paths = [v.data_path + img]
-            img_paths_out = [img.replace('RawImages', 'Segmentation')]
+            img_paths_out = [img_paths[0].replace('RawImages', 'Segmentation')]
             img_paths_out = [
                 img_paths_out[0].replace(
                     '_DAPI_decon_0.5',
-                    f'{model}_mask'
+                    f'_{model}_mask'
                 )
             ]
 
