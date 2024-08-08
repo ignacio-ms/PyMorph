@@ -2,6 +2,8 @@
 import os
 import re
 
+import pandas as pd
+
 # Custom packages
 from auxiliary import values as v
 from auxiliary.utils.colors import bcolors as c
@@ -243,6 +245,33 @@ class HtDataset:
                 )
 
         return todo_specimens, todo_out_paths
+
+    def get_features(self, spec, type='Membrane', verbose=0):
+        """
+        Get features for a specific specimen.
+        :param spec: Specimen to get features.
+        :param type: Type of features to get. (Membrane, Nuclei)
+        :param verbose: Verbosity level.
+        :return: (Features path, Output path)
+        """
+        for group in self.specimens.keys():
+            try:
+                f_raw_dir = os.path.join(self.data_path, group, 'Features')
+                walk = os.walk(f_raw_dir).__next__()
+            except StopIteration:
+                if verbose:
+                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                continue
+
+            for file in walk[2]:
+                if re.search(spec, file) and re.search(type, file):
+                    if verbose:
+                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+
+                    path = os.path.join(f_raw_dir, file)
+                    return pd.read_csv(path)
+
+        raise FileNotFoundError(f'No specimen found: {spec}')
 
 
 def find_group(specimen):

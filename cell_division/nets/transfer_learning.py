@@ -115,8 +115,9 @@ class CNN:
         if save:
             callbacks.append(
                 ModelCheckpoint(
-                    f'../models/cellular_division_models/{self.base_model.name}.ckpt',
+                    f'../models/cellular_division_models/{self.base_model.name}.h5',
                     save_best_only=True,
+                    save_weights_only=False,
                     monitor='val_auc'
                 )
             )
