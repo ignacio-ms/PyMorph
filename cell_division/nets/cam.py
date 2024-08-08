@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 
 
-def overlay_heatmap(image, heatmap, alpha=0.5, colormap=cv2.COLORMAP_JET):
+def overlay_heatmap(image, heatmap, alpha=0.5, colormap=cv2.COLORMAP_HSV):
     image = np.uint8(255 * image) if image.dtype != np.uint8 else image
     heatmap = np.uint8(255 * heatmap) if heatmap.dtype != np.uint8 else heatmap
 

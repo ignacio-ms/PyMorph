@@ -62,7 +62,7 @@ class CellDataset(tf.keras.utils.Sequence):
         return img
 
     def __get_label(self, idx):
-        return tf.one_hot(np.int8(idx), self.N_CLASSES, dtype=tf.int8)
+        return tf.one_hot(np.int16(idx), self.N_CLASSES, dtype=tf.int16)
 
     def __len__(self):
         return math.ceil(len(self.img_names) / self.batch_size)
