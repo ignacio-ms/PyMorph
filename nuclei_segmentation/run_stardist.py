@@ -48,6 +48,8 @@ def load_img(
     img = img[..., 0] if img.ndim == 4 else img
 
     if equalize_img:
+        if verbose:
+            print(f'{c.OKBLUE}Equalizing image{c.ENDC}: {img_path}')
         img = exposure.equalize_hist(img)
 
     if normalize_img:
@@ -272,8 +274,14 @@ if __name__ == '__main__':
             if verbose:
                 print(f'Running prediction for image: {c.BOLD}{img}{c.ENDC}')
 
-            img_paths = [img]
-            img_paths_out = [img.replace('RawImages', 'Segmentation')]
+            img_paths = [v.data_path + img]
+            img_paths_out = [img_paths[0].replace('RawImages', 'Segmentation')]
+            img_paths_out = [
+                img_paths_out[0].replace(
+                    '_DAPI_decon_0.5',
+                    f'{model}_mask'
+                )
+            ]
 
         elif spec is not None:
             if verbose:
@@ -297,7 +305,7 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths), length=50)
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-            img = load_img(img_path, equalize_img=equalize,verbose=verbose)
+            img = load_img(img_path, equalize_img=equalize, verbose=verbose)
             model = load_model(model)
 
             labels, details = run(

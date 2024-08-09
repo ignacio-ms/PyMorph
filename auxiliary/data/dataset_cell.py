@@ -52,6 +52,28 @@ class CellDataset(tf.keras.utils.Sequence):
         self.batch_size = batch_size
         self.resize = resize
 
+    def add_pseudo_labels(self, img_path, labels_path):
+        img_names, img_labels = [], []
+
+        if isinstance(labels_path, pd.DataFrame):
+            for idx, row in labels_path.iterrows():
+                img_names.append(os.path.join(img_path, row['id'] + '.tif'))
+                img_labels.append(row['label'])
+
+        else:
+            with open(labels_path, 'r') as f:
+                for line in f:
+                    if line.startswith('id'):
+                        continue
+
+                    items = line.split()[0].split(',')
+
+                    img_names.append(os.path.join(img_path, items[0] + '.tif'))
+                    img_labels.append(items[1])
+
+        self.img_names = np.concatenate((self.img_names, np.array(img_names)))
+        self.img_labels = np.concatenate((self.img_labels, np.array(img_labels)))
+
     def __get_image(self, idx):
         img = io.imread(idx)
         if img is not None:

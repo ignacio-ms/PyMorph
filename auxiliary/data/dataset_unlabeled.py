@@ -17,6 +17,7 @@ except NameError:
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
 from auxiliary import values as v
+from auxiliary.data import imaging
 
 
 class UnlabeledDataset(tf.keras.utils.Sequence):
@@ -28,14 +29,18 @@ class UnlabeledDataset(tf.keras.utils.Sequence):
         if img_path is None:
             img_path = v.data_path + 'CellDivision/images_unlabeled/'
 
-        img_names = [f for f in os.listdir(img_path) if f.endswith('.tif')]
+        img_names = [
+            os.path.join(img_path, f)
+            for f in os.listdir(img_path)
+            if f.endswith('.tif')
+        ]
 
         self.img_names = np.array(img_names)
         self.batch_size = batch_size
         self.resize = resize
 
     def __get_image(self, idx):
-        img = io.imread(idx)
+        img = imaging.read_image(idx)
         if img is not None:
             if self.resize:
                 img = cv2.resize(img, self.resize, interpolation=cv2.INTER_AREA)
@@ -43,8 +48,8 @@ class UnlabeledDataset(tf.keras.utils.Sequence):
             img = img.astype(np.float32)
         return img
 
-    def __getitem__(self, index):
-        batch_names = self.img_names[index * self.batch_size:(index + 1) * self.batch_size]
+    def __getitem__(self, item):
+        batch_names = self.img_names[item * self.batch_size:(item + 1) * self.batch_size]
         batch_images = [self.__get_image(name) for name in batch_names]
 
         return np.array(batch_images)

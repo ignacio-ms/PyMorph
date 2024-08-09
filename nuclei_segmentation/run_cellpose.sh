@@ -13,7 +13,7 @@ while getopts 'p:i:v:' flag; do
   esac
 done
 
-conda activate py310ml
+#conda activate py310ml
 #cd /home/imarcoss/heart_tube/
 
 # Create list of models to test and run cellpose

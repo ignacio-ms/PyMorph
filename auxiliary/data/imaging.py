@@ -104,6 +104,9 @@ def read_tiff(path, axes='XYZ', verbose=0):
         print(f'{c.OKBLUE}Reading TIFF{c.ENDC}: {path}')
 
     img = np.array(imread(path))
+    if img.ndim == 2:
+        return img
+
     if axes == 'XYZ':
         img = np.swapaxes(img, 0, 2)
     elif axes == 'ZXY':
@@ -167,3 +170,26 @@ def crop(img, x1, x2, y1, y2, z1, z2):
     :return: Cropped image.
     """
     return img[x1:x2, y1:y2, z1:z2]
+
+
+def iqr_filter(img, verbose=0):
+    """
+    Apply IQR filter to image intensities to remove z-slices with low intensity values.
+    :param img: Image.
+    :param verbose: Verbosity level.
+    :return: Filtered image.
+    """
+    img_copy = img.copy().astype(np.uint8)
+    intensities = np.mean(img_copy, axis=(0, 1))
+
+    q1 = np.percentile(intensities, 35)
+    q3 = np.percentile(intensities, 95)
+    iqr = q3 - q1
+
+    threshold = q1 - .1 * iqr
+    if verbose:
+        print(f'{c.BOLD}IQR Threshold{c.ENDC}: {threshold}')
+        print(f'Removing {np.sum(intensities < threshold)} z-slices')
+
+    return img[:, :, intensities > threshold]
+
