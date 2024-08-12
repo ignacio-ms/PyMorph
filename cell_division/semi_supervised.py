@@ -156,7 +156,7 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
         if verbose:
             print(f'{c.OKBLUE}Undersampling results{c.ENDC}')
             print(f'Pseudo-labels: {len(pseudo_labels_df)}')
-            print(f'Pseudo-labels distribution: {np.bincount(pseudo_labels_df)}')
+            print(f'Pseudo-labels distribution: {np.bincount(pseudo_labels_df["label"])}')
 
     pseudo_labels_df.to_csv(v.data_path + 'CellDivision/undersampled/pseudo_labels.csv', index=False)
 
