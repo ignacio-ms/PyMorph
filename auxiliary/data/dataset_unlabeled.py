@@ -35,6 +35,7 @@ class UnlabeledDataset(tf.keras.utils.Sequence):
             if f.endswith('.tif')
         ]
 
+        self.img_short_names = np.array([os.path.basename(f) for f in img_names])
         self.img_names = np.array(img_names)
         self.batch_size = batch_size
         self.resize = resize
@@ -47,6 +48,10 @@ class UnlabeledDataset(tf.keras.utils.Sequence):
             img = img / 255.0
             img = img.astype(np.float32)
         return img
+
+    def remove_images(self, idxs):
+        self.img_names = np.delete(self.img_names, idxs)
+        self.img_short_names = np.delete(self.img_short_names, idxs)
 
     def __getitem__(self, item):
         batch_names = self.img_names[item * self.batch_size:(item + 1) * self.batch_size]

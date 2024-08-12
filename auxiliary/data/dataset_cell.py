@@ -57,7 +57,7 @@ class CellDataset(tf.keras.utils.Sequence):
 
         if isinstance(labels_path, pd.DataFrame):
             for idx, row in labels_path.iterrows():
-                img_names.append(os.path.join(img_path, row['id'] + '.tif'))
+                img_names.append(os.path.join(img_path, row['id']))
                 img_labels.append(row['label'])
 
         else:
@@ -68,7 +68,7 @@ class CellDataset(tf.keras.utils.Sequence):
 
                     items = line.split()[0].split(',')
 
-                    img_names.append(os.path.join(img_path, items[0] + '.tif'))
+                    img_names.append(os.path.join(img_path, items[0]))
                     img_labels.append(items[1])
 
         self.img_names = np.concatenate((self.img_names, np.array(img_names)))

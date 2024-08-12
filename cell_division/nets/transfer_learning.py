@@ -106,7 +106,7 @@ class CNN:
             metrics=metrics
         )
 
-    def fit(self, train_gen, val_gen, epochs=100, batch_size=32, save=True, verbose=0):
+    def fit(self, train_gen, val_gen, epochs=100, batch_size=32, save=False, verbose=0):
         callbacks = [
             EarlyStopping(monitor='val_auc', patience=5, restore_best_weights=True, verbose=1),
             ReduceLROnPlateau(monitor='val_auc', patience=3, factor=0.1, verbose=1)

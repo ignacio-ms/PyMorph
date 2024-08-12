@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="f78dc089-0fe2-4bf4-8dab-f466dff5134f" name="cuslter.submit" url="">
+        <fileTransfer rootFolder="/data_lab_MT/Ignacio" accessType="SFTP" host="10.149.80.48" port="22" sshConfigId="acdfaa04-085b-4072-9a4c-4b2719943486" sshConfig="imarcoss@10.149.80.48:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

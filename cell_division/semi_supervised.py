@@ -137,9 +137,13 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
 
     # Saving the image names and pseudo labels into csv
     pseudo_labels_df = pd.DataFrame({
-        'id': unlabeled.img_names[mask],
+        'id': unlabeled.img_short_names[mask].astype(str),
         'label': pseudo_labels
     })
+
+    # Get instances pseudo-labeled index to remove from the unlabeled dataset
+    idxs = np.where(mask == True)[0]
+    unlabeled.remove_images(idxs)
 
     if undersample:
         X = np.array(pseudo_labels_df['id']).reshape(-1, 1)
@@ -210,6 +214,8 @@ def semi_supervised_learning(
     :return:
     """
 
+    results = []
+    iters_without_improvement = 0
     for i in range(max_iter):
         if verbose:
             print(f'{c.OKGREEN}Iteration:{c.ENDC} {i + 1}')
@@ -217,6 +223,21 @@ def semi_supervised_learning(
 
         # Pre-train the model with the labeled data
         model = pre_train(model, train, val, batch_size=batch_size, verbose=verbose)
+        results.append(model.model.evaluate(val, verbose=0)[1])
+
+        if i == 0:
+            model.model.save(v.data_path + f'CellDivision/models/vgg16_semi_{i}.h5')
+
+        elif results[-1] > np.max(results[:-1]):
+            model.model.save(v.data_path + f'CellDivision/models/vgg16_semi_{i}.h5')
+            iters_without_improvement = 0
+
+        if i > 0 and results[-1] < np.max(results[:-1]):
+            iters_without_improvement += 1
+            if iters_without_improvement == 3:
+                print(f'{c.OKGREEN}Early stopping at iteration {i + 1}{c.ENDC}')
+                break
+
         if verbose:
             print_iter_results(model, train, test, val)
             print(f'\t{c.OKBLUE}Pseudo-labeling...{c.ENDC}')
