@@ -87,9 +87,9 @@ def crop_img(img, margins, verbose=0):
         img = read_nii(img) if img.endswith('.nii.gz') else read_tiff(img)
 
     img = img[
-        margins[0][0]:margins[1][0],
-        margins[0][1]:margins[1][1],
-        margins[0][2]:margins[1][2]
+        int(margins[0][0]):int(margins[1][0]),
+        int(margins[0][1]):int(margins[1][1]),
+        int(margins[0][2]):int(margins[1][2])
     ]
 
     if verbose:

@@ -38,7 +38,7 @@ def load_img(img_path, img_type='.nii.gz', equalize_img=True, verbose=0):
     :param verbose: Verbosity level.
     :return: Image.
     """
-    img = imaging.read_nii(img_path, axes='ZXY') if img_type == '.nii.gz' else None  # To be implemented
+    img = imaging.read_image(img_path, axes='ZXY', verbose=verbose)
     if equalize_img:
         if verbose:
             print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
@@ -257,6 +257,7 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths), length=50)
         for img_path, img_path_out in zip(img_paths, img_paths_out):
+            print(img_path, img_path_out)
             img = load_img(img_path, equalize_img=equalize, verbose=verbose)
             model = load_model(model_type=model)
 
