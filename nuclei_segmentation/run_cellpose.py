@@ -257,7 +257,6 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths), length=50)
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-            print(img_path, img_path_out)
             img = load_img(img_path, equalize_img=equalize, verbose=verbose)
             model = load_model(model_type=model)
 

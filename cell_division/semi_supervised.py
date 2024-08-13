@@ -26,6 +26,7 @@ from auxiliary.data.dataset_cell import CellDataset
 from auxiliary import values as v
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.utils import visualizer as vis
+from auxiliary.data import imaging
 
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.losses import CategoricalCrossentropy
@@ -165,7 +166,59 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
     pseudo_labels_df.to_csv(v.data_path + 'CellDivision/undersampled/pseudo_labels.csv', index=False)
 
 
-def merge_datasets(train, pseudo_labels_file='pseudo_labels.csv'):
+def split_pseudo_labeled_images(
+        data_path=None,
+        pseudo_labels_file='pseudo_labels.csv',
+        verbose=0
+):
+    """
+    Images in the unlabeled dataset are 3D stacks. This function splits the images with pseudo-labels
+    into 2D images with the corresponding pseudo-label.
+    Apart from assigning the pseudo-labels to the 2D stacks, the 2D stacks are saved into a new folder.
+    :param pseudo_labels_file: File with the pseudo-labels and images ids.
+    :return: Dataset with the splitted images in 2D
+    """
+    if data_path is None:
+        data_path = v.data_path
+
+
+    df = pd.read_csv(data_path + f'CellDivision/undersampled/{pseudo_labels_file}')
+    img_path = data_path + 'CellDivision/images_unlabeled/'
+    new_path = data_path + 'CellDivision/images_unlabeled_2d/'
+
+    new_df = pd.DataFrame(columns=['id', 'label'])
+
+    if not os.path.exists(new_path):
+        os.makedirs(new_path)
+
+    if verbose:
+        print(f'{c.OKBLUE}Splitting pseudo-labeled images into 2D slices...{c.ENDC}')
+    bar = LoadingBar(len(df))
+
+    for idx, row in df.iterrows():
+        img = cv2.imread(img_path + row['id'], cv2.IMREAD_GRAYSCALE)
+        for z in range(img.shape[2]):
+            imaging.save_prediction(
+                img[..., z],
+                new_path + f'{row["id"].replace(".tif", "")}_{z}.tif',
+                )
+            new_df = new_df.append({
+                'id': f'{row["id"].replace(".tif", "")}_{z}.tif',
+                'label': row['label']}
+                , ignore_index=True
+            )
+
+        if verbose:
+            bar.update()
+
+            print(f'{c.OKGREEN}Splitting completed{c.ENDC}')
+            print(f'\t{c.BOLD}Total instances:{c.ENDC} {len(new_df)}')
+
+    bar.end()
+    new_df.to_csv(data_path + f'CellDivision/undersampled/{pseudo_labels_file.replace(".csv", "_2d.csv")}', index=False)
+
+
+def merge_datasets(train, pseudo_labels_file='pseudo_labels_2d.csv'):
     """
     Merge the labeled and pseudo-labeled data into a single dataset.
     :param pseudo_labels_file: Path to the pseudo-labels file.
@@ -225,6 +278,7 @@ def semi_supervised_learning(
         model = pre_train(model, train, val, batch_size=batch_size, verbose=verbose)
         results.append(model.model.evaluate(val, verbose=0)[1])
 
+        # Early stopping and saving the model
         if i == 0:
             model.model.save(v.data_path + f'CellDivision/models/vgg16_semi_{i}.h5')
 
@@ -243,6 +297,7 @@ def semi_supervised_learning(
             print(f'\t{c.OKBLUE}Pseudo-labeling...{c.ENDC}')
 
         pseudo_labeling(model, unlabeled, verbose=verbose)
+        split_pseudo_labeled_images(verbose=verbose)
         train = merge_datasets(train)
 
     return model
