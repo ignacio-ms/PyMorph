@@ -6,8 +6,8 @@
 while getopts 'p:i:v:' flag; do
   case "${flag}" in
     p) data_path="${OPTARG}" ;;
-#    i) image_path="${OPTARG}" ;;
-    e) embryo="${OPTARG}" ;;
+    i) image_path="${OPTARG}" ;;
+#    e) embryo="${OPTARG}" ;;
     v) verbose="${OPTARG}" ;;
     *) error "Unexpected option ${flag}" ;;
   esac
@@ -31,4 +31,7 @@ done
 ## Run cellpose
 #python ht_morphogenesis/nuclei_segmentation/run_cellpose.py -p $data_path -i $image_path -m $model -v $verbose
 
-python ht_morphogenesis/nuclei_segmentation/run_cellpose.py -p $data_path -s $embryo -v $verbose
+#python ht_morphogenesis/nuclei_segmentation/run_cellpose.py -p $data_path -s $embryo -v $verbose
+
+#-----Singularity-----#
+singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ /data_lab_MT/Ignacio/ht_morphogenesis_latest.sif python /app/nuclei_segmentation/run_cellpose.py -p /data/ -i $image_path -m 'nuclei' -n True -e True -v $verbose

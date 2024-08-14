@@ -29,7 +29,7 @@ from cellpose.io import logger_setup
 logger_setup();
 
 
-def load_img(img_path, img_type='.nii.gz', equalize_img=True, verbose=0):
+def load_img(img_path, equalize_img=True, verbose=0):
     """
     Load and normalize image.
     :param img_path: Path to image.
@@ -71,7 +71,7 @@ def load_model(model_type='nuclei', model_path=None):
     # Not implemented
     if model_path is None:
         model_path = '../models/cellpose_models/'
-
+    print(f'{c.OKBLUE}Loading model{c.ENDC}: {model_type}')
     return models.Cellpose(gpu=use_gpu, model_type=model_type)
 
 
@@ -143,7 +143,7 @@ def print_usage():
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    data_path, img, spec, group, model, normalize, equalize, diameter, channels, verbose = None, None, None, None, None, None, None, None, None, None
+    data_path, img, spec, group, model, normalize, equalize, diameter, channels, verbose = None, None, None, None, 'nuclei', True, True, None, None, 1
 
     try:
         opts, args = getopt.getopt(argv, "hp:i:s:g:m:n:e:d:c:v:", [
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                 verbose=verbose
             )
 
-            imaging.save_prediction(masks, img_path_out, verbose=verbose)
+            imaging.save_prediction(masks, img_path_out, axes='ZXY', verbose=verbose)  # ZXY
 
             bar.update()
 
