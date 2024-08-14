@@ -231,7 +231,7 @@ def merge_datasets(train, pseudo_labels_file='pseudo_labels_2d.csv'):
     :return:
     """
     train.add_pseudo_labels(
-        v.data_path + 'CellDivision/images_unlabeled/',
+        v.data_path + 'CellDivision/images_unlabeled_2d/',
         v.data_path + f'CellDivision/undersampled/{pseudo_labels_file}'
     )
     return train
