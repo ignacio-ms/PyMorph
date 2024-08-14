@@ -67,7 +67,7 @@ def load_metadata(path):
             'x_res': np.round(proxy.header['pixdim'][1], 6),
             'y_res': np.round(proxy.header['pixdim'][2], 6),
             'z_res': np.round(proxy.header['pixdim'][3], 6)
-        }
+        }, proxy.affine.copy()
     else:  # Tiff file
         with tiff.TiffFile(path) as tif:
             first_page = tif.pages[0]
@@ -89,7 +89,7 @@ def load_metadata(path):
             'x_res': x_res,
             'y_res': y_res,
             'z_res': z_res
-        }
+        }, None
 
 
 def read_tiff(path, axes='XYZ', verbose=0):
@@ -153,6 +153,34 @@ def save_prediction(labels, out_path, axes='XYZ', verbose=0):
         labels = np.swapaxes(labels, 0, 2)
 
     save_tiff_imagej_compatible(out_path, labels, axes=axes)
+
+    if verbose:
+        print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')
+
+
+def save_nii(labels, out_path, axes='XYZ', affine=None, verbose=0):
+    """
+    Save prediction as NIfTI image.
+    :param labels: Labels.
+    :param out_path: Path to save prediction.
+    :param axes: Axes of the image. (Default: XYZ)
+    :param affine: Affine transformation matrix. (Default: None)
+    :param verbose: Verbosity level.
+    """
+    if out_path.endswith('.tif') or out_path.endswith('.tiff'):
+        out_path = out_path.replace('.tif', '.nii.gz')
+
+    if affine is None:
+        affine = np.eye(4)
+
+    if axes == 'ZXY':
+        labels = np.swapaxes(np.swapaxes(labels, 0, 2), 1, 2)
+    elif axes == 'ZYX':
+        labels = np.swapaxes(labels, 0, 2)
+    elif axes not in ['XYZ', 'ZXY', 'ZYX']:
+        print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - NIfTI')
+
+    nib.save(nib.Nifti1Image(labels, affine), out_path)
 
     if verbose:
         print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')

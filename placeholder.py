@@ -68,4 +68,10 @@ margins = get_margins(
 img_path, _ = ds.read_specimen('0806_E6', level='Nuclei', type='RawImages', verbose=1)
 img = imaging.read_image(img_path, verbose=1)
 img = crop_img(img, margins, verbose=1)
-imaging.save_prediction(img, v.data_path + 'Auxiliary/CellposeClusterTest/RawImages/Nuclei/0806_E6_myocardium.tif', verbose=1)
+
+metadata, affine = imaging.load_metadata(img_path)
+
+imaging.save_nii(
+    img, v.data_path + 'Auxiliary/CellposeClusterTest/RawImages/Nuclei/0806_E6_myocardium.nii.gz',
+    affine=affine, verbose=1
+)

@@ -32,9 +32,9 @@ def get_margins(line_path, img_path, tissue=None, ma=5, resolution=1024, verbose
     :param verbose: Verbosity level.
     :return:
     """
-    metadata_line = load_metadata(line_path)
+    metadata_line, _ = load_metadata(line_path)
     line = read_nii(line_path)
-    metadata_img = load_metadata(img_path)
+    metadata_img, _ = load_metadata(img_path)
 
     if verbose:
         print(f'{c.BOLD}Margin around line{c.ENDC}: {ma}')

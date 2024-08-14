@@ -180,7 +180,7 @@ def resample_img(img, mask, raw_img_path):
     :param verbose: Verbosity level. (default: 0)
     :return: Resampled image and mask.
     """
-    metadata = cr.load_metadata(raw_img_path)
+    metadata, _ = cr.load_metadata(raw_img_path)
     spacing = [
         float(metadata['x_res']),
         float(metadata['y_res']),

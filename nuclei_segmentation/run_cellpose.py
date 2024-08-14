@@ -38,7 +38,7 @@ def load_img(img_path, equalize_img=True, verbose=0):
     :param verbose: Verbosity level.
     :return: Image.
     """
-    img = imaging.read_image(img_path, axes='ZXY', verbose=verbose)
+    img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
     if equalize_img:
         if verbose:
             print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
@@ -260,7 +260,7 @@ if __name__ == '__main__':
             img = load_img(img_path, equalize_img=equalize, verbose=verbose)
             model = load_model(model_type=model)
 
-            metadata = imaging.load_metadata(img_path)
+            metadata, _ = imaging.load_metadata(img_path)
             anisotropy = metadata['z_res'] / metadata['x_res']
 
             masks = run(
@@ -270,7 +270,7 @@ if __name__ == '__main__':
                 verbose=verbose
             )
 
-            imaging.save_prediction(masks, img_path_out, axes='YXZ', verbose=verbose)  # ZXY
+            imaging.save_prediction(masks, img_path_out, axes='XYZ', verbose=verbose)  # ZXY
 
             bar.update()
 
