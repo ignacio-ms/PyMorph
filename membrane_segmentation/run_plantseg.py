@@ -101,7 +101,7 @@ if __name__ == '__main__':
                 sys.exit(2)
 
             specimens = dataset.specimens[group]
-            img_paths = dataset.raw_nuclei_path
+            img_paths = dataset.raw_membrane_path
             img_paths = [
                 img_path for img_path in img_paths if any(
                     specimen in img_path for specimen in specimens
@@ -112,7 +112,7 @@ if __name__ == '__main__':
             if verbose:
                 print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {spec}')
 
-            img_path, _ = dataset.read_specimen(spec, verbose=verbose)
+            img_path, _ = dataset.read_specimen(spec, level='Membrane', verbose=verbose)
             img_paths = [img_path]
 
         else:
@@ -128,7 +128,13 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths))
         for img_path in img_paths:
-            modify_yaml_path(img_path)
+            if verbose:
+                print(f'{c.OKBLUE}Transforming image {c.BOLD} .nii.gz -> .h5{c.ENDC}: {img_path}')
+
+            img = imaging.read_image(img_path, verbose=verbose)
+            imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=verbose)
+
+            modify_yaml_path(img_path.replace('.nii.gz', '.h5'))
             subprocess.run(f'plantseg --config membrane_segmentation/config.yaml', shell=True, check=True)
             bar.update()
 

@@ -159,7 +159,7 @@ class HtDataset:
                 continue
 
             for img in walk[2]:
-                if re.search(spec, img):
+                if re.search(spec, img) and not img.endswith('.h5'):
                     if verbose:
                         print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
 

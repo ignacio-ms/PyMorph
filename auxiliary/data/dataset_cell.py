@@ -77,6 +77,8 @@ class CellDataset(tf.keras.utils.Sequence):
     def __get_image(self, idx):
         img = io.imread(idx)
         if img is not None:
+            if len(img.shape) == 2:
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
             if self.resize:
                 img = cv2.resize(img, self.resize, interpolation=cv2.INTER_AREA)
             img = img / 255.0

@@ -1,9 +1,11 @@
 import glob
+import os
 
 import numpy as np
 import nibabel as nib
 from tifffile import imread
 import tifffile as tiff
+import h5py
 
 from csbdeep.io import save_tiff_imagej_compatible
 
@@ -184,6 +186,35 @@ def save_nii(labels, out_path, axes='XYZ', affine=None, verbose=0):
 
     if verbose:
         print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')
+
+
+def nii2h5(img, out_path, axes='XYZ', verbose=0):
+    """
+    Save image as HDF5 file.
+    :param img: Image.
+    :param out_path: Path to save image.
+    :param axes: Axes of the image. (Default: XYZ)
+    :param verbose: Verbosity level.
+    """
+    if out_path.endswith('.nii.gz'):
+        out_path = out_path.replace('.nii.gz', '.h5')
+
+    if os.path.exists(out_path):
+        print(f"File {out_path} already exists. Skipping conversion.")
+        return
+
+    if axes == 'ZXY':
+        img = np.swapaxes(np.swapaxes(img, 0, 2), 1, 2)
+    elif axes == 'ZYX':
+        img = np.swapaxes(img, 0, 2)
+    elif axes not in ['XYZ', 'ZXY', 'ZYX']:
+        print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - HDF5')
+
+    with h5py.File(out_path, 'a') as hf:
+        _ = hf.create_dataset('raw', data=img)
+
+    if verbose:
+        print(f'\n{c.OKGREEN}Saving image{c.ENDC}: {out_path}')
 
 
 def crop(img, x1, x2, y1, y2, z1, z2):
