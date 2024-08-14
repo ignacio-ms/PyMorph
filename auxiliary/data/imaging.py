@@ -136,9 +136,10 @@ def read_image(path, axes='XYZ', verbose=0):
         print(f'{c.FAIL}Invalid image format{c.ENDC}: {path}')
 
 
-def save_prediction(labels, out_path, verbose=0):
+def save_prediction(labels, out_path, axes='XYZ', verbose=0):
     """
     Save prediction as tiff image.
+    :param axes: Axes of the image. If the image is 2D, the axis must be XY or YX (Default: XYZ)
     :param labels: Labels.
     :param out_path: Path to save prediction.
     :param verbose: Verbosity level.
@@ -151,7 +152,7 @@ def save_prediction(labels, out_path, verbose=0):
     if labels.shape[0] < labels.shape[1]:
         labels = np.swapaxes(labels, 0, 2)
 
-    save_tiff_imagej_compatible(out_path, labels, axes='XYZ')
+    save_tiff_imagej_compatible(out_path, labels, axes=axes)
 
     if verbose:
         print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')

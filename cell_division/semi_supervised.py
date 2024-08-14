@@ -181,7 +181,6 @@ def split_pseudo_labeled_images(
     if data_path is None:
         data_path = v.data_path
 
-
     df = pd.read_csv(data_path + f'CellDivision/undersampled/{pseudo_labels_file}')
     img_path = data_path + 'CellDivision/images_unlabeled/'
     new_path = data_path + 'CellDivision/images_unlabeled_2d/'
@@ -196,25 +195,31 @@ def split_pseudo_labeled_images(
     bar = LoadingBar(len(df))
 
     for idx, row in df.iterrows():
-        img = cv2.imread(img_path + row['id'], cv2.IMREAD_GRAYSCALE)
+        img = imaging.read_image(img_path + row['id'])
+        if img.ndim == 2:
+            img = np.expand_dims(img, axis=-1)
+
         for z in range(img.shape[2]):
             imaging.save_prediction(
                 img[..., z],
                 new_path + f'{row["id"].replace(".tif", "")}_{z}.tif',
-                )
-            new_df = new_df.append({
-                'id': f'{row["id"].replace(".tif", "")}_{z}.tif',
-                'label': row['label']}
-                , ignore_index=True
+                axes='XY'
             )
+
+            new_row = pd.DataFrame({
+                'id': [f'{row["id"].replace(".tif", "")}_{z}.tif'],
+                'label': [row['label']]
+            })
+            new_df = pd.concat([new_df, new_row], ignore_index=True)
 
         if verbose:
             bar.update()
 
-            print(f'{c.OKGREEN}Splitting completed{c.ENDC}')
-            print(f'\t{c.BOLD}Total instances:{c.ENDC} {len(new_df)}')
+    if verbose:
+        bar.end()
+        print(f'{c.OKGREEN}Splitting completed{c.ENDC}')
+        print(f'\t{c.BOLD}Total instances:{c.ENDC} {len(new_df)}')
 
-    bar.end()
     new_df.to_csv(data_path + f'CellDivision/undersampled/{pseudo_labels_file.replace(".csv", "_2d.csv")}', index=False)
 
 
@@ -280,10 +285,10 @@ def semi_supervised_learning(
 
         # Early stopping and saving the model
         if i == 0:
-            model.model.save(v.data_path + f'CellDivision/models/vgg16_semi_{i}.h5')
+            model.model.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
 
         elif results[-1] > np.max(results[:-1]):
-            model.model.save(v.data_path + f'CellDivision/models/vgg16_semi_{i}.h5')
+            model.model.save('../models/cellular_division_models/vgg16_semi_{i}.h5')
             iters_without_improvement = 0
 
         if i > 0 and results[-1] < np.max(results[:-1]):
