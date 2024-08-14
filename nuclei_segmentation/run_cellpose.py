@@ -270,7 +270,8 @@ if __name__ == '__main__':
                 verbose=verbose
             )
 
-            imaging.save_prediction(masks, img_path_out, axes='XYZ', verbose=verbose)  # ZXY
+            imaging.save_prediction(masks, img_path_out, axes='XYZ', verbose=verbose)
+            imaging.save_nii(masks, img_path_out, verbose=verbose)
 
             bar.update()
 
