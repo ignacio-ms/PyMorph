@@ -12,7 +12,7 @@ preprocessing:
   save_directory: 'PreProcessing'
   # rescaling the volume is essential for the generalization of the networks. The rescaling factor can be computed as the resolution
   # of the volume at hand divided by the resolution of the dataset used in training. Be careful, if the difference is too large check for a different model.
-  factor: [2.0, 1.0, 1.0]
+  factor: [1.0, 1.0, 1.0]
   # the order of the spline interpolation
   order: 2
   # cropping out areas of little interest can drastically improve the performance of plantseg.
@@ -40,7 +40,7 @@ cnn_prediction:
   # how many subprocesses to use for data loading
   num_workers: 8
   # patch size given to the network (adapt to fit in your GPU mem)
-  patch: [64, 150, 150]
+  patch: [150, 150, 150]
   # stride between patches will be computed as `stride_ratio * patch`
   # recommended values are in range `[0.5, 0.75]` to make sure the patches have enough overlap to get smooth prediction maps
   stride_ratio: 0.75
@@ -53,7 +53,7 @@ cnn_postprocessing:
   # if True convert to result to tiff
   tiff: True
   # rescaling factor
-  factor: [0.5, 1, 1]
+  factor: [1, 1, 1]
   # spline order for rescaling
   order: 2
 
@@ -93,7 +93,7 @@ segmentation_postprocessing:
   # if True convert to result to tiff
   tiff: True
   # rescaling factor
-  factor: [0.5, 1, 1]
+  factor: [1, 1, 1]
   # spline order for rescaling (keep 0 for segmentation post processing
   order: 0
   # save raw input in the output segmentation file h5 file

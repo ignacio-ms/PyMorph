@@ -98,6 +98,37 @@ def crop_img(img, margins, verbose=0):
     return img
 
 
+def restore_img(img, margins, depth, resolution=1024, axes='XYZ', verbose=0):
+    """
+    Restore image to original resolution. Setting to zero the pixels outside the margins.
+    :param img:
+    :param margins:
+    :param depth:
+    :param resolution:
+    :param axes:
+    :param verbose:
+    :return:
+    """
+
+    if axes == 'XYZ':
+        shape = (resolution, resolution, depth)
+    else:  # axes == 'ZYX':
+        shape = (depth, resolution, resolution)
+
+    restored = np.zeros(shape, dtype=img.dtype)
+
+    restored[
+        int(margins[0][0]):int(margins[1][0]),
+        int(margins[0][1]):int(margins[1][1]),
+        int(margins[0][2]):int(margins[1][2])
+    ] = img
+
+    if verbose:
+        print(f'{c.BOLD}Restored image shape{c.ENDC}: {restored.shape}')
+
+    return restored
+
+
 def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size=3, verbose=0):
     """
     Filter image by tissue.

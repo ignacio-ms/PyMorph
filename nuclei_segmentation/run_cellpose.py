@@ -3,9 +3,11 @@ import os
 import sys
 import getopt
 
+from scipy import ndimage
 from skimage import exposure
 
 from cellpose import models, core
+from csbdeep.utils import normalize as deep_norm
 
 # Custom packages
 try:
@@ -17,9 +19,10 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import HtDataset
+from auxiliary.data.dataset_ht import HtDataset, find_specimen
 from auxiliary.utils.timer import LoadingBar, timed
 from auxiliary.data import imaging
+from filtering.cardiac_region import get_margins, crop_img, restore_img
 
 # Configurations
 use_gpu = core.use_gpu()
@@ -29,25 +32,37 @@ from cellpose.io import logger_setup
 logger_setup();
 
 
-def load_img(img_path, equalize_img=True, verbose=0):
+def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
     """
     Load and normalize image.
     :param img_path: Path to image.
-    :param img_type: Extension of image[.nii.gz | .tif]. (Default: .nii.gz)
+    :param normalize_img: Normalize image. (Default: True)
     :param equalize_img: Perform histogram equalization on image. (Default: True)
     :param verbose: Verbosity level.
     :return: Image.
     """
     img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
-    if equalize_img:
-        if verbose:
-            print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
-        img = exposure.equalize_hist(img)
-
     if verbose:
         print(f'{c.OKBLUE}Loaded image{c.ENDC}: {img_path}')
         print(f'{c.BOLD}Image shape{c.ENDC}: {img.shape}')
 
+    if equalize_img:
+        if verbose:
+            print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
+
+        img = exposure.equalize_hist(img)
+
+    if normalize_img:
+        if verbose:
+            print(f'{c.OKBLUE}Normalizing image{c.ENDC}...')
+
+        img = deep_norm(img, 1, 99.8, axis=(0, 1, 2))
+
+    # Median filter
+    if verbose:
+        print(f'{c.OKBLUE}Applying median filter{c.ENDC}...')
+
+    img = ndimage.median_filter(img, size=3)
     return img
 
 
@@ -71,6 +86,7 @@ def load_model(model_type='nuclei', model_path=None):
     # Not implemented
     if model_path is None:
         model_path = '../models/cellpose_models/'
+
     print(f'{c.OKBLUE}Loading model{c.ENDC}: {model_type}')
     return models.Cellpose(gpu=use_gpu, model_type=model_type)
 
@@ -79,7 +95,7 @@ def load_model(model_type='nuclei', model_path=None):
 def run(
         model, img,
         diameter=None, channels=None,
-        normalize=True, anisotropy=1,
+        anisotropy=1,
         verbose=0
 ):
     """
@@ -103,9 +119,10 @@ def run(
         img,
         diameter=diameter,
         channels=channels,
-        normalize=normalize,
+        normalize=False,
         anisotropy=anisotropy,
-        do_3D=True
+        do_3D=False,
+        stitch_threshold=.65
     )
 
     if verbose:
@@ -135,6 +152,7 @@ def print_usage():
         f'{c.BOLD}<channels>{c.ENDC}: Channels to use. (Default: [0, 0])\n'
         f'\tChannels must be a list of integers.\n'
         f'\t0 = Grayscale - 1 = Red - 2 = Green - 3 = Blue\n'
+        f'{c.BOLD}<tissue>{c.ENDC}: Tissue to crop image. (Default: Myocardium)\n'
         f'{c.BOLD}<verbose>{c.ENDC}: Verbosity level. (Default: 0)\n'
     )
     sys.exit(2)
@@ -143,11 +161,11 @@ def print_usage():
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    data_path, img, spec, group, model, normalize, equalize, diameter, channels, verbose = None, None, None, None, 'nuclei', True, True, None, None, 1
+    data_path, img, spec, group, model, normalize, equalize, diameter, channels, tissue, verbose = None, None, None, None, 'nuclei', True, True, None, None, None,1
 
     try:
-        opts, args = getopt.getopt(argv, "hp:i:s:g:m:n:e:d:c:v:", [
-            'help', "data_path=", "image=", "specimen=", "group=", "model=", "normalize=", "equalize=", "diameter=", "channels=", "verbose="
+        opts, args = getopt.getopt(argv, "hp:i:s:g:m:n:e:d:c:t:v:", [
+            'help', "data_path=", "image=", "specimen=", "group=", "model=", "normalize=", "equalize=", "diameter=", "channels=", "tissue=", "verbose="
         ])
 
         if len(opts) == 0 or len(opts) > 8:
@@ -174,6 +192,8 @@ if __name__ == '__main__':
                 diameter = arg_check(opt, arg, "-d", "--diameter", int, print_usage)
             elif opt in ("-c", "--channels"):
                 channels = arg_check(opt, arg, "-c", "--channels", list, print_usage)
+            elif opt in ("-t", "--tissue"):
+                tissue = arg_check(opt, arg, "-t", "--tissue", str, print_usage)
             elif opt in ("-v", "--verbose"):
                 verbose = arg_check(opt, arg, "-v", "--verbose", int, print_usage)
             else:
@@ -192,6 +212,10 @@ if __name__ == '__main__':
         if model is None:
             print(f'{c.BOLD}Model not provided{c.ENDC}: Running with default model (nuclei)')
             model = 'nuclei'
+
+        if tissue is None:
+            print(f'{c.BOLD}Tissue not provided{c.ENDC}: Running with default tissue (myocardium)')
+            tissue = 'myocardium'
 
         dataset = HtDataset(data_path=data_path)
 
@@ -257,22 +281,58 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths), length=50)
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-            img = load_img(img_path, equalize_img=equalize, verbose=verbose)
+            img = load_img(
+                img_path,
+                equalize_img=equalize,
+                normalize_img=normalize,
+                verbose=verbose
+            )
             model = load_model(model_type=model)
 
+            # Set anisotropy
             metadata, _ = imaging.load_metadata(img_path)
             anisotropy = metadata['z_res'] / metadata['x_res']
+            print(
+                f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
+                f'X: {metadata["x_res"]} um/px\n'
+                f'Y: {metadata["y_res"]} um/px\n'
+                f'Z: {metadata["z_res"]} um/px'
+            )
+            print(f'{c.OKBLUE}Anisotropy{c.ENDC}: {anisotropy}')
 
+            # Crop img by tissue
+            specimen = find_specimen(img_path)
+            lines_path, _ = dataset.read_line(specimen)
+
+            margins = get_margins(
+                line_path=lines_path, img_path=img_path,
+                tissue=tissue, verbose=verbose
+            )
+
+            # Set margins to ZYX
+            margins = (
+                (margins[0][2], margins[0][1], margins[0][0]),
+                (margins[1][2], margins[1][1], margins[1][0])
+            )
+            img = crop_img(img, margins, verbose=verbose)
+
+            # Run segmentation
             masks = run(
                 model, img,
                 diameter=diameter, channels=channels,
-                normalize=normalize, anisotropy=anisotropy,
+                anisotropy=anisotropy,
                 verbose=verbose
             )
 
-            imaging.save_prediction(masks, img_path_out, axes='XYZ', verbose=verbose)
-            imaging.save_nii(masks, img_path_out, verbose=verbose)
+            # Restore original shape
+            masks = restore_img(
+                masks, margins,
+                depth=metadata['z_size'], resolution=metadata['x_size'],
+                axes='ZYX', verbose=verbose
+            )
 
+            img_path_out = img_path_out.replace('.nii.gz', f'_{tissue}.nii.gz')
+            imaging.save_nii(masks, img_path_out, verbose=verbose, axes='ZYX')
             bar.update()
 
         bar.end()

@@ -288,12 +288,12 @@ def semi_supervised_learning(
             model.model.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
 
         elif results[-1] > np.max(results[:-1]):
-            model.model.save('../models/cellular_division_models/vgg16_semi_{i}.h5')
+            model.model.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
             iters_without_improvement = 0
 
         if i > 0 and results[-1] < np.max(results[:-1]):
             iters_without_improvement += 1
-            if iters_without_improvement == 3:
+            if iters_without_improvement == 5:
                 print(f'{c.OKGREEN}Early stopping at iteration {i + 1}{c.ENDC}')
                 break
 

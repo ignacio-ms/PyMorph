@@ -201,7 +201,7 @@ class HtDataset:
 
                     return path, out_path
 
-        raise FileNotFoundError(f'No specimen found: {spec}')
+        raise FileNotFoundError(f'No specimen found: {spec} (Read Line)')
 
     def check_features(self, type='NA', verbose=0):
         """
@@ -279,3 +279,16 @@ def find_group(specimen):
         if specimen in specimen_list:
             return group
     return None
+
+
+def find_specimen(img_path):
+    """
+    Find specimen given an image path.
+    :return:
+    """
+    for group, specimen_list in v.specimens.items():
+        for specimen in specimen_list:
+            if re.search(specimen, img_path):
+                return specimen
+    return None
+
