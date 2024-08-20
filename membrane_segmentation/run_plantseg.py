@@ -22,6 +22,8 @@ from auxiliary.data.dataset_ht import HtDataset
 from auxiliary.utils.timer import LoadingBar, timed
 from auxiliary.data import imaging
 
+from feature_extraction.feature_extractor import filter_by_margin, filter_by_volume
+
 # Configurations
 use_gpu = torch.cuda.is_available()
 print(f"GPU activated: {use_gpu}")
@@ -87,6 +89,13 @@ if __name__ == '__main__':
                 print(f'{c.OKBLUE}Running prediction on image{c.ENDC}: {img}')
 
             img_paths = [data_path + img]
+            img_paths_out = [img_paths[0].replace('RawImages', 'Segmentation')]
+            img_paths_out = [
+                img_paths_out[0].replace(
+                    '_mGFP_decon_0.5',
+                    f'_mask'
+                )
+            ]
 
         elif group is not None:
             if verbose:
@@ -108,12 +117,20 @@ if __name__ == '__main__':
                 )
             ]
 
+            img_paths_out = dataset.missing_membrane_out
+            img_paths_out = [
+                img_path_out for img_path_out in img_paths_out if any(
+                    specimen in img_path_out for specimen in specimens
+                )
+            ]
+
         elif spec is not None:
             if verbose:
                 print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {spec}')
 
-            img_path, _ = dataset.read_specimen(spec, level='Membrane', verbose=verbose)
+            img_path, img_path_out = dataset.read_specimen(spec, level='Membrane', verbose=verbose)
             img_paths = [img_path]
+            img_paths_out = [img_path_out]
 
         else:
             if verbose:
@@ -121,13 +138,14 @@ if __name__ == '__main__':
 
             dataset.check_segmentation(verbose=verbose)
             img_paths = dataset.missing_membrane
+            img_paths_out = dataset.missing_membrane_out
 
         if len(img_paths) == 0:
             print(f'{c.FAIL}No images found{c.ENDC}')
             sys.exit(2)
 
         bar = LoadingBar(len(img_paths))
-        for img_path in img_paths:
+        for img_path, img_path_out in zip(img_paths, img_paths_out):
             if verbose:
                 print(f'{c.OKBLUE}Transforming image {c.BOLD} .nii.gz -> .h5{c.ENDC}: {img_path}')
 
@@ -136,6 +154,32 @@ if __name__ == '__main__':
 
             modify_yaml_path(img_path.replace('.nii.gz', '.h5'))
             subprocess.run(f'plantseg --config membrane_segmentation/config.yaml', shell=True, check=True)
+
+            # Load segmented image and correct axes
+            path = '/'.join(img_path.split('/')[:-1] + [
+                'PreProcessing', 'confocal_3D_unet_sa_meristem_cells',
+                'GASP', 'PostProcessing',
+                img_path.split('/')[-1].replace('.nii.gz', '_predictions_gasp_average.tiff')
+            ])
+
+            masks = imaging.read_image(
+                path,
+                axes='ZYX', verbose=verbose
+            )
+
+            # Filter segmented image
+            masks = filter_by_volume(masks, percentile=98, verbose=verbose)
+
+            # Move output to correct location
+            imaging.save_prediction(masks, img_path_out, verbose=verbose)
+
+            # Remove temporary files and .h5 file
+            file_to_remove = img_path.replace('.nii.gz', '.h5')
+            directory_to_remove = '/'.join(file_to_remove.split('/')[:-1] + ['PreProcessing'])
+
+            subprocess.run(f'rm -r {directory_to_remove}', shell=True, check=True)
+            subprocess.run(f'rm {file_to_remove}', shell=True, check=True)
+
             bar.update()
 
         bar.end()

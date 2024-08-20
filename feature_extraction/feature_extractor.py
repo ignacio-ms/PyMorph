@@ -22,11 +22,6 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.utils.timer import LoadingBar
 
-from auxiliary.data.dataset_ht import HtDataset
-from auxiliary.data import imaging
-
-from auxiliary import values as v
-
 from filtering import cardiac_region as cr
 
 

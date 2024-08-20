@@ -123,7 +123,7 @@ class HtDataset:
                     aux_out = aux.replace('RawImages', 'Segmentation')
                     aux_out = aux_out.replace(
                         '_DAPI_decon_0.5' if level == 'Nuclei' else '_mGFP_decon_0.5',
-                        'mask'
+                        '_mask'
                     )
 
                     if os.path.exists(aux):

@@ -22,3 +22,4 @@ imblearn==0.0
 yaml==0.2.5
 pyyaml==6.0.1
 plant-seg==1.8.1
+pyradiomics==3.0.1

@@ -162,7 +162,7 @@ def predict(
 
     # Set anisotropy
     metadata, _ = imaging.load_metadata(img_path)
-    anisotropy = metadata['z_res'] / metadata['x_res']
+    anisotropy = metadata['x_res'] / metadata['z_res']
     print(
         f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
         f'X: {metadata["x_res"]} um/px\n'
@@ -195,7 +195,7 @@ def predict(
         verbose=verbose
     )
 
-    masks = filter_by_volume(masks, verbose=verbose)
+    masks = filter_by_volume(masks, percentile=99, verbose=verbose)
     masks = filter_by_margin(masks, verbose=verbose)
 
     # Restore original shape
