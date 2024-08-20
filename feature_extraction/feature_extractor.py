@@ -90,6 +90,38 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     return seg_img
 
 
+def filter_by_margin(seg_img, margin=1, verbose=0):
+    """
+    Remove all cells in contact with the image border.
+    :param seg_img: Segmented image.
+    :param margin: Pixels around the border. (default: 2)
+    :param verbose: Verbosity level. (default: 0)
+    :return: Filtered segmentation image.
+    """
+    if verbose:
+        print(f'{c.OKBLUE}Filtering by margin...{c.ENDC}')
+
+    # Get the cell ids in contact with the XY border according to the margin
+    border = np.zeros(seg_img.shape, dtype=bool)
+    border[:, :, :margin] = True
+    border[:, :, -margin:] = True
+    border[:, :margin, :] = True
+    border[:, -margin:, :] = True
+
+    border_cells = np.unique(seg_img[border])
+
+    if verbose:
+        print(f'\tRemoving{c.BOLD} {len(border_cells)} {c.ENDC} cells in contact with the border')
+
+    # Set to zero the cells in contact with the border
+    for cell in border_cells:
+        if cell != 0:
+            seg_img[seg_img == cell] = 0
+
+    return seg_img
+
+
+
 def compute_most_common(lines, props):
     """
     Compute the most common value in a list.

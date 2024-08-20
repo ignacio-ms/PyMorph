@@ -102,7 +102,10 @@ class HtDataset:
 
                 for img in walk[2]:
                     for specimen in spec_set:
+                        # Second condition as a placeholder (REMOVE IT)
                         if re.search(specimen, img):
+                            if level == 'Nuclei' and not re.search('myocardium_splanchnic', img):
+                                continue
                             if verbose:
                                 print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
                             spec_set.remove(specimen)

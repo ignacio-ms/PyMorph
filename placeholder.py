@@ -58,27 +58,27 @@ ds = HtDataset()
 # img = ds.read_specimen('0806_E6', level='Nuclei', type='RawImages', verbose=1)
 
 from filtering.cardiac_region import get_margins, crop_img
-
-margins = get_margins(
-    line_path=v.data_path + 'Gr4/Segmentation/LinesTissue/line_20190806_E6.nii.gz',
-    img_path=v.data_path + 'Gr4/RawImages/Nuclei/20190806_E6_DAPI_decon_0.5.nii.gz',
-    tissue='myocardium', verbose=1
-)
-
-img_path, _ = ds.read_specimen('0806_E6', level='Nuclei', type='RawImages', verbose=1)
-img = imaging.read_image(img_path, verbose=1)
-img = crop_img(img, margins, verbose=1)
-
-metadata, affine = imaging.load_metadata(img_path)
-
-imaging.save_nii(
-    img, v.data_path + 'Auxiliary/CellposeClusterTest/RawImages/Nuclei/0806_E6_myocardium.nii.gz',
-    affine=affine, verbose=1
-)
-
-img_path, _ = ds.read_specimen('0806_E6', level='Membrane', type='RawImages', verbose=1)
-img = imaging.read_image(img_path, verbose=1)
-imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=1)
+#
+# margins = get_margins(
+#     line_path=v.data_path + 'Gr4/Segmentation/LinesTissue/line_20190806_E6.nii.gz',
+#     img_path=v.data_path + 'Gr4/RawImages/Nuclei/20190806_E6_DAPI_decon_0.5.nii.gz',
+#     tissue='myocardium', verbose=1
+# )
+#
+# img_path, _ = ds.read_specimen('0806_E6', level='Nuclei', type='RawImages', verbose=1)
+# img = imaging.read_image(img_path, verbose=1)
+# img = crop_img(img, margins, verbose=1)
+#
+# metadata, affine = imaging.load_metadata(img_path)
+#
+# imaging.save_nii(
+#     img, v.data_path + 'Auxiliary/CellposeClusterTest/RawImages/Nuclei/0806_E6_myocardium.nii.gz',
+#     affine=affine, verbose=1
+# )
+#
+# img_path, _ = ds.read_specimen('0806_E6', level='Membrane', type='RawImages', verbose=1)
+# img = imaging.read_image(img_path, verbose=1)
+# imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=1)
 
 # from skimage import io
 #
@@ -95,4 +95,3 @@ imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=1)
 #             img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 #         # Save image
 #         io.imsave(img_path, img)
-

@@ -22,7 +22,9 @@ from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset, find_specimen
 from auxiliary.utils.timer import LoadingBar, timed
 from auxiliary.data import imaging
+
 from filtering.cardiac_region import get_margins, crop_img, restore_img
+from feature_extraction.feature_extractor import filter_by_volume, filter_by_margin
 
 # Configurations
 use_gpu = core.use_gpu()
@@ -91,7 +93,6 @@ def load_model(model_type='nuclei', model_path=None):
     return models.Cellpose(gpu=use_gpu, model_type=model_type)
 
 
-@timed
 def run(
         model, img,
         diameter=None, channels=None,
@@ -129,6 +130,86 @@ def run(
         print(f'{c.OKGREEN}Masks shape{c.ENDC}: {masks.shape}')
 
     return masks
+
+
+@timed
+def predict(
+    img_path, img_path_out,
+    model,
+    normalize, equalize,
+    diameter, channels,
+    tissue, verbose
+):
+    """
+    Predict nuclei on image.
+    :param img_path: Path to image.
+    :param img_path_out: Path to save masks.
+    :param model: Model to use.
+    :param normalize: Normalize image.
+    :param equalize: Equalize image.
+    :param diameter: Diameter of nuclei.
+    :param channels: Channels to use.
+    :param tissue: Tissue to crop image.
+    :param verbose: Verbosity level
+    """
+    img = load_img(
+        img_path,
+        equalize_img=equalize,
+        normalize_img=normalize,
+        verbose=verbose
+    )
+    model = load_model(model_type=model)
+
+    # Set anisotropy
+    metadata, _ = imaging.load_metadata(img_path)
+    anisotropy = metadata['z_res'] / metadata['x_res']
+    print(
+        f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
+        f'X: {metadata["x_res"]} um/px\n'
+        f'Y: {metadata["y_res"]} um/px\n'
+        f'Z: {metadata["z_res"]} um/px'
+    )
+    print(f'{c.OKBLUE}Anisotropy{c.ENDC}: {anisotropy}')
+
+    # Crop img by tissue
+    specimen = find_specimen(img_path)
+    lines_path, _ = dataset.read_line(specimen)
+
+    margins = get_margins(
+        line_path=lines_path, img_path=img_path,
+        tissue=tissue, verbose=verbose
+    )
+
+    # Set margins to ZYX
+    margins = (
+        (margins[0][2], margins[0][1], margins[0][0]),
+        (margins[1][2], margins[1][1], margins[1][0])
+    )
+    img = crop_img(img, margins, verbose=verbose)
+
+    # Run segmentation
+    masks = run(
+        model, img,
+        diameter=diameter, channels=channels,
+        anisotropy=anisotropy,
+        verbose=verbose
+    )
+
+    masks = filter_by_volume(masks, verbose=verbose)
+    masks = filter_by_margin(masks, verbose=verbose)
+
+    # Restore original shape
+    masks = restore_img(
+        masks, margins,
+        depth=metadata['z_size'], resolution=metadata['x_size'],
+        axes='ZYX', verbose=verbose
+    )
+
+    if isinstance(tissue, list):
+        tissue = '_'.join(tissue)
+
+    img_path_out = img_path_out.replace('.nii.gz', f'_{tissue}.nii.gz')
+    imaging.save_nii(masks, img_path_out, verbose=verbose, axes='ZYX')
 
 
 def print_usage():
@@ -214,8 +295,8 @@ if __name__ == '__main__':
             model = 'nuclei'
 
         if tissue is None:
-            print(f'{c.BOLD}Tissue not provided{c.ENDC}: Running with default tissue (myocardium)')
-            tissue = 'myocardium'
+            print(f'{c.BOLD}Tissue not provided{c.ENDC}: Running with default tissues (myocardium, splanchnic)')
+            tissue = ['myocardium', 'splanchnic']
 
         dataset = HtDataset(data_path=data_path)
 
@@ -281,58 +362,14 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths), length=50)
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-            img = load_img(
-                img_path,
-                equalize_img=equalize,
-                normalize_img=normalize,
-                verbose=verbose
-            )
-            model = load_model(model_type=model)
-
-            # Set anisotropy
-            metadata, _ = imaging.load_metadata(img_path)
-            anisotropy = metadata['z_res'] / metadata['x_res']
-            print(
-                f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
-                f'X: {metadata["x_res"]} um/px\n'
-                f'Y: {metadata["y_res"]} um/px\n'
-                f'Z: {metadata["z_res"]} um/px'
-            )
-            print(f'{c.OKBLUE}Anisotropy{c.ENDC}: {anisotropy}')
-
-            # Crop img by tissue
-            specimen = find_specimen(img_path)
-            lines_path, _ = dataset.read_line(specimen)
-
-            margins = get_margins(
-                line_path=lines_path, img_path=img_path,
+            predict(
+                img_path, img_path_out,
+                model=model,
+                normalize=normalize, equalize=equalize,
+                diameter=diameter, channels=channels,
                 tissue=tissue, verbose=verbose
             )
 
-            # Set margins to ZYX
-            margins = (
-                (margins[0][2], margins[0][1], margins[0][0]),
-                (margins[1][2], margins[1][1], margins[1][0])
-            )
-            img = crop_img(img, margins, verbose=verbose)
-
-            # Run segmentation
-            masks = run(
-                model, img,
-                diameter=diameter, channels=channels,
-                anisotropy=anisotropy,
-                verbose=verbose
-            )
-
-            # Restore original shape
-            masks = restore_img(
-                masks, margins,
-                depth=metadata['z_size'], resolution=metadata['x_size'],
-                axes='ZYX', verbose=verbose
-            )
-
-            img_path_out = img_path_out.replace('.nii.gz', f'_{tissue}.nii.gz')
-            imaging.save_nii(masks, img_path_out, verbose=verbose, axes='ZYX')
             bar.update()
 
         bar.end()
