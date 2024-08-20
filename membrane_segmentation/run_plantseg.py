@@ -5,6 +5,10 @@ import getopt
 
 import torch
 
+from scipy import ndimage
+from skimage import exposure
+from csbdeep.utils import normalize as deep_norm
+
 import subprocess
 import yaml
 
@@ -146,10 +150,21 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths))
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-            if verbose:
-                print(f'{c.OKBLUE}Transforming image {c.BOLD} .nii.gz -> .h5{c.ENDC}: {img_path}')
 
             img = imaging.read_image(img_path, verbose=verbose)
+
+            print(f'{c.OKBLUE}Pre-processing image{c.ENDC}:')
+            print(f'\t{c.OKBLUE}Histogram equalization{c.ENDC}...')
+            img = exposure.equalize_hist(img)
+
+            print(f'\t{c.OKBLUE}Normalization{c.ENDC}...')
+            img = deep_norm(img, 1, 99.8, axis=(0, 1, 2))
+
+            print(f'\t{c.OKBLUE}Median filter{c.ENDC}...')
+            img = ndimage.median_filter(img, size=3)
+
+            if verbose:
+                print(f'{c.OKBLUE}Transforming image {c.BOLD} .nii.gz -> .h5{c.ENDC}: {img_path}')
             imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=verbose)
 
             modify_yaml_path(img_path.replace('.nii.gz', '.h5'))
@@ -168,7 +183,7 @@ if __name__ == '__main__':
             )
 
             # Filter segmented image
-            masks = filter_by_volume(masks, percentile=98, verbose=verbose)
+            masks = filter_by_volume(masks, percentile=97, verbose=verbose)
 
             # Move output to correct location
             imaging.save_prediction(masks, img_path_out, verbose=verbose)

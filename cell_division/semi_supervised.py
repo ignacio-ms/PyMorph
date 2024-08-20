@@ -107,12 +107,12 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
                 aux = cv2.cvtColor(img[..., z], cv2.COLOR_GRAY2RGB)
                 # Creating axis for the batch
                 aux = np.expand_dims(aux, axis=0)
-                two_d_predictions.append(model.model.predict(aux))
+                two_d_predictions.append(model.model_semi.predict(aux))
         else:
             aux = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
             # Creating axis for the batch
             aux = np.expand_dims(aux, axis=0)
-            two_d_predictions.append(model.model.predict(aux))
+            two_d_predictions.append(model.model_semi.predict(aux))
 
         two_d_predictions = np.array(two_d_predictions)
 
@@ -241,13 +241,13 @@ def print_iter_results(model, train, test, val):
     print(f'\t\t{c.OKBLUE}Model trained:{c.ENDC}')
     print(f'\t\t{c.BOLD}Evaluating...{c.ENDC}')
 
-    train_res = model.model.evaluate(train, verbose=1)
+    train_res = model.model_semi.evaluate(train, verbose=1)
     print(f'\t\t{c.BOLD}Train AUC:{c.ENDC} {train_res[1]}')
 
-    val_res = model.model.evaluate(val, verbose=1)
+    val_res = model.model_semi.evaluate(val, verbose=1)
     print(f'\t\t{c.BOLD}Validation AUC:{c.ENDC} {val_res[1]}')
 
-    test_res = model.model.evaluate(test, verbose=1)
+    test_res = model.model_semi.evaluate(test, verbose=1)
     print(f'\t\t{c.BOLD}Test AUC:{c.ENDC} {test_res[1]}')
 
 
@@ -281,14 +281,14 @@ def semi_supervised_learning(
 
         # Pre-train the model with the labeled data
         model = pre_train(model, train, val, batch_size=batch_size, verbose=verbose)
-        results.append(model.model.evaluate(val, verbose=0)[1])
+        results.append(model.model_semi.evaluate(val, verbose=0)[1])
 
         # Early stopping and saving the model
         if i == 0:
-            model.model.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
+            model.model_semi.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
 
         elif results[-1] > np.max(results[:-1]):
-            model.model.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
+            model.model_semi.save(f'../models/cellular_division_models/vgg16_semi_{i}.h5')
             iters_without_improvement = 0
 
         if i > 0 and results[-1] < np.max(results[:-1]):
