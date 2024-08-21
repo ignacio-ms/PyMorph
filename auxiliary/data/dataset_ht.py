@@ -206,7 +206,7 @@ class HtDataset:
 
         raise FileNotFoundError(f'No specimen found: {spec} (Read Line)')
 
-    def check_features(self, type='NA', verbose=0):
+    def check_features(self, type='NA', tissue='myocardium', verbose=0):
         """
         Check if features have been extracted for each specimen.
         Get a list of not extracted features. (missing_features)
@@ -232,7 +232,7 @@ class HtDataset:
 
             for file in walk[2]:
                 for specimen in spec_set:
-                    if re.search(specimen, file):
+                    if re.search(specimen, file) and re.search(type, file) and re.search(tissue, file):
                         if verbose:
                             print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
                         spec_set.remove(specimen)
@@ -244,7 +244,7 @@ class HtDataset:
 
                 todo_specimens.append(i)
                 todo_out_paths.append(
-                    os.path.join(f_raw_dir, f'2019{i}_cell_properties_radiomics_{type}.csv')
+                    os.path.join(f_raw_dir, f'2019{i}_cell_properties_radiomics_{type}_{tissue}.csv')
                 )
 
         return todo_specimens, todo_out_paths

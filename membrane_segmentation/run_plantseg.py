@@ -22,11 +22,12 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import HtDataset
+from auxiliary.data.dataset_ht import HtDataset, find_specimen
 from auxiliary.utils.timer import LoadingBar, timed
 from auxiliary.data import imaging
 
 from feature_extraction.feature_extractor import filter_by_margin, filter_by_volume
+from filtering.cardiac_region import get_margins, crop_img, restore_img
 
 # Configurations
 use_gpu = torch.cuda.is_available()
@@ -56,11 +57,11 @@ def print_usage():
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    data_path, img, spec, group, verbose = None, None, None, None, 1
+    data_path, img, spec, group, tissue, verbose = None, None, None, None, None, 1
 
     try:
-        opts, args = getopt.getopt(argv, 'hp:i:s:g:v:', [
-            'help', 'path=', 'img=', 'spec=', 'group=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hp:i:s:g:t:v:', [
+            'help', 'path=', 'img=', 'spec=', 'group=', 'tissue=', 'verbose='
         ])
 
         if len(opts) > 5:
@@ -77,6 +78,8 @@ if __name__ == '__main__':
                 spec = arg_check(opt, arg, '-s', '--spec', str, print_usage)
             elif opt in ('-g', '--group'):
                 group = arg_check(opt, arg, '-g', '--group', str, print_usage)
+            elif opt in ('-t', '--tissue'):
+                tissue = arg_check(opt, arg, '-t', '--tissue', str, print_usage)
             elif opt in ('-v', '--verbose'):
                 verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
             else:
@@ -85,6 +88,10 @@ if __name__ == '__main__':
 
         if data_path is None:
             data_path = v.data_path
+
+        if tissue is None:
+            print(f'{c.BOLD}Tissue not provided{c.ENDC}: Filtering by default tissues (myocardium, splanchnic)')
+            tissue = ['myocardium', 'splanchnic']
 
         dataset = HtDataset(data_path=data_path)
 
@@ -151,6 +158,7 @@ if __name__ == '__main__':
         bar = LoadingBar(len(img_paths))
         for img_path, img_path_out in zip(img_paths, img_paths_out):
 
+            # Image preprocessing
             img = imaging.read_image(img_path, verbose=verbose)
 
             print(f'{c.OKBLUE}Pre-processing image{c.ENDC}:')
@@ -163,6 +171,19 @@ if __name__ == '__main__':
             print(f'\t{c.OKBLUE}Median filter{c.ENDC}...')
             img = ndimage.median_filter(img, size=3)
 
+            # Crop image by tissue margin
+            metadata, _ = imaging.load_metadata(img_path)
+
+            specimen = find_specimen(img_path)
+            lines_path, _ = dataset.read_line(specimen)
+
+            margins = get_margins(
+                line_path=lines_path, img_path=img_path,
+                tissue=tissue, verbose=verbose
+            )
+            img = crop_img(img, margins, verbose=verbose)
+
+            # Pipeline
             if verbose:
                 print(f'{c.OKBLUE}Transforming image {c.BOLD} .nii.gz -> .h5{c.ENDC}: {img_path}')
             imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=verbose)
@@ -184,6 +205,14 @@ if __name__ == '__main__':
 
             # Filter segmented image
             masks = filter_by_volume(masks, percentile=97, verbose=verbose)
+            masks = filter_by_margin(masks, verbose=verbose)
+
+            # Restore image to original size
+            masks = restore_img(
+                masks, margins,
+                depth=metadata['z_size'], resolution=metadata['x_size'],
+                verbose=verbose
+            )
 
             # Move output to correct location
             imaging.save_prediction(masks, img_path_out, verbose=verbose)

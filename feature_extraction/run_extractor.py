@@ -115,7 +115,7 @@ if __name__ == '__main__':
                 print(f'{c.OKBLUE}Running prediction on group{c.ENDC}: {group}')
 
             ds = HtDataset(data_path=data_path)
-            todo_specimens, todo_out_paths = ds.check_features(verbose=verbose, type=type)
+            todo_specimens, todo_out_paths = ds.check_features(verbose=verbose, type=type, tissue=tissue)
 
             specimens = v.specimens[group]
 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
             out_dir = os.path.join(
                 v.data_path, find_group(spec), 'Features',
-                f'2019{spec}_cell_properties_radiomics_{type}.csv'
+                f'2019{spec}_cell_properties_radiomics_{type}_{tissue}.csv'
             )
 
             features.to_csv(out_dir, index=False)
@@ -156,7 +156,9 @@ if __name__ == '__main__':
             print(f'{c.FAIL}No group or specimen provided, running all{c.ENDC}')
 
             ds = HtDataset(data_path=data_path)
-            todo_specimens, todo_out_paths = ds.check_features(verbose=verbose, type=type)
+            todo_specimens, todo_out_paths = ds.check_features(
+                verbose=verbose, type=type, tissue=tissue
+            )
 
             if len(todo_specimens) == 0:
                 print(f'{c.OKGREEN}All features extracted{c.ENDC}')
