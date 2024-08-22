@@ -175,7 +175,33 @@ class HtDataset:
 
                     return path, out_path
 
-        raise FileNotFoundError(f'No specimen found: {spec}')
+        raise FileNotFoundError(f'No specimen found: {spec} (Read specimen) [{level} - {type}]')
+
+    def read_features(self, spec, level='Nuclei', tissue='myocardium', verbose=0):
+        """
+        Get feature extraction file path for a specific specimen.
+        :param spec: Specimen
+        :param level: Level of extraction (Nuclei, Membrane, Cell)
+        :param tissue: Tissue of extraction (default: myocardium)
+        :return: Path to the feature extraction file.
+        """
+        for group in self.specimens.keys():
+            try:
+                f_raw_dir = os.path.join(self.data_path, group, 'Features')
+                walk = os.walk(f_raw_dir).__next__()
+            except StopIteration:
+                if verbose:
+                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                continue
+
+            for file in walk[2]:
+                if re.search(spec, file) and re.search(level, file) and re.search(tissue, file):
+                    if verbose:
+                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+
+                    return os.path.join(f_raw_dir, file)
+
+        raise FileNotFoundError(f'No specimen found: {spec} (Read features) [{level} - {tissue}]')
 
     def read_line(self, spec, verbose=0):
         """
