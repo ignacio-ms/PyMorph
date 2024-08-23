@@ -116,7 +116,6 @@ def filter_by_margin(seg_img, margin=1, verbose=0):
     return seg_img
 
 
-
 def compute_most_common(lines, props):
     """
     Compute the most common value in a list.

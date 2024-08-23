@@ -154,6 +154,9 @@ def save_prediction(labels, out_path, axes='XYZ', verbose=0):
     if labels.shape[0] < labels.shape[1]:
         labels = np.swapaxes(labels, 0, 2)
 
+    if labels.ndim == 2:
+        labels = np.expand_dims(labels, axis=2)
+
     save_tiff_imagej_compatible(out_path, labels, axes=axes)
 
     if verbose:
