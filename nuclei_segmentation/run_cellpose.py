@@ -5,6 +5,7 @@ import getopt
 
 from scipy import ndimage
 from skimage import exposure
+import numpy as np
 
 from cellpose import models, core
 from csbdeep.utils import normalize as deep_norm
@@ -52,19 +53,28 @@ def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
         if verbose:
             print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
 
+        # Rescale image data to range [0, 1]
+        img = np.clip(img, np.percentile(img, 5), np.percentile(img, 95))
+        img = (img - img.min()) / (img.max() - img.min())
+
         img = exposure.equalize_hist(img)
+
+        vmin, vmax = np.percentile(img, q=(5, 95))
+        img = exposure.rescale_intensity(img, in_range=(vmin, vmax))
 
     if normalize_img:
         if verbose:
             print(f'{c.OKBLUE}Normalizing image{c.ENDC}...')
 
-        img = deep_norm(img, 1, 99.8, axis=(0, 1, 2))
+        img = deep_norm(img, 2, 98, axis=(0, 1, 2))
 
     # Median filter
     if verbose:
         print(f'{c.OKBLUE}Applying median filter{c.ENDC}...')
 
-    img = ndimage.median_filter(img, size=3)
+    img = ndimage.median_filter(img, size=(3, 3, 3))
+    # img = ndimage.median_filter(img, size=(3, 3, 3))
+
     return img
 
 
@@ -90,8 +100,10 @@ def load_model(model_type='nuclei', model_path=None):
         model_path = '../models/cellpose_models/'
 
     print(f'{c.OKBLUE}Loading model{c.ENDC}: {model_type}')
-    return models.Cellpose(gpu=use_gpu, model_type=model_type)
+    if model_type in ['nuclei', 'cyto', 'cyto2', 'cyto3']:
+        return models.Cellpose(gpu=use_gpu, model_type=model_type)
 
+    return models.CellposeModel(model_type, diam_mean=17)
 
 def run(
         model, img,
@@ -116,15 +128,30 @@ def run(
     if channels is None:
         channels = [0, 0]
 
-    masks, _, _, _ = model.eval(
-        img,
-        diameter=diameter,
-        channels=channels,
-        normalize=False,
-        anisotropy=anisotropy,
-        do_3D=False,
-        stitch_threshold=.65
-    )
+    if isinstance(model, models.Cellpose):
+        masks, _, _, _ = model.eval(
+            img,
+            diameter=diameter,
+            channels=channels,
+            normalize=False,
+            anisotropy=anisotropy,
+            do_3D=True,
+            cellprob_threshold=.25,
+            # stitch_threshold=.45,
+            # flow_threshold=.35,
+        )
+    else:
+        masks, _, _ = model.eval(
+            img,
+            diameter=diameter,
+            channels=channels,
+            normalize=False,
+            anisotropy=anisotropy,
+            do_3D=True,
+            cellprob_threshold=.25,
+            # stitch_threshold=.5,
+            # flow_threshold=.35,
+        )
 
     if verbose:
         print(f'{c.OKGREEN}Masks shape{c.ENDC}: {masks.shape}')
@@ -175,17 +202,18 @@ def predict(
     specimen = find_specimen(img_path)
     lines_path, _ = dataset.read_line(specimen)
 
-    margins = get_margins(
-        line_path=lines_path, img_path=img_path,
-        tissue=tissue, verbose=verbose
-    )
+    if tissue is not None:
+        margins = get_margins(
+            line_path=lines_path, img_path=img_path,
+            tissue=tissue, verbose=verbose
+        )
 
-    # Set margins to ZYX
-    margins = (
-        (margins[0][2], margins[0][1], margins[0][0]),
-        (margins[1][2], margins[1][1], margins[1][0])
-    )
-    img = crop_img(img, margins, verbose=verbose)
+        # Set margins to ZYX
+        margins = (
+            (margins[0][2], margins[0][1], margins[0][0]),
+            (margins[1][2], margins[1][1], margins[1][0])
+        )
+        img = crop_img(img, margins, verbose=verbose)
 
     # Run segmentation
     masks = run(
@@ -196,14 +224,16 @@ def predict(
     )
 
     masks = filter_by_volume(masks, percentile=99, verbose=verbose)
-    masks = filter_by_margin(masks, verbose=verbose)
 
-    # Restore original shape
-    masks = restore_img(
-        masks, margins,
-        depth=metadata['z_size'], resolution=metadata['x_size'],
-        axes='ZYX', verbose=verbose
-    )
+    if tissue is not None:
+        masks = filter_by_margin(masks, verbose=verbose)
+
+        # Restore original shape
+        masks = restore_img(
+            masks, margins,
+            depth=metadata['z_size'], resolution=metadata['x_size'],
+            axes='ZYX', verbose=verbose
+        )
 
     if isinstance(tissue, list):
         tissue = '_'.join(tissue)
@@ -296,7 +326,7 @@ if __name__ == '__main__':
 
         if tissue is None:
             print(f'{c.BOLD}Tissue not provided{c.ENDC}: Running with default tissues (myocardium, splanchnic)')
-            tissue = ['myocardium', 'splanchnic']
+            # tissue = ['myocardium', 'splanchnic']
 
         dataset = HtDataset(data_path=data_path)
 

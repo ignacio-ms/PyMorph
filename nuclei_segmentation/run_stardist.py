@@ -3,7 +3,10 @@ import os
 import sys
 import getopt
 
+from csbdeep.utils import normalize as deep_norm
 from skimage import exposure
+from scipy import ndimage
+import numpy as np
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -32,7 +35,7 @@ from auxiliary.utils.bash import arg_check
 
 
 def load_img(
-        img_path, img_type='.nii.gz',
+        img_path,
         normalize_img=True, equalize_img=False,
         axes='XYZ', verbose=0
 ):
@@ -44,20 +47,38 @@ def load_img(
     :param verbose: Verbosity level.
     :return: Image.
     """
-    img = imaging.read_nii(img_path, axes=axes) if img_type == '.nii.gz' else imaging.read_tiff(img_path, axes=axes)
+    img = imaging.read_image(img_path, axes=axes, verbose=verbose)
     img = img[..., 0] if img.ndim == 4 else img
+
+    if verbose:
+        print(f'{c.OKBLUE}Loaded image{c.ENDC}: {img_path}')
+        print(f'{c.BOLD}Image shape{c.ENDC}: {img.shape}')
 
     if equalize_img:
         if verbose:
-            print(f'{c.OKBLUE}Equalizing image{c.ENDC}: {img_path}')
+            print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
+
+        # Rescale image data to range [0, 1]
+        img = np.clip(img, np.percentile(img, 5), np.percentile(img, 95))
+        img = (img - img.min()) / (img.max() - img.min())
+
         img = exposure.equalize_hist(img)
 
-    if normalize_img:
-        img = normalize(img, 1, 99.8, axis=(0, 1, 2))
+        vmin, vmax = np.percentile(img, q=(5, 95))
+        img = exposure.rescale_intensity(img, in_range=(vmin, vmax))
 
+    if normalize_img:
+        if verbose:
+            print(f'{c.OKBLUE}Normalizing image{c.ENDC}...')
+
+        img = deep_norm(img, 2, 98, axis=(0, 1, 2))
+
+        # Median filter
     if verbose:
-        print(f'{c.OKBLUE}Loading image{c.ENDC}: {img_path}')
-        print(f'{c.BOLD}Image shape{c.ENDC}: {img.shape}')
+        print(f'{c.OKBLUE}Applying median filter{c.ENDC}...')
+
+    img = ndimage.median_filter(img, size=(3, 3, 3))
+    img = ndimage.median_filter(img, size=(3, 3, 3))
 
     return img
 
@@ -236,7 +257,7 @@ if __name__ == '__main__':
 
         if model is None:
             print(f'{c.BOLD}Model not provided{c.ENDC}: Running with default model (n2_stardist_96)')
-            model = 1
+            model = 0
 
         if axes is None:
             print(f'{c.BOLD}Axes not specified{c.ENDC}: Set as XYZ')

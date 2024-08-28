@@ -29,7 +29,7 @@ done
 #python ht_morphogenesis/nuclei_segmentation/run_cellpose.py -p $data_path -i $image_path -m $model -v $verbose
 
 #-----Singularity-----#
-singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ /data_lab_MT/Ignacio/ht_morphogenesis_latest.sif python /app/nuclei_segmentation/run_cellpose.py -p /data/ -i $image_path -m 'nuclei' -n True -e True -v $verbose
+singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ --nv /data_lab_MT/Ignacio/ht_morphogenesis_latest.sif python /app/nuclei_segmentation/run_cellpose.py -p /data/ -i $image_path -m 'tissuenet_cp3' -n True -e True -v $verbose
 
 
 #-----Usage example-----#

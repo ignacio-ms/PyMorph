@@ -22,3 +22,18 @@ SimpleITK
 porespy
 pyradiomics
 pypardiso
+cupy-cuda11x
+cucim-cu11
+dask[complete]
+scikit-learn
+imagecodecs
+matplotlib
+seaborn
+trimesh
+multiprocess
+tiler
+connected-components-3d
+edt
+scikit-fmm
+#pyicu -> with conda
+czifile
