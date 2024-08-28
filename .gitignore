@@ -4,3 +4,4 @@ daniela/
 *.h5
 *.ckpt
 .env
+*.sif

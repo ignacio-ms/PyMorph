@@ -58,7 +58,7 @@ ds = HtDataset()
 # img = ds.read_specimen('0806_E6', level='Nuclei', type='RawImages', verbose=1)
 
 from filtering.cardiac_region import get_margins, crop_img
-#
+
 # margins = get_margins(
 #     line_path=v.data_path + 'Gr4/Segmentation/LinesTissue/line_20190806_E6.nii.gz',
 #     img_path=v.data_path + 'Gr4/RawImages/Nuclei/20190806_E6_DAPI_decon_0.5.nii.gz',
