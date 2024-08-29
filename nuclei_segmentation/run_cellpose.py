@@ -223,7 +223,7 @@ def predict(
         verbose=verbose
     )
 
-    masks = filter_by_volume(masks, percentile=99, verbose=verbose)
+    masks = filter_by_volume(masks, percentile=98, verbose=verbose)
 
     if tissue is not None:
         masks = filter_by_margin(masks, verbose=verbose)
@@ -238,7 +238,9 @@ def predict(
     if isinstance(tissue, list):
         tissue = '_'.join(tissue)
 
-    img_path_out = img_path_out.replace('.nii.gz', f'_{tissue}.nii.gz')
+    img_path_out = img_path_out.replace(
+        '.nii.gz', f'_{tissue if tissue is not None else "all"}.nii.gz'
+    )
     imaging.save_nii(masks, img_path_out, verbose=verbose, axes='ZYX')
 
 
@@ -326,7 +328,7 @@ if __name__ == '__main__':
 
         if tissue is None:
             print(f'{c.BOLD}Tissue not provided{c.ENDC}: Running with default tissues (myocardium, splanchnic)')
-            # tissue = ['myocardium', 'splanchnic']
+            tissue = ['myocardium', 'splanchnic']
 
         dataset = HtDataset(data_path=data_path)
 

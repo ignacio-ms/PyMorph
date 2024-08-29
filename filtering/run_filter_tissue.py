@@ -82,7 +82,7 @@ def run():
             output_path if output_path else img
             .replace('.nii.gz', f'_{tissue}.nii.gz')
             .replace(f'{level}', f'{level}/{tissue}')
-            .replace('.tif', f'_{tissue}.tif')
+            .replace('.nii.gz', f'_{tissue}.nii.gz')
         ]
 
         aux = img.split('/')[-1].split('_')[0].split('2019')[-1]
@@ -100,7 +100,7 @@ def run():
             img_path
             .replace('.nii.gz', f'_{tissue}.nii.gz')
             .replace(f'{level}', f'{level}/{tissue}')
-            .replace('.tif', f'_{tissue}.tif')
+            .replace('.nii.gz', f'_{tissue}.nii.gz')
         ]
 
         line_paths = [ds.read_line(spec, verbose=verbose)[0]]
@@ -127,7 +127,7 @@ def run():
         img_paths_out = [
             img_path_out.replace(f'{level}', f'{level}/{tissue}')
             .replace('.nii.gz', f'_{tissue}.nii.gz')
-            .replace('.tif', f'_{tissue}.tif')
+            .replace('.nii.gz', f'_{tissue}.nii.gz')
             for img_path_out in img_paths
         ]
 
@@ -143,7 +143,7 @@ def run():
 
     bar = LoadingBar(len(img_paths))
     for img_path, img_path_out, line_path in zip(img_paths, img_paths_out, line_paths):
-        img = imaging.read_nii(img_path, verbose=verbose) if img_path.endswith('.nii.gz') else imaging.read_tiff(img_path, verbose=verbose)
+        img = imaging.read_image(img_path, verbose=verbose)
         lines = imaging.read_nii(line_path, verbose=verbose)
 
         filtered_img = filter_by_tissue(
@@ -155,7 +155,7 @@ def run():
         bar.update()
 
         try:
-            imaging.save_prediction(filtered_img, img_path_out, verbose=verbose)
+            imaging.save_nii(filtered_img, img_path_out, verbose=verbose)
         except FileNotFoundError:
             print(f'\n{c.WARNING}Folder not found{c.ENDC}: Creating directory for {c.BOLD}{tissue}{c.ENDC} filtered images')
 
@@ -164,7 +164,7 @@ def run():
             tissue_folder = data_path + f'{group}/Segmentation/{level}/{tissue}/'
 
             os.makedirs(tissue_folder, exist_ok=True)
-            imaging.save_prediction(filtered_img, img_path_out, verbose=verbose)
+            imaging.save_nii(filtered_img, img_path_out, verbose=verbose)
 
     bar.end()
 

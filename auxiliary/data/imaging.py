@@ -237,10 +237,11 @@ def crop(img, x1, x2, y1, y2, z1, z2):
     return img[x1:x2, y1:y2, z1:z2]
 
 
-def iqr_filter(img, verbose=0):
+def iqr_filter(img, get_params=False, verbose=0):
     """
     Apply IQR filter to image intensities to remove z-slices with low intensity values.
     :param img: Image.
+    :param get_params: Get intensities and threshold. (Default: False)
     :param verbose: Verbosity level.
     :return: Filtered image.
     """
@@ -255,6 +256,9 @@ def iqr_filter(img, verbose=0):
     if verbose:
         print(f'{c.BOLD}IQR Threshold{c.ENDC}: {threshold}')
         print(f'Removing {np.sum(intensities < threshold)} z-slices')
+
+    if get_params:
+        return img[:, :, :, intensities > threshold], intensities, threshold
 
     return img[:, :, intensities > threshold]
 
