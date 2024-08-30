@@ -142,7 +142,7 @@ class HtDataset:
         self.missing_membrane = todo_membrane
         self.missing_membrane_out = todo_membrane_out
 
-    def read_specimen(self, spec, level='Nuclei', type='RawImages', verbose=0):
+    def read_specimen(self, spec, level='Nuclei', type='RawImages', filtered=False, verbose=0):
         """
         Read image for a specific specimen.
         :param spec: Specimen to read.
@@ -154,7 +154,10 @@ class HtDataset:
 
         for group in self.specimens.keys():
             try:
-                f_raw_dir = os.path.join(self.data_path, group, type, level)
+                if filtered:
+                    f_raw_dir = os.path.join(self.data_path, group, type, level, 'Filtered')
+                else:
+                    f_raw_dir = os.path.join(self.data_path, group, type, level)
                 walk = os.walk(f_raw_dir).__next__()
             except StopIteration:
                 if verbose:

@@ -78,6 +78,37 @@ def get_margins(line_path, img_path, tissue=None, ma=10, resolution=1024, verbos
     return margins
 
 
+def get_cell_margins(img, cell_id, ma=5):
+
+    coords = np.where(img == cell_id)
+    # coords = np.where(line == v.lines[tissue] if tissue else line > 0)
+    margins = (
+        np.min(coords, axis=1),
+        np.max(coords, axis=1)
+    )
+
+    for i in range(3):
+        margins[0][i] = (
+            margins[0][i] - ma
+            if margins[0][i] - ma > 0
+            else 0
+        )
+        margins[1][i] = (
+            margins[1][i] + ma
+            if margins[1][i] + ma < 1024
+            else 1024
+        )
+
+        if i == 2:
+            margins[1][i] = (
+                margins[1][i] + ma
+                if margins[1][i] + ma < img.shape[i]
+                else img.shape[i]
+            )
+
+    return margins
+
+
 def crop_img(img, margins, verbose=0):
     """
     Crop image.
@@ -151,7 +182,6 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
         print(f'{c.OKBLUE}Filtering image by tissue{c.ENDC}: {tissue_name}...')
 
     try:
-        tissue = v.lines[tissue_name]
         if img.ndim == 4:
             img = img[..., 0]
         filtered = np.zeros_like(img)
@@ -170,7 +200,14 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
 
         bar = LoadingBar(lines.shape[-1])
 
-        cell_ids = np.unique(img[lines == tissue])
+        if isinstance(tissue_name, list):
+            tissue = np.zeros_like(lines)
+            for tissue_name in tissue_name:
+                tissue += np.where(lines == v.lines[tissue_name], 1, 0)
+            cell_ids = np.unique(img[tissue > 0])
+        else:
+            tissue = v.lines[tissue_name]
+            cell_ids = np.unique(img[lines == tissue])
 
         for z in range(lines.shape[-1]):
             if verbose:
