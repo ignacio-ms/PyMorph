@@ -6,6 +6,7 @@ from scipy import ndimage
 from skimage import exposure
 import numpy as np
 import cv2
+import gc
 
 from cellpose import models, core
 from csbdeep.utils import normalize as deep_norm
@@ -39,10 +40,12 @@ if __name__ == '__main__':
     sigma = 1.5
     iterations = 2
 
-    for group in ds.specimens.items():
-        print(f'{c.BOLD}Group{c.ENDC}: {group[0]}')
+    for group in ds.specimens.keys():
+        print(f'{c.BOLD}Group{c.ENDC}: {group}')
 
-        for specimen in group[1]:
+        for i, specimen in enumerate(ds.specimens[group]):
+            if i > 0:
+                sys.exit(0)
             print(f'\t{c.BOLD}Specimen{c.ENDC}: {specimen}')
 
             try:
@@ -62,15 +65,15 @@ if __name__ == '__main__':
                     verbose=1
                 )
 
-                smoothed = np.zeros_like(filtered)
+                smoothed = np.zeros_like(filtered, dtype=np.uint16)
 
                 labels = np.unique(filtered)[1:]  # Exclude the background label (assumed to be 0)
                 bar = LoadingBar(len(labels))
                 for label in labels:
 
-                    margins = cr.get_cell_margins(img, cell_id=label, ma=5)
+                    margins = cr.get_cell_margins(filtered, cell_id=label, ma=5)
                     cell_crop = cr.crop_img(filtered, margins)
-                    cell_crop = np.where(cell_crop == label, 255, 0).astype(np.uint8)
+                    cell_crop = np.where(cell_crop == label, 255, 0).astype(np.uint16)
 
                     for z in range(cell_crop.shape[-1]):
                         mask_slice = cell_crop[..., z]
@@ -95,8 +98,14 @@ if __name__ == '__main__':
 
                     bar.update()
 
+                    del cell_crop, mask_slice
+                    gc.collect()
+
                 bar.end()
                 imaging.save_nii(smoothed, img_path_out, verbose=1)
+
+                del img, lines, filtered, smoothed, labels
+                gc.collect()
 
             except Exception as e:
                 print(f'{c.FAIL}Error{c.ENDC}: {e}')

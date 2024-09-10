@@ -96,37 +96,37 @@ from filtering.cardiac_region import get_margins, crop_img
 #         # Save image
 #         io.imsave(img_path, img)
 
-img_path = v.data_path + 'Gr4/Segmentation/Nuclei/myocardium/20190806_E6_nuclei_mask_None_myocardium_myocardium.nii.gz'
-img_path_out = img_path.replace('.nii.gz', '_smoothed.nii.gz')
-img =  imaging.read_image(img_path, axes='XYZ', verbose=1)
-print(img.shape)
-
-from skimage import restoration
-import numpy as np
-
-def anisotropic_diffusion_filter(segmentation_mask, num_iter=10, kappa=50, gamma=0.1):
-    """
-    Applies anisotropic diffusion to a label image for edge-preserving smoothing.
-
-    Parameters:
-    - segmentation_mask: 3D numpy array, the labeled segmentation image.
-    - num_iter: Number of iterations to run the diffusion process.
-    - kappa: Conductance coefficient, controls sensitivity to edges.
-    - gamma: Controls the rate of diffusion.
-
-    Returns:
-    - Smoothed segmentation mask.
-    """
-    smoothed_segmentation = restoration.denoise_tv_chambolle(
-        segmentation_mask, weight=kappa, max_num_iter=num_iter
-    )
-    return smoothed_segmentation
-
-if __name__ == '__main__':
-    # Example usage:
-    # segmentation_mask: a 3D numpy array representing the instance segmentation
-    smoothed_segmentation = anisotropic_diffusion_filter(
-        img, num_iter=3, kappa=50, gamma=0.1
-    )
-    imaging.save_prediction(smoothed_segmentation, img_path_out, verbose=1)
+# img_path = v.data_path + 'Gr4/Segmentation/Nuclei/myocardium/20190806_E6_nuclei_mask_None_myocardium_myocardium.nii.gz'
+# img_path_out = img_path.replace('.nii.gz', '_smoothed.nii.gz')
+# img =  imaging.read_image(img_path, axes='XYZ', verbose=1)
+# print(img.shape)
+#
+# from skimage import restoration
+# import numpy as np
+#
+# def anisotropic_diffusion_filter(segmentation_mask, num_iter=10, kappa=50, gamma=0.1):
+#     """
+#     Applies anisotropic diffusion to a label image for edge-preserving smoothing.
+#
+#     Parameters:
+#     - segmentation_mask: 3D numpy array, the labeled segmentation image.
+#     - num_iter: Number of iterations to run the diffusion process.
+#     - kappa: Conductance coefficient, controls sensitivity to edges.
+#     - gamma: Controls the rate of diffusion.
+#
+#     Returns:
+#     - Smoothed segmentation mask.
+#     """
+#     smoothed_segmentation = restoration.denoise_tv_chambolle(
+#         segmentation_mask, weight=kappa, max_num_iter=num_iter
+#     )
+#     return smoothed_segmentation
+#
+# if __name__ == '__main__':
+#     # Example usage:
+#     # segmentation_mask: a 3D numpy array representing the instance segmentation
+#     smoothed_segmentation = anisotropic_diffusion_filter(
+#         img, num_iter=3, kappa=50, gamma=0.1
+#     )
+#     imaging.save_prediction(smoothed_segmentation, img_path_out, verbose=1)
 

@@ -24,7 +24,7 @@ from auxiliary.utils.colors import bcolors as c
 
 if __name__ == "__main__":
 
-    img_path = v.data_path + 'Gr4/RawImages/Nuclei/test/crop_test.nii.gz'
+    img_path = v.data_path + 'Gr1/RawImages/Nuclei/20190208_E2_DAPI_decon_0.5_crop.nii.gz'
 
     img = imaging.read_image(img_path, axes='XYZ')
 
