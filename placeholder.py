@@ -130,3 +130,80 @@ from filtering.cardiac_region import get_margins, crop_img
 #     )
 #     imaging.save_prediction(smoothed_segmentation, img_path_out, verbose=1)
 
+def plot_kde_single(
+        neg, title, include_hist=False,
+        sub_index=None, n_rows=1, n_cols=1,
+        xlim=None, labels=None, valley=True
+):
+    plt.figure(figsize=(8, 5))
+
+    sns.rugplot(neg, color='green', alpha=.3, height=.1, linewidth=3.5, expand_margins=False)
+
+    kde_1 = sns.kdeplot(neg, linewidth=4, color='green')
+
+    if include_hist:
+        sns.histplot(x=neg, kde=True, color='green', alpha=.0, linewidth=0)
+
+    plt.title(title)
+    plt.xlabel('')
+    plt.ylabel('')
+    plt.xticks(fontsize=0)
+    plt.yticks(fontsize=0)
+
+    if xlim:
+        plt.xlim(xlim[0], xlim[1])
+    plt.tight_layout()
+
+    # Get the KDE data
+    kde_x, kde_y = kde_1.get_lines()[0].get_data()
+
+    # Function to find the valley between peaks
+    def find_valley(kde_x, kde_y):
+        peaks, _ = find_peaks(kde_y)
+        valleys, _ = find_peaks(-kde_y)
+
+        if len(peaks) >= 2:
+            peak_1, peak_2 = peaks[:2]
+            valley = valleys[(valleys > peak_1) & (valleys < peak_2)]
+            if len(valley) > 0:
+                valley_x = kde_x[valley[0]]
+                print(f"Valley between peaks at x = {valley_x}")
+            else:
+                valley_x = None
+                print("No valley found between the peaks.")
+        else:
+            valley_x = None
+            print("Fewer than two peaks detected.")
+
+        return valley_x
+
+    # Function to compute count percentages up to and after the valley
+    def compute_count_percentages(neg, split_x):
+        count_before = np.sum(neg <= split_x)
+        count_after = np.sum(neg > split_x)
+        total_count = len(neg)
+        return count_before / total_count, count_after / total_count
+
+    valley_x = find_valley(kde_x, kde_y)
+
+    if valley_x and valley:
+        plt.axvline(valley_x, color='black', linestyle='--')
+
+    if valley_x is not None and valley:
+        before_valley, after_valley = compute_count_percentages(neg, valley_x)
+        print(f"Percentage of counts before valley: {before_valley * 100:.2f}%")
+        print(f"Percentage of counts after valley: {after_valley * 100:.2f}%")
+
+        # Annotate the percentages on the plot
+        y_max = np.max(kde_y)
+        plt.text(valley_x, y_max * 0.5, f'{before_valley * 100:.2f}%',
+                 horizontalalignment='right', verticalalignment='center',
+                 fontsize=12, color='black')
+        plt.text(valley_x, y_max * 0.5, f'{after_valley * 100:.2f}%',
+                 horizontalalignment='left', verticalalignment='center',
+                 fontsize=12, color='black')
+    else:
+        before_valley, after_valley = None, None
+        print("No valley detected, unable to calculate count percentages.")
+
+    return kde_1.get_lines()[0].get_data(), before_valley, after_valley
