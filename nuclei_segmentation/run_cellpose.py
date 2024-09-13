@@ -200,17 +200,6 @@ def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
 
         img = deep_norm(img, 5, 95, axis=(0, 1, 2))
 
-    # img = anisodiff3(
-    #     img, niter=5, kappa=40, gamma=0.1,
-    #     step=(metadata['z_res'], metadata['x_res'], metadata['y_res']),
-    #     option=1, ploton=False
-    # )
-
-    img = np.array([
-        denoise_bilateral(img[z], 3, 0.1, 10)
-        for z in range(img.shape[0])
-    ])
-
     # if equalize_img:
     #     if verbose:
     #         print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
@@ -219,12 +208,24 @@ def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
     #     img = np.clip(img, np.percentile(img, 5), np.percentile(img, 95))
     #     img = (img - img.min()) / (img.max() - img.min())
     #
-    #     img = exposure.adjust_gamma(img, gamma=0.5)
+    #     # img = exposure.adjust_gamma(img, gamma=0.5)
     #
-    #     # img = exposure.equalize_hist(img)
+    #     img = exposure.equalize_hist(img)
     #
-    #     vmin, vmax = np.percentile(img, q=(5, 95))
-    #     img = exposure.rescale_intensity(img, in_range=(vmin, vmax))
+    #     # vmin, vmax = np.percentile(img, q=(5, 95))
+    #     # img = exposure.rescale_intensity(img, in_range=(vmin, vmax))
+
+    img = np.array([
+        denoise_bilateral(img[z], 3, 0.1, 10)
+        for z in range(img.shape[0])
+    ])
+    img = anisodiff3(
+        img, niter=5, kappa=40, gamma=0.1,
+        step=(metadata['z_res'], metadata['x_res'], metadata['y_res']),
+        option=1, ploton=False
+    )
+
+
     #
     # # Median filter
     # if verbose:
