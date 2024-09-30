@@ -176,7 +176,7 @@ def anisodiff3(stack,niter=1,kappa=50,gamma=0.1,step=(1.,1.,1.),option=1,ploton=
     return stackout
 
 
-def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
+def load_img(img_path, test_name, equalize_img=True, normalize_img=True, verbose=0):
     """
     Load and normalize image.
     :param img_path: Path to image.
@@ -200,31 +200,31 @@ def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
 
         img = deep_norm(img, 5, 95, axis=(0, 1, 2))
 
-    # if equalize_img:
-    #     if verbose:
-    #         print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
-    #
-    #     # Rescale image data to range [0, 1]
-    #     img = np.clip(img, np.percentile(img, 5), np.percentile(img, 95))
-    #     img = (img - img.min()) / (img.max() - img.min())
-    #
-    #     # img = exposure.adjust_gamma(img, gamma=0.5)
-    #
-    #     img = exposure.equalize_hist(img)
-    #
-    #     # vmin, vmax = np.percentile(img, q=(5, 95))
-    #     # img = exposure.rescale_intensity(img, in_range=(vmin, vmax))
+    if equalize_img:
+        if verbose:
+            print(f'{c.OKBLUE}Equalizing image{c.ENDC}...')
+
+        # Rescale image data to range [0, 1]
+        img = np.clip(img, np.percentile(img, 5), np.percentile(img, 95))
+        img = (img - img.min()) / (img.max() - img.min())
+
+        # img = exposure.adjust_gamma(img, gamma=0.5)
+
+        img = exposure.equalize_hist(img)
+
+        # vmin, vmax = np.percentile(img, q=(5, 95))
+        # img = exposure.rescale_intensity(img, in_range=(vmin, vmax))
 
     img = np.array([
         denoise_bilateral(img[z], 3, 0.1, 10)
         for z in range(img.shape[0])
     ])
+
     img = anisodiff3(
         img, niter=5, kappa=40, gamma=0.1,
         step=(metadata['z_res'], metadata['x_res'], metadata['y_res']),
         option=1, ploton=False
     )
-
 
     #
     # # Median filter
@@ -234,7 +234,7 @@ def load_img(img_path, equalize_img=True, normalize_img=True, verbose=0):
     # img = ndimage.gaussian_filter(img, sigma=0.8)
     # img = ndimage.median_filter(img, size=(3, 3, 3))
 
-    imaging.save_nii(img, img_path.replace('.nii.gz', '_filtered.nii.gz'), verbose=verbose, axes='ZYX')
+    imaging.save_nii(img, img_path.replace('.nii.gz', f'{test_name}_filtered.nii.gz'), verbose=verbose, axes='ZYX')
 
     return img
 
@@ -296,8 +296,8 @@ def run(
             channels=channels,
             normalize=False,
             anisotropy=1,
-            # do_3D=True,
-            do_3D=False,
+            do_3D=True,
+            # do_3D=False,
             cellprob_threshold=.5,
             stitch_threshold=.6,
             flow_threshold=.45,
@@ -342,8 +342,12 @@ def predict(
     :param tissue: Tissue to crop image.
     :param verbose: Verbosity level
     """
+    test_name = '3D_5_6_45_M_EQ_BI_AD'
+    img_path_out = img_path_out.replace('.nii.gz', f'_{test_name}.nii.gz')
+
     img = load_img(
         img_path,
+        test_name=test_name,
         equalize_img=equalize,
         normalize_img=normalize,
         verbose=verbose
