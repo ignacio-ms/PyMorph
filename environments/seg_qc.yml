@@ -14,9 +14,9 @@ dependencies:
   - ctrl
   - tissue_analysis
   - tissue_paredes
-  - nibabel
-  - tifffile
-  - h5py
-  - csbdeep
-  - SimpleITK
-  - networkx
+#  - nibabel
+#  - tifffile
+#  - h5py
+#  - csbdeep
+#  - SimpleITK
+#  - networkx
