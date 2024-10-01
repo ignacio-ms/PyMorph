@@ -86,7 +86,7 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
     To avoid class imbalance, the pseudo-labeled data will be undersampled if specified.
 
     The data input is composed by 3D cell images. To make a prediction, the model will make
-    a prediction for each z-stack image and average the results by a majority vote.
+    a prediction for each z-stack image and average the base_results by a majority vote.
     :param model: Pretrained model
     :param unlabeled: Unlabeled data generator
     :param threshold: Threshold to consider a prediction as valid
@@ -132,7 +132,7 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
     pseudo_labels = pseudo_labels[mask]
 
     if verbose:
-        print(f'{c.OKBLUE}Pseudo-labeling results{c.ENDC}')
+        print(f'{c.OKBLUE}Pseudo-labeling base_results{c.ENDC}')
         print(f'Pseudo-labels: {len(pseudo_labels)}')
         print(f'Pseudo-labels distribution: {np.bincount(pseudo_labels)}')
 
@@ -159,7 +159,7 @@ def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0)
         })
 
         if verbose:
-            print(f'{c.OKBLUE}Undersampling results{c.ENDC}')
+            print(f'{c.OKBLUE}Undersampling base_results{c.ENDC}')
             print(f'Pseudo-labels: {len(pseudo_labels_df)}')
             print(f'Pseudo-labels distribution: {np.bincount(pseudo_labels_df["label"])}')
 

@@ -8,7 +8,7 @@ preprocessing:
   key: Null
   # channel to use if input image has shape CZYX or CYX, otherwise set to null
   channel: Null
-  # create a new sub folder where all results will be stored
+  # create a new sub folder where all base_results will be stored
   save_directory: 'PreProcessing'
   # rescaling the volume is essential for the generalization of the networks. The rescaling factor can be computed as the resolution
   # of the volume at hand divided by the resolution of the dataset used in training. Be careful, if the difference is too large check for a different model.
@@ -70,7 +70,7 @@ segmentation:
   # Segmentation specific parameters here
   # balance under-/over-segmentation; 0 - aim for undersegmentation, 1 - aim for oversegmentation. (Not active for DtWatershed)
   beta: 0.5
-  # directory where to save the results
+  # directory where to save the base_results
   save_directory: 'GASP'
   # enable/disable watershed
   run_ws: True

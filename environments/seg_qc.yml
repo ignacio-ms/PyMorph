@@ -1,0 +1,22 @@
+name: seg_qc
+
+channels:
+  - mosaic
+  - morpheme
+
+dependencies:
+  - python=3.8.*
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - timagetk
+  - ctrl
+  - tissue_analysis
+  - tissue_paredes
+  - nibabel
+  - tifffile
+  - h5py
+  - csbdeep
+  - SimpleITK
+  - networkx
