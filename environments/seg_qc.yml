@@ -5,18 +5,19 @@ channels:
   - morpheme
 
 dependencies:
-  - python=3.8.*
+  - python=3.9.*
   - numpy
   - scipy
   - pandas
   - matplotlib
   - timagetk
   - ctrl
-  - tissue_analysis
-  - tissue_paredes
-#  - nibabel
-#  - tifffile
-#  - h5py
-#  - csbdeep
-#  - SimpleITK
-#  - networkx
+#  - tissue_analysis
+#  - tissue_paredes
+  - jupyter
+  - nibabel
+  - tifffile
+  - h5py
+  - csbdeep
+  - SimpleITK
+  - networkx
