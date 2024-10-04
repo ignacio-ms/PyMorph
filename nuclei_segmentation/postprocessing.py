@@ -45,7 +45,7 @@ class PostProcessing:
             np.ndarray: Relabeled 3D segmentation with connected components.
         """
         labeled_image, num_labels = measure.label(segmentation, connectivity=1, return_num=True)
-        return labeled_image
+        return labeled_image.astype(np.int16)
 
     @staticmethod
     def apply_watershed(segmentation, markers=None):

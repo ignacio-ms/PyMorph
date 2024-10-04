@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from nuclei_segmentation import my_cellpose as cp
