@@ -14,14 +14,9 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import HtDataset, find_specimen
-from auxiliary.utils.timer import LoadingBar, timed
-from auxiliary.data import imaging
+from auxiliary.data.dataset_ht import HtDataset
+from auxiliary.utils.timer import LoadingBar
 
-from filtering.cardiac_region import get_margins, crop_img, restore_img
-from feature_extraction.feature_extractor import filter_by_volume, filter_by_margin
-
-from nuclei_segmentation import preprocessing
 from my_cellpose import predict
 
 
