@@ -34,7 +34,7 @@ def load_img(img_path, pipeline=None, test_name=None, verbose=0, **kwargs):
     :return:
     """
     preprocess = preprocessing.Preprocessing(pipeline=pipeline)
-    return preprocess.load(
+    return preprocess.run(
         img_path, test_name=test_name,
         verbose=verbose, **kwargs
     )

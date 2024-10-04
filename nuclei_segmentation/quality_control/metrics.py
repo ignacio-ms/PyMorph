@@ -68,8 +68,6 @@ def dice_coef(pred, gt, thr_overlap=.3):
         rows = pd.DataFrame(rows)
         df_overlap = pd.concat([df_overlap, rows], ignore_index=True)
 
-    print(df_overlap)
-
     dices = []
     df_dices = df_overlap
     df_dices.columns = ['target', 'reference', 'dice']
@@ -297,7 +295,7 @@ def segmentation_stats(pred, gt, thr_bck=.60, thr_overlap=.5, ignore_bck=True, v
 
     out_results['state'] = out_results.apply(segmentation_state, axis=1)
 
-    cell_stats = {'correct': 0, 'under_segmented': 0, 'over_segmented': 0, 'confused': 0}
+    cell_stats = {'correct': 0, 'under_segmented': 0, 'over_segmented': 0, 'confused': 0, 'total': 0}
     if not ignore_bck:
         cell_stats['background'] = BCK_LABEL
 
@@ -311,7 +309,12 @@ def segmentation_stats(pred, gt, thr_bck=.60, thr_overlap=.5, ignore_bck=True, v
         cell_stats[state] += 1
 
     total_cells = len(state_target)
-    cell_stats = {state: np.around(val / total_cells * 100, 2) for state, val in cell_stats.items()}
+    cell_stats = {
+        state: np.around((val / total_cells) * 100, 2)
+        for state, val in cell_stats.items()
+        if state != 'total'
+    }
+    cell_stats['total'] = np.float16(total_cells)
 
     # Add missing cells
     total_reference_cells = len(np.unique([
@@ -326,15 +329,14 @@ def segmentation_stats(pred, gt, thr_bck=.60, thr_overlap=.5, ignore_bck=True, v
 
     total_missing = len(missing_cells)
     cell_stats['missing'] = np.around(total_missing / total_reference_cells * 100, 2)
-    cell_stats['total'] = total_cells
 
     if verbose:
-        print(f'NO. Cells {total_cells}')
+        print(f'NO. Cells {cell_stats["total"]}')
         print(f'% Correct: {cell_stats["correct"]}')
         print(f'% Under-segmented: {cell_stats["under_segmented"]}')
         print(f'% Over-segmented: {cell_stats["over_segmented"]}')
         print(f'% Missing GT cells: {cell_stats["missing"]}')
         print(f'% Confused: {cell_stats["confused"]}')
 
-    return out_results
+    return out_results, cell_stats
 

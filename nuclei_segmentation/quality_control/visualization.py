@@ -141,7 +141,20 @@ def visualize_comparison(
     return fig
 
 
+def transform_image(img):
+    img_aux = img.copy()
+    img_aux = img_aux + 1
+
+    return LabelledImage(
+        img_aux, not_a_label=0, axes_order='XYZ',
+        origin=[0, 0, 0], voxelsize=[1.0, 1.0, 1.0],
+        unit=1e-06
+    )
+
+
 def save_comparison(target_img, out_results, out_path):
+    target_img = transform_image(target_img)
+
     color_map = {
         'missing': [255, 255, 255],
         'background': [0, 0, 0],

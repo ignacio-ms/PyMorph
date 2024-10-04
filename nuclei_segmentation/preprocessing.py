@@ -112,7 +112,9 @@ def reconstruct(img, **kwargs):
 class Preprocessing:
     def __init__(self, pipeline=None):
         self.mapped_pipeline = {
-            'normalization': self.normalize,
+            'norm_minmax': self.norm_minmax,
+            'norm_adaptative': self.norm_adaptative,
+            'norm_percentile': self.norm_percentile,
             'equalization': self.equalize,
             'anisodiff': self.anisodiff,
             'bilateral': self.bilateral,
@@ -144,11 +146,34 @@ class Preprocessing:
         return filtered_kwargs
 
     @staticmethod
-    def normalize(img):
+    def norm_minmax(img):
         return np.array([
             cv2.normalize(img[z], None, 0, 1, cv2.NORM_MINMAX)
             for z in range(img.shape[0])
         ])
+
+    @staticmethod
+    def norm_adaptative(img):
+        return np.array([
+            exposure.equalize_adapthist(img[z], clip_limit=0.03)
+            for z in range(img.shape[0])
+        ])
+
+    @staticmethod
+    def norm_percentile(img, **kwargs):
+        default_kwargs = {
+            'low': 5,
+            'high': 95
+        }
+
+        default_kwargs.update(kwargs)
+        low, high = np.percentile(img, (default_kwargs['low'], default_kwargs['high']))
+
+        return np.array([
+            exposure.rescale_intensity(img[z], in_range=(low, high))
+            for z in range(img.shape[0])
+        ])
+
 
     @staticmethod
     def equalize(img):
@@ -237,7 +262,7 @@ class Preprocessing:
         default_kwargs.update(kwargs)
         return exposure.rescale_intensity(img, **kwargs)
 
-    def load(self, img_path, test_name=None, verbose=0, **kwargs):
+    def run(self, img_path, test_name=None, verbose=0, **kwargs):
         img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
         metadata, _ = imaging.load_metadata(img_path)
 
