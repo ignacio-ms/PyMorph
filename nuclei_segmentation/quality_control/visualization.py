@@ -139,3 +139,42 @@ def visualize_comparison(
     fig.tight_layout()
 
     return fig
+
+
+def save_comparison(target_img, out_results, out_path):
+    color_map = {
+        'missing': [255, 255, 255],
+        'background': [0, 0, 0],
+        'correct': [0, 255, 0],
+        'under_segmented': [0, 0, 255],
+        'over_segmented': [255, 0, 0],
+        'confused': [255, 255, 0]
+    }
+
+    def segmentation_color(row):
+        row_name = f'state'
+        return color_map[row[row_name]]
+
+    out_results['segmentation_color'] = out_results.apply(segmentation_color, axis=1)
+
+    mapping = {
+        lab: c for lab_list, c
+        in zip(out_results.target.values, out_results.segmentation_color.values)
+        for lab in lab_list
+    }
+    mapping[1] = [0, 0, 0]
+    mapping = {
+        **mapping, **{
+            lab: [255, 255, 255] for lab in target_img.labels()
+            if lab not in mapping
+        }
+    }
+
+    target_comparison = np.empty(target_img.shape + (3,), dtype=np.uint8)
+    for lab in target_img.labels():
+        target_comparison[target_img == lab] = mapping[lab]
+
+    imaging.save_tiff_imagej_compatible(
+        out_path, target_comparison,
+        axes='XYZC'
+    )

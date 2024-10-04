@@ -6,9 +6,10 @@ from skimage.restoration import denoise_bilateral
 import cv2
 
 from auxiliary.data import imaging
+from auxiliary.utils.colors import bcolors as c
 
 
-def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1, ploton=False):
+def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1):
     """
     3D Anisotropic diffusion.
 
@@ -23,8 +24,6 @@ def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1, p
             step   - tuple, the distance between adjacent pixels in (z,y,x)
             option - 1 Perona Malik diffusion equation No 1
                      2 Perona Malik diffusion equation No 2
-            ploton - if True, the middle z-plane will be plotted on every
-                 iteration
 
     Returns:
             stackout   - diffused stack.
@@ -65,23 +64,6 @@ def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1, p
     gE = gS.copy()
     gD = gS.copy()
 
-    # create the plot figure, if requested
-    if ploton:
-        import pylab as pl
-        from time import sleep
-
-        showplane = stack.shape[0]//2
-
-        fig = pl.figure(figsize=(20,5.5),num="Anisotropic diffusion")
-        ax1,ax2 = fig.add_subplot(1,2,1),fig.add_subplot(1,2,2)
-
-        ax1.imshow(stack[showplane,...].squeeze(),interpolation='nearest')
-        ih = ax2.imshow(stackout[showplane,...].squeeze(),interpolation='nearest',animated=True)
-        ax1.set_title("Original stack (Z = %i)" %showplane)
-        ax2.set_title("Iteration 0")
-
-        fig.canvas.draw()
-
     for ii in np.arange(1,niter):
 
         # calculate the diffs
@@ -116,14 +98,15 @@ def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1, p
         # update the image
         stackout += gamma*(UD+NS+EW)
 
-        if ploton:
-            iterstring = "Iteration %i" %(ii+1)
-            ih.set_data(stackout[showplane,...].squeeze())
-            ax2.set_title(iterstring)
-            fig.canvas.draw()
-            # sleep(0.01)
-
     return stackout
+
+
+def reconstruct(img, **kwargs):
+    assert kwargs['metadata'] is not None
+
+    metadata = kwargs['metadata']
+    resampling_factor = metadata['x_res'] / metadata['z_res']
+    return ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
 
 
 class Preprocessing:
@@ -151,9 +134,19 @@ class Preprocessing:
         self.pipeline = pipeline
 
     @staticmethod
+    def filter_kwargs(func, kwargs):
+        """
+        Filter `kwargs` to only pass arguments that `func` accepts.
+        """
+        import inspect
+        sig = inspect.signature(func)
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+        return filtered_kwargs
+
+    @staticmethod
     def normalize(img):
         return np.array([
-            cv2.normalize(img[..., z], None, 0, 1, cv2.NORM_MINMAX)
+            cv2.normalize(img[z], None, 0, 1, cv2.NORM_MINMAX)
             for z in range(img.shape[0])
         ])
 
@@ -174,29 +167,28 @@ class Preprocessing:
                      2 Perona Malik diffusion equation No 2
             ploton - if True, the middle z-plane will be plotted on every iteration
         """
-        if 'kwargs' not in kwargs:
-            kwargs['kwargs'] = {
-                'niter': 3,
-                'kappa': 40,
-                'gamma': 0.1,
-                'step': (1., 1., 1.),
-                'option': 1,
-                'ploton': False
-            }
+        default_kwargs = {
+            'niter': 3,
+            'kappa': 40,
+            'gamma': 0.1,
+            'step': (1., 1., 1.),
+            'option': 1,
+        }
 
-        return anisodiff3(img, **kwargs)
+        default_kwargs.update(kwargs)
+        return anisodiff3(img, **default_kwargs)
 
     @staticmethod
     def bilateral(img, **kwargs):
-        if 'kwargs' not in kwargs:
-            kwargs['kwargs'] = {
-                'win_size': 3,
-                'sigma_color': 0.1,
-                'sigma_spatial': 10
-            }
+        default_kwargs = {
+            'win_size': 3,
+            'sigma_color': 0.1,
+            'sigma_spatial': 10
+        }
 
+        default_kwargs.update(kwargs)
         return np.array([
-            denoise_bilateral(img[..., z], **kwargs)
+            denoise_bilateral(img[z], **default_kwargs)
             for z in range(img.shape[0])
         ])
 
@@ -206,67 +198,62 @@ class Preprocessing:
 
         metadata = kwargs['metadata']
         resampling_factor = metadata['z_res'] / metadata['x_res']
-        return ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
 
-    @staticmethod
-    def reconstruct(img, **kwargs):
-        assert kwargs['metadata'] is not None
+        if 'verbose' in kwargs:
+            print(
+                f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
+                f'X: {metadata["x_res"]} um/px\n'
+                f'Y: {metadata["y_res"]} um/px\n'
+                f'Z: {metadata["z_res"]} um/px'
+            )
+            print(f'Resampling factor: {resampling_factor}')
 
-        metadata = kwargs['metadata']
-        resampling_factor = metadata['x_res'] / metadata['z_res']
         return ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
 
     @staticmethod
     def gaussian(img, **kwargs):
-        if 'kwargs' not in kwargs:
-            kwargs['kwargs'] = {
-                'sigma': .8
-            }
-
+        default_kwargs = {'sigma': 0.8}
+        default_kwargs.update(kwargs)
         return ndimage.gaussian_filter(img, **kwargs)
 
     @staticmethod
     def median(img, **kwargs):
-        if 'kwargs' not in kwargs:
-            kwargs['kwargs'] = {
-                'size': 3
-            }
-
+        default_kwargs = {'size': 3}
+        default_kwargs.update(kwargs)
         return ndimage.median_filter(img, **kwargs)
 
     @staticmethod
     def gamma(img, **kwargs):
-        if 'kwargs' not in kwargs:
-            kwargs['kwargs'] = {
-                'gamma': .5
-            }
-
+        default_kwargs = {'gamma': 0.5}
+        default_kwargs.update(kwargs)
         return exposure.adjust_gamma(img, **kwargs)
 
     @staticmethod
     def rescale_intensity(img, **kwargs):
-        if 'kwargs' not in kwargs:
-            kwargs['kwargs'] = {
-                'in_range': (np.percentile(img, 5), np.percentile(img, 95)),
-                'out_range': (0, 1)
-            }
-
+        default_kwargs = {
+            'in_range': (np.percentile(img, 5), np.percentile(img, 95)),
+            'out_range': (0, 1)
+        }
+        default_kwargs.update(kwargs)
         return exposure.rescale_intensity(img, **kwargs)
 
     def load(self, img_path, test_name=None, verbose=0, **kwargs):
-        img = imaging.read_image(img_path, axes='YZX', verbose=verbose)
+        img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
         metadata, _ = imaging.load_metadata(img_path)
 
         for step in self.pipeline:
+            step_func = self.mapped_pipeline[step]
+            step_kwargs = self.filter_kwargs(step_func, kwargs)
+
             if step in ['isotropy']:
-                img = self.mapped_pipeline[step](img, metadata=metadata)
+                img = step_func(img, metadata=metadata, **step_kwargs)
                 continue
 
-            img = self.mapped_pipeline[step](img, **kwargs)
+            img = step_func(img, **step_kwargs)
 
         if test_name:
             imaging.save_nii(
-                img, img_path.replace('.nii.gz', f'{test_name}_filtered.nii.gz'),
+                img, img_path.replace('.nii.gz', f'_{test_name}_filtered.nii.gz'),
                 verbose=verbose, axes='ZYX'
             )
 

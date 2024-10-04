@@ -326,6 +326,7 @@ def segmentation_stats(pred, gt, thr_bck=.60, thr_overlap=.5, ignore_bck=True, v
 
     total_missing = len(missing_cells)
     cell_stats['missing'] = np.around(total_missing / total_reference_cells * 100, 2)
+    cell_stats['total'] = total_cells
 
     if verbose:
         print(f'NO. Cells {total_cells}')

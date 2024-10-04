@@ -12,8 +12,6 @@ dependencies:
   - matplotlib
   - timagetk
   - ctrl
-#  - tissue_analysis
-#  - tissue_paredes
   - jupyter
   - nibabel
   - tifffile
