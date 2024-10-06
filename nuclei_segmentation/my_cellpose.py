@@ -62,12 +62,13 @@ def load_model(model_type='nuclei'):
 
 
 def run(
-        model, img,
-        diameter=None, channels=None,
-        anisotropy=1,
-        do_3D=False,
-        stitch_threshold=.6,
-        verbose=0
+    model, img,
+    diameter=None, channels=None,
+    anisotropy=1,
+    do_3D=False,
+    stitch_threshold=.6,
+    cellprob_threshold=0,
+    verbose=0
 ):
     """
     Run cellpose on image.
@@ -94,7 +95,7 @@ def run(
             normalize=False,
             anisotropy=1,
             do_3D=do_3D,
-            # cellprob_threshold=.5,
+            cellprob_threshold=cellprob_threshold,
             stitch_threshold=stitch_threshold,
             # flow_threshold=.45,
         )
@@ -106,9 +107,9 @@ def run(
             channels=channels,
             normalize=False,
             anisotropy=anisotropy,
-            do_3D=True,
-            # cellprob_threshold=.25,
-            stitch_threshold=.6,
+            do_3D=do_3D,
+            cellprob_threshold=cellprob_threshold,
+            stitch_threshold=stitch_threshold,
             # flow_threshold=.35,
         )
 
@@ -173,6 +174,7 @@ def predict(
         channels=channels,
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else False,
         stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else .6,
+        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else 0,
         verbose=verbose
     )
 

@@ -23,7 +23,7 @@ class ModelTester:
         post_pipeline = [step for step in pipeline if step in self.postprocessing_steps]
         return pre_pipeline, post_pipeline
 
-    def run(self, img_path, pipeline, type, stitch_threshold, test_name, verbose=0):
+    def run(self, img_path, pipeline, type, stitch_threshold, cellprob_threshold, test_name, verbose=0):
         if verbose:
             print(f'Running test: {test_name}')
 
@@ -46,6 +46,7 @@ class ModelTester:
             self.model, img,
             diameter=17, channels=[0, 0],
             stitch_threshold=stitch_threshold,
+            cellprob_threshold=cellprob_threshold,
             do_3D=do_3D, verbose=verbose
         )
         masks = preprocessing.reconstruct(masks, metadata=metadata)
