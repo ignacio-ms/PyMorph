@@ -98,7 +98,7 @@ class PostProcessing:
 
         for _ in range(default_kwargs['n_iter']):
             # Perform connected component analysis in 3D
-            labeled_image, num_labels = measure.label(segmentation, return_num=True,
+            labeled_image, num_labels = measure.label(merged_labels, return_num=True,
                                                       connectivity=default_kwargs['connectivity'])
 
             # Calculate the volume (number of voxels) for each labeled region
