@@ -1,17 +1,21 @@
+import networkx as nx
 import numpy as np
 from skimage import morphology, measure
 from skimage.segmentation import watershed
 from scipy import ndimage as ndi
 from skimage.morphology import erosion, dilation, ball
+from skimage.feature import peak_local_max
 
 
 class PostProcessing:
     def __init__(self, pipeline=None):
         self.mapped_pipeline = {
             'remove_small_objects': self.remove_small_objects,
-            '3d_connected_component_analysis': self.connected_component_analysis,
-            'merge_by_volume': self.merge_by_volume,
-            'clean_boundaries_morphology': self.clean_boundaries_morphology,
+            'split': self.split,
+            'merge_connected_components': self.merge_connected_components,
+            'merge_graph': self.merge_graph,
+            'clean_boundaries_opening': self.opening,
+            'clean_boundaries_closing': self.closing,
         }
 
         if pipeline is None:
@@ -33,75 +37,207 @@ class PostProcessing:
         return morphology.remove_small_objects(segmentation, min_size=min_size)
 
     @staticmethod
-    def connected_component_analysis(segmentation):
+    def split(segmentation, **kwargs):
         """
-        Perform 3D connected component analysis to merge fragmented parts of cells.
-
-        This method labels connected components in a 3D volume, ensuring that
-        fragmented cell parts are merged based on connectivity.
-
-        Parameters:
-            segmentation (np.ndarray): 3D array representing the segmentation mask.
-
-        Returns:
-            np.ndarray: Relabeled 3D segmentation with connected components.
-        """
-        labeled_image, num_labels = measure.label(segmentation, connectivity=1, return_num=True)
-        return labeled_image.astype(np.int16)
-
-    def merge_by_volume(segmentation, min_volume=1000):
-        """
-        Merge small segments across z-axis based on volume.
+        Split cells in the segmentation using 3D connected component analysis (CCA).
 
         Parameters:
             segmentation (np.ndarray): 3D array representing the segmented mask.
-            min_volume (int): Minimum volume threshold for valid segments.
+            min_size (int): Minimum volume of regions to keep after splitting.
 
         Returns:
-            np.ndarray: Segmentation with merged small fragments.
+            np.ndarray: Segmentation with cells split into distinct components.
         """
-        # Perform connected component analysis in 3D
-        labeled_image, num_labels = measure.label(segmentation, connectivity=1, return_num=True)
+        default_kwargs = {
+            'min_size': 500,
+            'connectivity': 2
+        }
+        default_kwargs.update(kwargs)
 
-        # Calculate the volume (number of voxels) for each labeled region
-        regions = measure.regionprops(labeled_image)
+        # Create a copy of the original segmentation
+        split_labels = np.zeros_like(segmentation, dtype=np.int16)
 
-        # Create a new array to store the modified labels
-        merged_labels = labeled_image.copy()
+        # Loop over each unique label (cell) in the segmentation
+        unique_labels = np.unique(segmentation)
 
-        for region in regions:
-            # If the region's volume is less than the minimum volume, consider it for merging
-            if region.area < min_volume:
-                # Get the coordinates of the small region's voxels
-                coords = region.coords
+        # Start labeling from 1
+        current_label = 1
 
-                # Dilate in 3D to find neighboring regions across z-slices
-                dilated_region = morphology.dilation(labeled_image == region.label, morphology.ball(1))
+        for label in unique_labels:
+            if label == 0:
+                # Skip background
+                continue
 
-                # Get the neighboring labels around this small region (in 3D)
-                neighbor_labels = np.unique(labeled_image[dilated_region])
-                neighbor_labels = neighbor_labels[neighbor_labels != region.label]  # Exclude the small region itself
-                neighbor_labels = neighbor_labels[neighbor_labels != 0]  # Exclude background
+            # Extract the region corresponding to the current label
+            cell_region = (segmentation == label)
 
-                # If there are neighboring labels, merge the small region with the largest neighbor
-                if len(neighbor_labels) > 0:
-                    # Choose the largest neighboring region (by volume)
-                    largest_neighbor = None
-                    largest_size = 0
-                    for neighbor_label in neighbor_labels:
-                        neighbor_region = next(r for r in regions if r.label == neighbor_label)
-                        if neighbor_region.area > largest_size:
-                            largest_neighbor = neighbor_label
-                            largest_size = neighbor_region.area
+            # Perform connected component analysis on the cell region to split it
+            labeled_cell, num_labels = measure.label(cell_region, connectivity=default_kwargs['connectivity'], return_num=True)
 
-                    # Assign the small region's voxels to the largest neighboring region
-                    for coord in coords:
-                        merged_labels[tuple(coord)] = largest_neighbor
+            # Optionally, filter out small regions based on volume
+            regions = measure.regionprops(labeled_cell)
+            for region in regions:
+                if region.area >= default_kwargs['min_size']:
+                    # Assign a new unique label to each connected component (split cells)
+                    split_labels[labeled_cell == region.label] = current_label
+                    current_label += 1
+
+        return split_labels
+
+    @staticmethod
+    def merge_connected_components(segmentation, **kwargs):
+        default_kwargs = {
+            'connectivity': 2,
+            'min_volume': 500,
+            'dilation_size': 9,  # Extend the dilation for finding neighbors across z-axis
+            'n_iter': 3,
+        }
+        default_kwargs.update(kwargs)
+
+        merged_labels = segmentation.copy()
+
+        for _ in range(default_kwargs['n_iter']):
+            # Perform connected component analysis in 3D
+            labeled_image, num_labels = measure.label(segmentation, return_num=True,
+                                                      connectivity=default_kwargs['connectivity'])
+
+            # Calculate the volume (number of voxels) for each labeled region
+            regions = measure.regionprops(labeled_image)
+
+            # Create a new array to store the modified labels
+            merged_labels = labeled_image.copy()
+
+            # Create a set to track which regions have been merged
+            merged_set = set()
+
+            for region in regions:
+                # If the region's volume is less than the minimum volume, consider it for merging
+                if region.area < default_kwargs['min_volume']:
+                    # Skip regions that have already been merged
+                    if region.label in merged_set:
+                        continue
+
+                    # Get the coordinates of the small region's voxels
+                    coords = region.coords
+
+                    # Dilate in 3D to find neighboring regions across z-slices
+                    dilated_region = morphology.dilation(labeled_image == region.label,
+                                                         morphology.ball(default_kwargs['dilation_size']))
+
+                    # Get the neighboring labels around this small region (in 3D)
+                    neighbor_labels = np.unique(labeled_image[dilated_region])
+                    neighbor_labels = neighbor_labels[neighbor_labels != region.label]  # Exclude the small region itself
+                    neighbor_labels = neighbor_labels[neighbor_labels != 0]  # Exclude background
+
+                    # If there are neighboring labels, merge the small region with the largest neighbor
+                    if len(neighbor_labels) > 0:
+                        # Choose the largest neighboring region (by volume)
+                        largest_neighbor = None
+                        largest_size = 0
+                        for neighbor_label in neighbor_labels:
+                            # Skip already merged regions
+                            if neighbor_label in merged_set:
+                                continue
+                            neighbor_region = next(r for r in regions if r.label == neighbor_label)
+                            if neighbor_region.area > largest_size:
+                                largest_neighbor = neighbor_label
+                                largest_size = neighbor_region.area
+
+                        if largest_neighbor is not None:
+                            # Assign the small region's voxels to the largest neighboring region
+                            for coord in coords:
+                                merged_labels[tuple(coord)] = largest_neighbor
+
+                            # Mark the small region and the neighbor as merged
+                            merged_set.add(region.label)
+                            merged_set.add(largest_neighbor)
 
         return merged_labels.astype(np.int16)
 
     @staticmethod
-    def clean_boundaries_morphology(segmentation, erosion_radius=2, dilation_radius=2):
+    def merge_graph(segmented_volume, **kwargs):
+        """
+        Link cells across slices using a graph-based approach.
+
+        Parameters:
+        - segmented_volume: 3D numpy array (Z, Y, X) with labeled segments
+        - max_distance: Maximum centroid distance to consider for linking cells
+
+        Returns:
+        - linked_volume: 3D numpy array with linked labels across slices
+        """
+        default_kwargs = {
+            'max_distance': 15,
+        }
+        default_kwargs.update(kwargs)
+
+        num_slices = segmented_volume.shape[0]
+        G = nx.Graph()
+
+        segmented_volume = segmented_volume.astype(np.int32)
+
+        # Dictionary to store cell properties for each slice
+        cells_in_slices = {}
+
+        # Build nodes for each cell in each slice
+        for z in range(num_slices):
+            current_slice = segmented_volume[z]
+            props = measure.regionprops(current_slice)
+            cells_in_slices[z] = []
+
+            for prop in props:
+                if prop.label == 0:
+                    continue  # Skip background
+
+                # Store centroid and label information
+                cell_info = {
+                    'slice': z,
+                    'label': prop.label,
+                    'centroid': prop.centroid,
+                    'area': prop.area
+                }
+                cells_in_slices[z].append(cell_info)
+
+                # Add node to the graph
+                node_id = (z, prop.label)
+                G.add_node(node_id, **cell_info)
+
+        # Add edges between cells in adjacent slices
+        for z in range(num_slices - 1):
+            cells_current = cells_in_slices[z]
+            cells_next = cells_in_slices[z + 1]
+
+            for cell_curr in cells_current:
+                for cell_next in cells_next:
+                    # Calculate Euclidean distance between centroids
+                    distance = np.linalg.norm(np.array(cell_curr['centroid']) - np.array(cell_next['centroid']))
+
+                    if distance <= default_kwargs['max_distance']:
+                        # Add an edge with the distance as weight
+                        node_curr = (cell_curr['slice'], cell_curr['label'])
+                        node_next = (cell_next['slice'], cell_next['label'])
+                        G.add_edge(node_curr, node_next, weight=distance)
+
+        # Find connected components in the graph
+        connected_components = list(nx.connected_components(G))
+
+        # Assign new labels based on connected components
+        linked_volume = np.zeros_like(segmented_volume)
+        new_label = 1
+
+        for component in connected_components:
+            for node in component:
+                z, original_label = node
+                # Update the labels in the linked volume
+                linked_volume[z][segmented_volume[z] == original_label] = new_label
+            new_label += 1
+
+        print(f"Number of cells after linking: {new_label - 1}")
+
+        return linked_volume.astype(np.int16)
+
+    @staticmethod
+    def opening(segmentation, **kwargs):
         """
         Apply morphological operations to clean cell boundaries.
 
@@ -113,12 +249,37 @@ class PostProcessing:
         Returns:
         np.ndarray: Segmentation with cleaned boundaries.
         """
-        # Erode the segmentation to remove small artifacts and separate touching regions
-        eroded = erosion(segmentation, ball(erosion_radius))
+        default_kwargs = {
+            'erosion_radius': 3,
+            'dilation_radius': 3
+        }
+        default_kwargs.update(kwargs)
 
-        # Dilate the eroded segmentation to restore the original size
-        cleaned = dilation(eroded, ball(dilation_radius))
+        eroded = erosion(segmentation, ball(default_kwargs['erosion_radius']))
+        cleaned = dilation(eroded, ball(default_kwargs['dilation_radius']))
+        return cleaned.astype(np.int16)
 
+    @staticmethod
+    def closing(segmentation, **kwargs):
+        """
+        Apply morphological operations to clean cell boundaries.
+
+        Parameters:
+        segmentation (np.ndarray): 3D array representing the segmented mask.
+        erosion_radius (int): Radius for erosion operation.
+        dilation_radius (int): Radius for dilation operation.
+
+        Returns:
+        np.ndarray: Segmentation with cleaned boundaries.
+        """
+        default_kwargs = {
+            'erosion_radius': 3,
+            'dilation_radius': 3
+        }
+        default_kwargs.update(kwargs)
+
+        dilated = dilation(segmentation, ball(default_kwargs['dilation_radius']))
+        cleaned = erosion(dilated, ball(default_kwargs['erosion_radius']))
         return cleaned.astype(np.int16)
 
     def run(self, img, **kwargs):

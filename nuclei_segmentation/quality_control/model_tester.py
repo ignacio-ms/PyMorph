@@ -14,8 +14,12 @@ class ModelTester:
             'rescale_intensity'
         ]
         self.postprocessing_steps = [
-            'remove_small_objects', '3d_connected_component_analysis',
-            'watershed'
+            'remove_small_objects',
+            'split',
+            'merge_connected_components',
+            'merge_graph',
+            'clean_boundaries_opening',
+            'clean_boundaries_closing',
         ]
 
     def split_pipeline(self, pipeline):
@@ -49,11 +53,11 @@ class ModelTester:
             cellprob_threshold=cellprob_threshold,
             do_3D=do_3D, verbose=verbose
         )
-        masks = preprocessing.reconstruct(masks, metadata=metadata)
+        masks_reconstructed = preprocessing.reconstruct(masks, metadata=metadata)
 
         postproc = postprocessing.PostProcessing(pipeline=post_pipeline)
-        masks = postproc.run(masks, verbose=verbose)
+        masks_post = postproc.run(masks_reconstructed, verbose=verbose)
 
-        imaging.save_nii(masks, img_path_out, axes='ZYX', verbose=verbose)
+        imaging.save_nii(masks_post, img_path_out, axes='ZYX', verbose=verbose)
 
 

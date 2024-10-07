@@ -153,7 +153,7 @@ def volume_jaccard_index(pred, gt):
     sum_weighted_ji = sum(df_jaccard.weighted_jaccard.values)
     vji = sum_weighted_ji / total_cell_volume
 
-    return vji
+    return vji, df_jaccard
 
 
 def segmentation_stats(pred, gt, thr_bck=.60, thr_overlap=.5, ignore_bck=True, verbose=False):
