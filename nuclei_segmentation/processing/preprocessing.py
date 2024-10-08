@@ -102,7 +102,7 @@ def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1):
 
 
 def reconstruct(img, **kwargs):
-    assert kwargs['metadata'] is not None
+    assert kwargs['metadata'] is not None, 'Metadata is required for isotropy reconstruction step.'
 
     metadata = kwargs['metadata']
     resampling_factor = metadata['x_res'] / metadata['z_res']
@@ -129,10 +129,11 @@ class Preprocessing:
             pipeline = [
                 'isotropy',
                 'normalization',
-                'bilateral'
+                'bilateral',
+                'anisodiff',
             ]
 
-        assert all(step in self.mapped_pipeline for step in pipeline)
+        assert all(step in self.mapped_pipeline for step in pipeline), 'Invalid pipeline step.'
         self.pipeline = pipeline
 
     @staticmethod
@@ -219,7 +220,7 @@ class Preprocessing:
 
     @staticmethod
     def isotropy(img, **kwargs):
-        assert kwargs['metadata'] is not None
+        assert kwargs['metadata'] is not None, 'Metadata is required for isotropy step.'
 
         metadata = kwargs['metadata']
         resampling_factor = metadata['z_res'] / metadata['x_res']

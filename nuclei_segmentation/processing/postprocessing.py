@@ -16,10 +16,11 @@ class PostProcessing:
             'merge_graph': self.merge_graph,
             'clean_boundaries_opening': self.opening,
             'clean_boundaries_closing': self.closing,
+            'remove_large_objects': self.remove_large_objects,
         }
 
         if pipeline is None:
-            pipeline = ['remove_small_objects']
+            pipeline = ['remove_small_objects', 'remove_large_objects']
 
         assert all(step in self.mapped_pipeline for step in pipeline)
         self.pipeline = pipeline
@@ -32,12 +33,58 @@ class PostProcessing:
         return filtered_kwargs
 
     @staticmethod
-    def remove_small_objects(segmentation, min_size=500):
-        """Remove small objects from segmentation based on a minimum size."""
-        return morphology.remove_small_objects(segmentation, min_size=min_size)
+    def remove_small_objects(segmentation, percentile=5):
+        """
+        Remove small objects from segmentation based on a computed size threshold.
+
+        Parameters:
+        - segmentation: numpy array, the segmented image.
+        - percentile: float, the percentile to determine the size threshold.
+
+        Returns:
+        - numpy array, the segmentation with small objects removed.
+        """
+        labeled_segmentation = measure.label(segmentation)
+        component_sizes = np.bincount(labeled_segmentation.ravel())
+
+        # Exclude background (label 0)
+        component_sizes[0] = 0
+
+        size_threshold = np.percentile(component_sizes[component_sizes > 0], percentile)
+
+        small_object_labels = np.where(component_sizes < size_threshold)[0]
+        small_object_mask = np.isin(labeled_segmentation, small_object_labels)
+
+        segmentation[small_object_mask] = 0
+        return segmentation
+    @staticmethod
+    def remove_large_objects(segmentation, percentile=95):
+        """
+        Remove large objects from segmentation based on a computed size threshold.
+
+        Parameters:
+        - segmentation: numpy array, the segmented image.
+        - percentile: float, the percentile to determine the size threshold.
+
+        Returns:
+        - numpy array, the segmentation with large objects removed.
+        """
+        labeled_segmentation = measure.label(segmentation)
+        component_sizes = np.bincount(labeled_segmentation.ravel())
+
+        # Exclude background (label 0)
+        component_sizes[0] = 0
+
+        size_threshold = np.percentile(component_sizes[component_sizes > 0], percentile)
+
+        large_object_labels = np.where(component_sizes > size_threshold)[0]
+        large_object_mask = np.isin(labeled_segmentation, large_object_labels)
+
+        segmentation[large_object_mask] = 0
+        return segmentation
 
     @staticmethod
-    def split(segmentation, **kwargs):
+    def split(segmentation, min_size=500, connectivity=2):
         """
         Split cells in the segmentation using 3D connected component analysis (CCA).
 
@@ -48,11 +95,6 @@ class PostProcessing:
         Returns:
             np.ndarray: Segmentation with cells split into distinct components.
         """
-        default_kwargs = {
-            'min_size': 500,
-            'connectivity': 2
-        }
-        default_kwargs.update(kwargs)
 
         # Create a copy of the original segmentation
         split_labels = np.zeros_like(segmentation, dtype=np.int16)
@@ -72,12 +114,12 @@ class PostProcessing:
             cell_region = (segmentation == label)
 
             # Perform connected component analysis on the cell region to split it
-            labeled_cell, num_labels = measure.label(cell_region, connectivity=default_kwargs['connectivity'], return_num=True)
+            labeled_cell, num_labels = measure.label(cell_region, connectivity=connectivity, return_num=True)
 
             # Optionally, filter out small regions based on volume
             regions = measure.regionprops(labeled_cell)
             for region in regions:
-                if region.area >= default_kwargs['min_size']:
+                if region.area >= min_size:
                     # Assign a new unique label to each connected component (split cells)
                     split_labels[labeled_cell == region.label] = current_label
                     current_label += 1
