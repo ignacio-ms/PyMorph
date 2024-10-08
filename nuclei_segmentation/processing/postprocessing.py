@@ -89,73 +89,71 @@ class PostProcessing:
         default_kwargs = {
             'connectivity': 2,
             'min_volume': 500,
-            'dilation_size': 9,  # Extend the dilation for finding neighbors across z-axis
-            'n_iter': 3,
+            'dilation_size': 9  # Extend the dilation for finding neighbors across z-axis
         }
         default_kwargs.update(kwargs)
 
         merged_labels = segmentation.copy()
 
-        for _ in range(default_kwargs['n_iter']):
-            # Perform connected component analysis in 3D
-            labeled_image, num_labels = measure.label(merged_labels, return_num=True,
-                                                      connectivity=default_kwargs['connectivity'])
+        # Perform connected component analysis in 3D
+        labeled_image, num_labels = measure.label(merged_labels, return_num=True,
+                                                  connectivity=default_kwargs['connectivity'])
 
-            # Calculate the volume (number of voxels) for each labeled region
-            regions = measure.regionprops(labeled_image)
+        # Calculate the volume (number of voxels) for each labeled region
+        regions = measure.regionprops(labeled_image)
 
-            # Create a new array to store the modified labels
-            merged_labels = labeled_image.copy()
+        # Create a new array to store the modified labels
+        merged_labels = labeled_image.copy()
 
-            # Create a set to track which regions have been merged
-            merged_set = set()
+        # Create a set to track which regions have been merged
+        merged_set = set()
 
-            for region in regions:
-                # If the region's volume is less than the minimum volume, consider it for merging
-                if region.area < default_kwargs['min_volume']:
-                    # Skip regions that have already been merged
-                    if region.label in merged_set:
-                        continue
+        for region in regions:
+            # If the region's volume is less than the minimum volume, consider it for merging
+            if region.area < default_kwargs['min_volume']:
+                # Skip regions that have already been merged
+                if region.label in merged_set:
+                    continue
 
-                    # Get the coordinates of the small region's voxels
-                    coords = region.coords
+                # Get the coordinates of the small region's voxels
+                coords = region.coords
 
-                    # Dilate in 3D to find neighboring regions across z-slices
-                    dilated_region = morphology.dilation(labeled_image == region.label,
-                                                         morphology.ball(default_kwargs['dilation_size']))
+                # Dilate in 3D to find neighboring regions across z-slices
+                dilated_region = morphology.dilation(labeled_image == region.label,
+                                                     morphology.ball(default_kwargs['dilation_size']))
 
-                    # Get the neighboring labels around this small region (in 3D)
-                    neighbor_labels = np.unique(labeled_image[dilated_region])
-                    neighbor_labels = neighbor_labels[neighbor_labels != region.label]  # Exclude the small region itself
-                    neighbor_labels = neighbor_labels[neighbor_labels != 0]  # Exclude background
+                # Get the neighboring labels around this small region (in 3D)
+                neighbor_labels = np.unique(labeled_image[dilated_region])
+                neighbor_labels = neighbor_labels[neighbor_labels != region.label]  # Exclude the small region itself
+                neighbor_labels = neighbor_labels[neighbor_labels != 0]  # Exclude background
 
-                    # If there are neighboring labels, merge the small region with the largest neighbor
-                    if len(neighbor_labels) > 0:
-                        # Choose the largest neighboring region (by volume)
-                        largest_neighbor = None
-                        largest_size = 0
-                        for neighbor_label in neighbor_labels:
-                            # Skip already merged regions
-                            if neighbor_label in merged_set:
-                                continue
-                            neighbor_region = next(r for r in regions if r.label == neighbor_label)
-                            if neighbor_region.area > largest_size:
-                                largest_neighbor = neighbor_label
-                                largest_size = neighbor_region.area
+                # If there are neighboring labels, merge the small region with the largest neighbor
+                if len(neighbor_labels) > 0:
+                    # Choose the largest neighboring region (by volume)
+                    largest_neighbor = None
+                    largest_size = 0
+                    for neighbor_label in neighbor_labels:
+                        # Skip already merged regions
+                        if neighbor_label in merged_set:
+                            continue
+                        neighbor_region = next(r for r in regions if r.label == neighbor_label)
+                        if neighbor_region.area > largest_size:
+                            largest_neighbor = neighbor_label
+                            largest_size = neighbor_region.area
 
-                        if largest_neighbor is not None:
-                            # Assign the small region's voxels to the largest neighboring region
-                            for coord in coords:
-                                merged_labels[tuple(coord)] = largest_neighbor
+                    if largest_neighbor is not None:
+                        # Assign the small region's voxels to the largest neighboring region
+                        for coord in coords:
+                            merged_labels[tuple(coord)] = largest_neighbor
 
-                            # Mark the small region and the neighbor as merged
-                            merged_set.add(region.label)
-                            merged_set.add(largest_neighbor)
+                        # Mark the small region and the neighbor as merged
+                        merged_set.add(region.label)
+                        merged_set.add(largest_neighbor)
 
         return merged_labels.astype(np.int16)
 
     @staticmethod
-    def merge_graph(segmented_volume, **kwargs):
+    def merge_graph(segmented_volume, max_distance=5):
         """
         Link cells across slices using a graph-based approach.
 
@@ -166,10 +164,10 @@ class PostProcessing:
         Returns:
         - linked_volume: 3D numpy array with linked labels across slices
         """
-        default_kwargs = {
-            'max_distance': 15,
-        }
-        default_kwargs.update(kwargs)
+        # default_kwargs = {
+        #     'max_distance': 10,
+        # }
+        # default_kwargs.update(kwargs)
 
         num_slices = segmented_volume.shape[0]
         G = nx.Graph()
@@ -212,7 +210,7 @@ class PostProcessing:
                     # Calculate Euclidean distance between centroids
                     distance = np.linalg.norm(np.array(cell_curr['centroid']) - np.array(cell_next['centroid']))
 
-                    if distance <= default_kwargs['max_distance']:
+                    if distance <= max_distance:
                         # Add an edge with the distance as weight
                         node_curr = (cell_curr['slice'], cell_curr['label'])
                         node_next = (cell_next['slice'], cell_next['label'])

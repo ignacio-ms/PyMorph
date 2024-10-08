@@ -68,6 +68,7 @@ def run(
     do_3D=False,
     stitch_threshold=.6,
     cellprob_threshold=0,
+    flow_threshold=.4,
     verbose=0
 ):
     """
@@ -97,7 +98,7 @@ def run(
             do_3D=do_3D,
             cellprob_threshold=cellprob_threshold,
             stitch_threshold=stitch_threshold,
-            # flow_threshold=.45,
+            flow_threshold=flow_threshold,
         )
 
     else:
@@ -110,7 +111,7 @@ def run(
             do_3D=do_3D,
             cellprob_threshold=cellprob_threshold,
             stitch_threshold=stitch_threshold,
-            # flow_threshold=.35,
+            flow_threshold=flow_threshold,
         )
 
     if verbose:
@@ -175,10 +176,11 @@ def predict(
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else False,
         stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else .6,
         cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else 0,
+        flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .4,
         verbose=verbose
     )
 
-    masks = filter_by_volume(masks, percentile=97, verbose=verbose)
+    masks = filter_by_volume(masks, percentile=96, verbose=verbose)
 
     # Anisotropic recosntruction
     masks = ndimage.zoom(masks, (inverse_anisotropy, 1, 1), order=0)
