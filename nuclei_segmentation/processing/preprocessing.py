@@ -129,8 +129,8 @@ class Preprocessing:
             pipeline = [
                 'isotropy',
                 'normalization',
-                'bilateral',
                 'anisodiff',
+                'bilateral',
             ]
 
         assert all(step in self.mapped_pipeline for step in pipeline), 'Invalid pipeline step.'

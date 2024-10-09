@@ -173,7 +173,7 @@ if __name__ == '__main__':
         for img_path, img_path_out in zip(img_paths, img_paths_out):
             predict(
                 img_path, img_path_out,
-                model=model,
+                model=model, dataset=dataset,
                 normalize=normalize, equalize=equalize,
                 diameter=diameter, channels=channels,
                 tissue=tissue, verbose=verbose

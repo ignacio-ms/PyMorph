@@ -3,15 +3,6 @@ import os
 import sys
 import getopt
 
-import torch
-
-from scipy import ndimage
-from skimage import exposure
-from csbdeep.utils import normalize as deep_norm
-
-import subprocess
-import yaml
-
 # Custom packages
 try:
     current_dir = os.path.dirname(__file__)
@@ -22,23 +13,10 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import HtDataset, find_specimen
-from auxiliary.utils.timer import LoadingBar, timed
-from auxiliary.data import imaging
+from auxiliary.data.dataset_ht import HtDataset
+from auxiliary.utils.timer import LoadingBar
 
-from feature_extraction.feature_extractor import filter_by_margin, filter_by_volume
-from filtering.cardiac_region import get_margins, crop_img, restore_img
-
-# Configurations
-use_gpu = torch.cuda.is_available()
-print(f"GPU activated: {use_gpu}")
-
-
-def modify_yaml_path(new_path, file_path='membrane_segmentation/config.yaml'):
-    subprocess.run(
-        f"sed -i 's|^path:.*|path: {new_path}|' {file_path}",
-        shell=True, check=True
-    )
+from membrane_segmentation.my_plantseg import predict
 
 
 def print_usage():
@@ -157,72 +135,11 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths))
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-
-            # Image preprocessing
-            img = imaging.read_image(img_path, verbose=verbose)
-
-            print(f'{c.OKBLUE}Pre-processing image{c.ENDC}:')
-            print(f'\t{c.OKBLUE}Histogram equalization{c.ENDC}...')
-            img = exposure.equalize_hist(img)
-
-            print(f'\t{c.OKBLUE}Normalization{c.ENDC}...')
-            img = deep_norm(img, 1, 99.8, axis=(0, 1, 2))
-
-            print(f'\t{c.OKBLUE}Median filter{c.ENDC}...')
-            img = ndimage.median_filter(img, size=3)
-
-            # Crop image by tissue margin
-            metadata, _ = imaging.load_metadata(img_path)
-
-            specimen = find_specimen(img_path)
-            lines_path, _ = dataset.read_line(specimen)
-
-            margins = get_margins(
-                line_path=lines_path, img_path=img_path,
-                tissue=tissue, verbose=verbose
-            )
-            img = crop_img(img, margins, verbose=verbose)
-
-            # Pipeline
-            if verbose:
-                print(f'{c.OKBLUE}Transforming image {c.BOLD} .nii.gz -> .h5{c.ENDC}: {img_path}')
-            imaging.nii2h5(img, img_path.replace('.nii.gz', '.h5'), verbose=verbose)
-
-            modify_yaml_path(img_path.replace('.nii.gz', '.h5'))
-            subprocess.run(f'plantseg --config membrane_segmentation/config.yaml', shell=True, check=True)
-
-            # Load segmented image and correct axes
-            path = '/'.join(img_path.split('/')[:-1] + [
-                'PreProcessing', 'confocal_3D_unet_sa_meristem_cells',
-                'GASP', 'PostProcessing',
-                img_path.split('/')[-1].replace('.nii.gz', '_predictions_gasp_average.tiff')
-            ])
-
-            masks = imaging.read_image(
-                path,
-                axes='ZYX', verbose=verbose
-            )
-
-            # Filter segmented image
-            masks = filter_by_volume(masks, percentile=97, verbose=verbose)
-            masks = filter_by_margin(masks, verbose=verbose)
-
-            # Restore image to original size
-            masks = restore_img(
-                masks, margins,
-                depth=metadata['z_size'], resolution=metadata['x_size'],
+            predict(
+                img_path, img_path_out,
+                tissue, dataset,
                 verbose=verbose
             )
-
-            # Move output to correct location
-            imaging.save_prediction(masks, img_path_out, verbose=verbose)
-
-            # Remove temporary files and .h5 file
-            file_to_remove = img_path.replace('.nii.gz', '.h5')
-            directory_to_remove = '/'.join(file_to_remove.split('/')[:-1] + ['PreProcessing'])
-
-            subprocess.run(f'rm -r {directory_to_remove}', shell=True, check=True)
-            subprocess.run(f'rm {file_to_remove}', shell=True, check=True)
 
             bar.update()
 

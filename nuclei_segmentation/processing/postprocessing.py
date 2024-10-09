@@ -1,10 +1,13 @@
 import networkx as nx
 import numpy as np
 from skimage import morphology, measure
-from skimage.segmentation import watershed
+from skimage.segmentation import watershed, find_boundaries
 from scipy import ndimage as ndi
 from skimage.morphology import erosion, dilation, ball
 from skimage.feature import peak_local_max
+
+from auxiliary.data import imaging
+from auxiliary.data.dataset_ht import find_specimen, HtDataset
 
 
 class PostProcessing:
@@ -33,7 +36,7 @@ class PostProcessing:
         return filtered_kwargs
 
     @staticmethod
-    def remove_small_objects(segmentation, percentile=5):
+    def remove_small_objects(segmentation, percentile=5, verbose=0):
         """
         Remove small objects from segmentation based on a computed size threshold.
 
@@ -56,9 +59,14 @@ class PostProcessing:
         small_object_mask = np.isin(labeled_segmentation, small_object_labels)
 
         segmentation[small_object_mask] = 0
+
+        if verbose:
+            print(f'Removed {len(small_object_labels)} small objects.')
+
         return segmentation
+
     @staticmethod
-    def remove_large_objects(segmentation, percentile=95):
+    def remove_large_objects(segmentation, percentile=95, verbose=0):
         """
         Remove large objects from segmentation based on a computed size threshold.
 
@@ -81,6 +89,10 @@ class PostProcessing:
         large_object_mask = np.isin(labeled_segmentation, large_object_labels)
 
         segmentation[large_object_mask] = 0
+
+        if verbose:
+            print(f'Removed {len(large_object_labels)} large objects.')
+
         return segmentation
 
     @staticmethod
@@ -277,7 +289,7 @@ class PostProcessing:
         return linked_volume.astype(np.int16)
 
     @staticmethod
-    def opening(segmentation, **kwargs):
+    def opening(segmentation, erosion_radius=3, dilation_radius=3):
         """
         Apply morphological operations to clean cell boundaries.
 
@@ -289,18 +301,13 @@ class PostProcessing:
         Returns:
         np.ndarray: Segmentation with cleaned boundaries.
         """
-        default_kwargs = {
-            'erosion_radius': 3,
-            'dilation_radius': 3
-        }
-        default_kwargs.update(kwargs)
 
-        eroded = erosion(segmentation, ball(default_kwargs['erosion_radius']))
-        cleaned = dilation(eroded, ball(default_kwargs['dilation_radius']))
+        eroded = erosion(segmentation, ball(erosion_radius))
+        cleaned = dilation(eroded, ball(dilation_radius))
         return cleaned.astype(np.int16)
 
     @staticmethod
-    def closing(segmentation, **kwargs):
+    def closing(segmentation, erosion_radius=3, dilation_radius=3):
         """
         Apply morphological operations to clean cell boundaries.
 
@@ -312,14 +319,9 @@ class PostProcessing:
         Returns:
         np.ndarray: Segmentation with cleaned boundaries.
         """
-        default_kwargs = {
-            'erosion_radius': 3,
-            'dilation_radius': 3
-        }
-        default_kwargs.update(kwargs)
 
-        dilated = dilation(segmentation, ball(default_kwargs['dilation_radius']))
-        cleaned = erosion(dilated, ball(default_kwargs['erosion_radius']))
+        dilated = dilation(segmentation, ball(dilation_radius))
+        cleaned = erosion(dilated, ball(erosion_radius))
         return cleaned.astype(np.int16)
 
     def run(self, img, **kwargs):
