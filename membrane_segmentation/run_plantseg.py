@@ -135,11 +135,14 @@ if __name__ == '__main__':
 
         bar = LoadingBar(len(img_paths))
         for img_path, img_path_out in zip(img_paths, img_paths_out):
-            predict(
-                img_path, img_path_out,
-                tissue, dataset,
-                verbose=verbose
-            )
+            try:
+                predict(
+                    img_path, img_path_out,
+                    tissue, dataset,
+                    verbose=verbose
+                )
+            except Exception as e:
+                print(f'{c.FAIL}Error{c.ENDC}: {e}')
 
             bar.update()
 
