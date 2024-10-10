@@ -45,9 +45,13 @@ def process_cell(cell_data, metadata):
     vert *= np.array([metadata['x_res'], metadata['y_res'], metadata['z_res']])
 
     mesh = trimesh.Trimesh(vertices=vert, faces=trian, process=False)
+
     # Apply Laplacian smoothing here
-    trimesh.smoothing.filter_laplacian(mesh, lamb=0.8, iterations=40, volume_constraint=False)
-    mesh = mesh.simplify_quadratic_decimation(100)
+    trimesh.smoothing.filter_laplacian(
+        mesh, lamb=0.8, iterations=40,
+        volume_constraint=False
+    )
+    mesh = mesh.simplify_quadratic_decimation(400)
     return mesh
 
 
