@@ -1,4 +1,3 @@
-# Standard Packages
 import pandas as pd
 import tensorflow as tf
 import numpy as np
@@ -44,7 +43,15 @@ class UnlabeledDataset(tf.keras.utils.Sequence):
         img = imaging.read_image(idx)
         if img is not None:
             if self.resize:
-                img = cv2.resize(img, self.resize, interpolation=cv2.INTER_AREA)
+                if img.ndim == 2:
+                    img = cv2.resize(img, self.resize, interpolation=cv2.INTER_AREA)
+                else:
+                    img_resized = []
+                    for z in range(img.shape[2]):
+                        img_slice = img[..., z]
+                        img_resized_slice = cv2.resize(img_slice, self.resize, interpolation=cv2.INTER_AREA)
+                        img_resized.append(img_resized_slice)
+                    img = np.stack(img_resized, axis=-1)
             img = img / 255.0
             img = img.astype(np.float32)
         return img

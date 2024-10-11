@@ -36,7 +36,7 @@ def run(ds, s, type, tissue=None, verbose=0):
     """
     path_lines, _ = ds.read_line(s, verbose=verbose)
     path_raw, _ = ds.read_specimen(s, type, 'RawImages', verbose=verbose)
-    path_seg, _ = ds.read_specimen(s, type, 'Segmentation', filtered=True, verbose=verbose)
+    path_seg, _ = ds.read_specimen(s, type, 'Segmentation', verbose=verbose)
 
     lines = imaging.read_image(path_lines, verbose=verbose)
     raw_img = imaging.read_image(path_raw, verbose=verbose)

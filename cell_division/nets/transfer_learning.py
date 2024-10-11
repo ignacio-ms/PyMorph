@@ -23,7 +23,8 @@ from cell_division.nets.custom_layers import (
     w_cel_loss,
     focal_loss,
     extended_w_cel_loss,
-    ExtendedLSEPooling
+    ExtendedLSEPooling,
+    extended_w_cel_loss_soft
 )
 from auxiliary import values as v
 
@@ -95,7 +96,7 @@ class CNN:
             metrics = [tf.keras.metrics.AUC(name='auc')]
 
         if loss is None:
-            loss = extended_w_cel_loss()
+            loss = extended_w_cel_loss_soft()
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
@@ -165,5 +166,6 @@ class CNN:
                 'weighted_cross_entropy_with_logits': w_cel_loss(),
                 'focal_loss': focal_loss(),
                 'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss(),
+                'ext_weighted_cross_entropy_with_logits_soft': extended_w_cel_loss_soft()
             }
         )

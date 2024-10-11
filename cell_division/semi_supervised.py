@@ -1,3 +1,4 @@
+import math
 import sys
 import os
 
@@ -5,9 +6,7 @@ import pandas as pd
 from scipy import stats
 
 import tensorflow as tf
-import json
 import numpy as np
-import pandas as pd
 import cv2
 
 import matplotlib.pyplot as plt
@@ -56,12 +55,6 @@ set_gpu_allocator()
 def pre_train(model, train, val, batch_size=32, verbose=0):
     """
     Train the model with the labeled data.
-    :param model: Model to train
-    :param train: Training data generator
-    :param val: Validation data generator
-    :param batch_size: Batch size
-    :param verbose: Verbosity level
-    :return:
     """
     train_generator = train
     val_generator = val
@@ -77,93 +70,163 @@ def pre_train(model, train, val, batch_size=32, verbose=0):
     return model
 
 
-def pseudo_labeling(model, unlabeled, threshold=.9, undersample=True, verbose=0):
+def pseudo_labeling(model, unlabeled, threshold=0.9, undersample=True, verbose=0, iteration=0):
     """
     Predict the labels of the unlabeled data with the pretrained model.
-    Those instances with a probability higher than the threshold will be pseudo-labeled
-    and added to the labeled data.
+    Implements weighted averaging of slice predictions, giving more weight to middle slices.
+    Processes all slices in batches to speed up computation.
+    Incorporates RandomUnderSampler to address class imbalance.
 
-    To avoid class imbalance, the pseudo-labeled data will be undersampled if specified.
-
-    The data input is composed by 3D cell images. To make a prediction, the model will make
-    a prediction for each z-stack image and average the base_results by a majority vote.
-    :param model: Pretrained model
-    :param unlabeled: Unlabeled data generator
-    :param threshold: Threshold to consider a prediction as valid
-    :param undersample: Whether to undersample the pseudo-labeled data (default: True)
-    :param verbose: Verbosity level (default: 0)
-    :return:
+    :param model: Pretrained CNN model.
+    :param unlabeled: Unlabeled data generator (UnlabeledDataset instance).
+    :param threshold: Confidence threshold for selecting pseudo-labels.
+    :param undersample: Whether to apply undersampling to the pseudo-labeled data.
+    :param verbose: Verbosity level.
+    :param iteration: Current iteration number (used for dynamic thresholding).
+    :return: DataFrame containing pseudo-labels with 'id', 'label', and 'confidence'.
     """
     unlabeled_generator = unlabeled
 
-    predictions = []
-    predictions_prob = []
-    two_d_predictions = []
-    for img in unlabeled_generator:
-        img = img[0] * 255
-        img = img.astype(np.uint8)
-        if img.ndim == 3:
-            for z in range(img.shape[2]):
-                aux = cv2.cvtColor(img[..., z], cv2.COLOR_GRAY2RGB)
-                # Creating axis for the batch
-                aux = np.expand_dims(aux, axis=0)
-                two_d_predictions.append(model.model.predict(aux))
-        else:
-            aux = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            # Creating axis for the batch
-            aux = np.expand_dims(aux, axis=0)
-            two_d_predictions.append(model.model.predict(aux))
-
-        two_d_predictions = np.array(two_d_predictions)
-
-        # Voting by majority
-        predicted_classes = np.argmax(two_d_predictions, axis=-1).flatten()
-        predicted_classes_prob = np.max(two_d_predictions, axis=-1).flatten()
-        majority_vote = stats.mode(predicted_classes, keepdims=True)[0][0]
-
-        predictions.append(majority_vote)
-        predictions_prob.append(predicted_classes_prob[0])
-        two_d_predictions = []
-
-    pseudo_labels = np.array(predictions)
-    pseudo_labels_prob = np.array(predictions_prob)
-
-    mask = pseudo_labels_prob > threshold
-    pseudo_labels = pseudo_labels[mask]
+    all_slices = []
+    slice_image_indices = []
+    slice_weights = []
+    total_images = len(unlabeled_generator.img_names)
 
     if verbose:
-        print(f'{c.OKBLUE}Pseudo-labeling base_results{c.ENDC}')
-        print(f'Pseudo-labels: {len(pseudo_labels)}')
-        print(f'Pseudo-labels distribution: {np.bincount(pseudo_labels)}')
+        print(f'{c.OKBLUE}Collecting all slices from unlabeled images...{c.ENDC}')
+        bar = LoadingBar(total_images)
 
-    # Saving the image names and pseudo labels into csv
+    # Collect all slices and their associated image indices and weights
+    for img_idx in range(total_images):
+        img = unlabeled.__get_image(unlabeled.img_names[img_idx]) * 255
+        img = img.astype(np.uint8)
+
+        if img.ndim == 3:
+            n_slices = img.shape[2]
+            mid_slice = n_slices // 2
+            # Generate Gaussian weights centered at the middle slice
+            sigma = n_slices / 4.0  # Adjust sigma as needed
+            slice_indices = np.arange(n_slices)
+            weights = np.exp(-0.5 * ((slice_indices - mid_slice) / sigma) ** 2)
+            weights /= np.sum(weights)  # Normalize weights to sum to 1
+
+            for z in range(n_slices):
+                aux = cv2.cvtColor(img[..., z], cv2.COLOR_GRAY2RGB)
+                all_slices.append(aux)
+                slice_image_indices.append(img_idx)
+                slice_weights.append(weights[z])
+        else:
+            aux = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            all_slices.append(aux)
+            slice_image_indices.append(img_idx)
+            slice_weights.append(1.0)  # Full weight for single-slice images
+
+        if verbose:
+            bar.update()
+
+    if verbose:
+        bar.end()
+        print(f'{c.OKGREEN}Total slices collected: {len(all_slices)}{c.ENDC}')
+
+    # Convert lists to arrays
+    all_slices = np.array(all_slices)  # Shape: (total_slices, height, width, channels)
+    slice_image_indices = np.array(slice_image_indices)  # Shape: (total_slices,)
+    slice_weights = np.array(slice_weights)  # Shape: (total_slices,)
+
+    # Predict on all slices in batches
+    batch_size = 32  # Adjust based on your GPU memory
+    num_slices = len(all_slices)
+    all_predictions = []
+
+    if verbose:
+        print(f'{c.OKBLUE}Predicting on all slices...{c.ENDC}')
+        bar = LoadingBar(math.ceil(num_slices / batch_size))
+
+    for start_idx in range(0, num_slices, batch_size):
+        end_idx = min(start_idx + batch_size, num_slices)
+        batch_slices = all_slices[start_idx:end_idx]
+        batch_preds = model.model.predict(batch_slices, batch_size=batch_size, verbose=0)
+        all_predictions.append(batch_preds)
+
+        if verbose:
+            bar.update()
+
+    if verbose:
+        bar.end()
+
+    all_predictions = np.vstack(all_predictions)  # Shape: (total_slices, n_classes)
+
+    # Group predictions by image and compute weighted averages
+    num_images = total_images
+    image_predictions = [[] for _ in range(num_images)]
+    image_confidences = np.zeros(num_images)
+    image_ids = unlabeled.img_short_names
+
+    for img_idx in range(num_images):
+        mask = slice_image_indices == img_idx
+        img_slice_predictions = all_predictions[mask]  # Shape: (n_slices_per_image, n_classes)
+        img_slice_weights = slice_weights[mask]  # Shape: (n_slices_per_image,)
+
+        # Compute weighted average of the predicted probabilities
+        weighted_avg_probs = np.average(img_slice_predictions, axis=0, weights=img_slice_weights)  # Shape: (n_classes,)
+        confidence = np.max(weighted_avg_probs)
+
+        image_predictions[img_idx] = weighted_avg_probs.tolist()
+        image_confidences[img_idx] = confidence
+
+    # Create DataFrame with pseudo-labels
     pseudo_labels_df = pd.DataFrame({
-        'id': unlabeled.img_short_names[mask].astype(str),
-        'label': pseudo_labels
+        'id': image_ids,
+        'label': image_predictions,  # Soft labels as lists
+        'confidence': image_confidences
     })
 
-    # Get instances pseudo-labeled index to remove from the unlabeled dataset
-    idxs = np.where(mask == True)[0]
-    unlabeled.remove_images(idxs)
+    # Dynamic threshold for curriculum learning
+    dynamic_threshold = max(0.5, threshold - 0.05 * iteration)
+    mask = pseudo_labels_df['confidence'] > dynamic_threshold
+
+    selected_pseudo_labels_df = pseudo_labels_df[mask].copy()
+
+    if verbose:
+        print(f'{c.OKBLUE}Pseudo-labeling results{c.ENDC}')
+        print(f'Pseudo-labels selected: {len(selected_pseudo_labels_df)}')
 
     if undersample:
-        X = np.array(pseudo_labels_df['id']).reshape(-1, 1)
-        y = np.array(pseudo_labels_df['label'])
+        # Convert soft labels to hard labels for undersampling
+        selected_pseudo_labels_df['hard_label'] = selected_pseudo_labels_df['label'].apply(lambda x: np.argmax(x))
+
+        X = selected_pseudo_labels_df['id'].values.reshape(-1, 1)  # Features (IDs)
+        y = selected_pseudo_labels_df['hard_label'].values  # Target labels
 
         rus = RandomUnderSampler(random_state=42)
         X_res, y_res = rus.fit_resample(X, y)
 
-        pseudo_labels_df = pd.DataFrame({
-            'id': X_res.flatten(),
-            'label': y_res
-        })
+        # Retrieve the resampled IDs
+        resampled_ids = X_res.flatten()
+
+        # Filter the DataFrame to include only resampled IDs
+        resampled_df = selected_pseudo_labels_df[selected_pseudo_labels_df['id'].isin(resampled_ids)]
 
         if verbose:
-            print(f'{c.OKBLUE}Undersampling base_results{c.ENDC}')
-            print(f'Pseudo-labels: {len(pseudo_labels_df)}')
-            print(f'Pseudo-labels distribution: {np.bincount(pseudo_labels_df["label"])}')
+            print(f'{c.OKBLUE}After undersampling{c.ENDC}')
+            print(f'Pseudo-labels after undersampling: {len(resampled_df)}')
+            print(f'Class distribution after undersampling:\n{resampled_df["hard_label"].value_counts()}')
 
+        # Drop the 'hard_label' column as it's no longer needed
+        resampled_df = resampled_df.drop(columns=['hard_label'])
+
+        # Update the pseudo_labels_df to be the undersampled DataFrame
+        pseudo_labels_df = resampled_df.copy()
+
+    # Remove pseudo-labeled instances from the unlabeled dataset
+    selected_ids = pseudo_labels_df['id'].values
+    idxs = [np.where(unlabeled.img_short_names == img_id)[0][0] for img_id in selected_ids]
+    unlabeled.remove_images(idxs)
+
+    # Save the pseudo-labels dataframe
     pseudo_labels_df.to_csv(v.data_path + 'CellDivision/undersampled/pseudo_labels.csv', index=False)
+
+    return pseudo_labels_df
 
 
 def split_pseudo_labeled_images(
@@ -172,11 +235,7 @@ def split_pseudo_labeled_images(
         verbose=0
 ):
     """
-    Images in the unlabeled dataset are 3D stacks. This function splits the images with pseudo-labels
-    into 2D images with the corresponding pseudo-label.
-    Apart from assigning the pseudo-labels to the 2D stacks, the 2D stacks are saved into a new folder.
-    :param pseudo_labels_file: File with the pseudo-labels and images ids.
-    :return: Dataset with the splitted images in 2D
+    Splits pseudo-labeled 3D images into 2D slices and assigns the corresponding soft labels.
     """
     if data_path is None:
         data_path = v.data_path
@@ -199,6 +258,17 @@ def split_pseudo_labeled_images(
         if img.ndim == 2:
             img = np.expand_dims(img, axis=-1)
 
+        # The soft label is stored as a string representation of a list in 'label' column
+        soft_label = np.array(eval(row['label']))  # Convert string to numpy array
+
+        n_slices = img.shape[2]
+        mid_slice = n_slices // 2
+        # Generate Gaussian weights centered at the middle slice
+        sigma = n_slices / 4.0  # Adjust sigma as needed
+        slice_indices = np.arange(n_slices)
+        weights = np.exp(-0.5 * ((slice_indices - mid_slice) / sigma) ** 2)
+        weights /= np.sum(weights)
+
         for z in range(img.shape[2]):
             imaging.save_prediction(
                 img[..., z],
@@ -206,9 +276,12 @@ def split_pseudo_labeled_images(
                 axes='XY'
             )
 
+            # Optionally, you can adjust the soft labels per slice if needed
+            # For simplicity, we assign the same soft label to each slice
+
             new_row = pd.DataFrame({
                 'id': [f'{row["id"].replace(".tif", "")}_{z}.tif'],
-                'label': [row['label']]
+                'label': [soft_label.tolist()]
             })
             new_df = pd.concat([new_df, new_row], ignore_index=True)
 
@@ -220,15 +293,13 @@ def split_pseudo_labeled_images(
         print(f'{c.OKGREEN}Splitting completed{c.ENDC}')
         print(f'\t{c.BOLD}Total instances:{c.ENDC} {len(new_df)}')
 
+    # Save the new dataframe with soft labels
     new_df.to_csv(data_path + f'CellDivision/undersampled/{pseudo_labels_file.replace(".csv", "_2d.csv")}', index=False)
 
 
 def merge_datasets(train, pseudo_labels_file='pseudo_labels_2d.csv'):
     """
     Merge the labeled and pseudo-labeled data into a single dataset.
-    :param pseudo_labels_file: Path to the pseudo-labels file.
-    :param train: Labeled dataset generator.
-    :return:
     """
     train.add_pseudo_labels(
         v.data_path + 'CellDivision/images_unlabeled_2d/',
@@ -257,27 +328,18 @@ def semi_supervised_learning(
 ):
     """
     Semi-supervised learning algorithm.
-        1. Pre-train the model with the labeled data.
-        2. Predict the pseudo-labels of the unlabeled data.
-        3. Merge the labeled and pseudo-labeled data.
-        4. Train the model with the merged data.
-        5. Iterate until convergence | max_iter.
-    :param model: Model to train
-    :param train: Labeled training data generator
-    :param val: Validation data generator
-    :param test: Test data generator
-    :param unlabeled: Unlabeled data generator
-    :param batch_size: Batch size (default: 32)
-    :param verbose: Verbosity level (default: 0)
-    :return:
     """
-
     results = []
     iters_without_improvement = 0
+    initial_threshold = 0.9
+    decay_rate = 0.05  # Adjust as needed
+
     for i in range(max_iter):
+        dynamic_threshold = max(0.5, initial_threshold - decay_rate * i)
         if verbose:
             print(f'{c.OKGREEN}Iteration:{c.ENDC} {i + 1}')
             print(f'\t{c.OKBLUE}Pre-training...{c.ENDC}')
+            print(f'\tUsing confidence threshold: {dynamic_threshold}')
 
         # Pre-train the model with the labeled data
         model = pre_train(model, train, val, batch_size=batch_size, verbose=verbose)
@@ -301,7 +363,12 @@ def semi_supervised_learning(
             print_iter_results(model, train, test, val)
             print(f'\t{c.OKBLUE}Pseudo-labeling...{c.ENDC}')
 
-        pseudo_labeling(model, unlabeled, verbose=verbose)
+        pseudo_labels_df = pseudo_labeling(
+            model, unlabeled,
+            threshold=dynamic_threshold,
+            verbose=verbose,
+            iteration=i
+        )
         split_pseudo_labeled_images(verbose=verbose)
         train = merge_datasets(train)
 

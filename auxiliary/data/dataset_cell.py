@@ -9,6 +9,8 @@ import sys
 import os
 from skimage import io
 
+import ast
+
 # Custom Packages
 try:
     current_dir = os.path.dirname(__file__)
@@ -85,8 +87,16 @@ class CellDataset(tf.keras.utils.Sequence):
             img = img.astype(np.float16)
         return img
 
-    def __get_label(self, idx):
-        return tf.one_hot(np.int16(idx), self.N_CLASSES, dtype=tf.int16)
+    # def __get_label(self, idx):
+    #     return tf.one_hot(np.int16(idx), self.N_CLASSES, dtype=tf.int16)
+
+    def __get_label(self, label):
+        if isinstance(label, str):
+            # Safely parse the label string to a list
+            label = ast.literal_eval(label)
+        label = np.array(label, dtype=np.int16)
+        # Transform into tensor?
+        return label
 
     def __len__(self):
         return math.ceil(len(self.img_names) / self.batch_size)

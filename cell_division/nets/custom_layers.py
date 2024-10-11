@@ -70,6 +70,30 @@ def extended_w_cel_loss():
     return ext_weighted_cross_entropy_with_logits
 
 
+def extended_w_cel_loss_soft():
+    def ext_weighted_cross_entropy_with_logits_soft(y_true, y_pred):
+        """
+        Extended weighted cross-entropy loss that handles soft labels.
+        """
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)
+
+        # Compute class weights based on the batch
+        class_totals = tf.reduce_sum(y_true, axis=0)
+        class_weights = tf.reduce_max(class_totals) / (class_totals + 1e-6)
+
+        # Compute the categorical cross-entropy
+        loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+
+        # Apply class weights
+        weighted_loss = tf.reduce_sum(class_weights * loss)
+
+        # Return the mean loss over the batch
+        return weighted_loss / tf.cast(tf.shape(y_true)[0], tf.float32)
+
+    return ext_weighted_cross_entropy_with_logits_soft
+
+
 def focal_loss(gamma=2., alpha=.25):
     def focal_loss_fixed(y_true, y_pred):
         y_true = tf.cast(y_true, tf.float32)
