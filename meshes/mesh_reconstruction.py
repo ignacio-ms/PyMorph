@@ -18,6 +18,17 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
+# def get_color_from_id(cell_id):
+#     """
+#     Generates a unique RGB color from a cell ID.
+#     This function maps integer IDs to RGB colors.
+#     """
+#     if cell_id < 0:
+#         cell_id = -cell_id
+#     np.random.seed(cell_id.astype(np.int16))  # Ensure consistent colors for the same ID
+#     return np.random.randint(0, 255, size=3)
+
+
 def median_3d_array(img, disk_size=3):
     if len(img.shape) == 4:
         img = img[:, :, :, 0]
@@ -27,6 +38,8 @@ def median_3d_array(img, disk_size=3):
 def process_cell(cell_data, metadata):
     coords = cell_data['mask']
     centroid = cell_data['centroid']
+    cell_id = cell_data['cell_id']
+
     add = 10
     aux = np.zeros(np.array(coords.shape) + add, dtype=np.uint8)
     aux[
@@ -51,7 +64,19 @@ def process_cell(cell_data, metadata):
         mesh, lamb=0.8, iterations=40,
         volume_constraint=False
     )
-    mesh = mesh.simplify_quadratic_decimation(400)
+    mesh = mesh.simplify_quadratic_decimation(250)
+
+    mesh.metadata['cell_id'] = cell_id
+    # color = get_color_from_id(cell_id)
+    # mesh.visual.face_colors = np.tile(np.append(color, 255), (len(mesh.faces), 1))  # RGBA
+
+    # Assign cell ID to face_attributes
+    face_ids = np.full(len(mesh.faces), cell_id, dtype=np.int16)
+    mesh.face_attributes = {'cell_id': face_ids}
+
+    # Assign cell ID to vertex_attributes
+    vertex_ids = np.full(len(mesh.vertices), cell_id, dtype=np.int16)
+    mesh.vertex_attributes = {'cell_id': vertex_ids}
     return mesh
 
 
@@ -59,12 +84,16 @@ def marching_cubes(img, metadata):
     props = ps.metrics.regionprops_3D(morphology.label(img))
     num_jobs = -1  # Use all available CPUs
 
+    centroids = [[round(i) for i in p.centroid] for p in props]
+    centroids_labels = [img[ce[0], ce[1], ce[2]] for ce in centroids]
+
     # Extract necessary data into picklable objects
     cell_data_list = []
-    for p in props:
+    for i, p in enumerate(props):
         cell_data = {
             'mask': p.mask.astype(np.uint8),
             'centroid': p.centroid,
+            'cell_id': centroids_labels[i]
         }
         cell_data_list.append(cell_data)
 
@@ -76,6 +105,25 @@ def marching_cubes(img, metadata):
     # Filter out None results and combine meshes
     meshes = [mesh for mesh in meshes if mesh is not None]
     combined_mesh = trimesh.util.concatenate(meshes)
+
+    # Combine face_attributes
+    combined_face_ids = []
+    for mesh in meshes:
+        cell_id = mesh.metadata['cell_id']
+        face_ids = mesh.face_attributes.get('cell_id', np.full(len(mesh.faces), cell_id, dtype=np.int32))
+        combined_face_ids.append(face_ids)
+    combined_face_ids = np.concatenate(combined_face_ids)
+    combined_mesh.face_attributes['cell_id'] = combined_face_ids
+
+    # Combine vertex_attributes
+    combined_vertex_ids = []
+    for mesh in meshes:
+        cell_id = mesh.metadata['cell_id']
+        vertex_ids = mesh.vertex_attributes.get('cell_id', np.full(len(mesh.vertices), cell_id, dtype=np.int32))
+        combined_vertex_ids.append(vertex_ids)
+    combined_vertex_ids = np.concatenate(combined_vertex_ids)
+    combined_mesh.vertex_attributes['cell_id'] = combined_vertex_ids
+
     return combined_mesh
 
 

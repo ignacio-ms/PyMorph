@@ -28,7 +28,7 @@ done
 #    "0515_E3"
 #)
 
-specimens=("0122_E1" "0123_E1" "0515_E3")
+specimens=("0122_E1" "0123_E1" "0515_E3" "0402_E2")
 
 # Loop over the specimens based on the array job index
 specimen=${specimens[$index]}
