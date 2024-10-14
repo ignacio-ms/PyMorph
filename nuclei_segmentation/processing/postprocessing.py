@@ -8,6 +8,7 @@ from skimage.feature import peak_local_max
 
 from auxiliary.data import imaging
 from auxiliary.data.dataset_ht import find_specimen, HtDataset
+from auxiliary.utils.colors import bcolors as c
 
 
 class PostProcessing:
@@ -336,6 +337,8 @@ class PostProcessing:
             np.ndarray: The processed segmentation image.
         """
         for step in self.pipeline:
+            print(f'{c.OKGREEN}Running post-processing step{c.ENDC}: {step}')
+
             step_func = self.mapped_pipeline[step]
             step_kwargs = self.filter_kwargs(step_func, kwargs)
             img = step_func(img, **step_kwargs)

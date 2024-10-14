@@ -1,8 +1,10 @@
 import glob
 import os
 
+import cv2
 import numpy as np
 import nibabel as nib
+from scipy.ndimage import zoom
 from tifffile import imread
 import tifffile as tiff
 import h5py
@@ -165,7 +167,7 @@ def save_prediction(labels, out_path, axes='XYZ', verbose=0):
         print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')
 
 
-def save_nii(labels, out_path, axes='XYZ', affine=None, verbose=0):
+def save_nii(labels, out_path, axes='XYZ', affine=None, metadata=None, verbose=0):
     """
     Save prediction as NIfTI image.
     :param labels: Labels.
@@ -187,7 +189,17 @@ def save_nii(labels, out_path, axes='XYZ', affine=None, verbose=0):
     elif axes not in ['XYZ', 'ZXY', 'ZYX']:
         print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - NIfTI')
 
-    nib.save(nib.Nifti1Image(labels, affine), out_path)
+    img = nib.Nifti1Image(labels, affine)
+
+    if metadata:
+        header = img.header
+        header['pixdim'][1] = metadata.get('x_res', header['pixdim'][1])
+        header['pixdim'][2] = metadata.get('y_res', header['pixdim'][2])
+        header['pixdim'][3] = metadata.get('z_res', header['pixdim'][3])
+
+        img = nib.Nifti1Image(labels, affine, header=header)
+
+    nib.save(img, out_path)
 
     if verbose:
         print(f'\n{c.OKGREEN}Saving prediction{c.ENDC}: {out_path}')
@@ -262,3 +274,52 @@ def iqr_filter(img, get_params=False, verbose=0):
 
     return img[:, :, intensities > threshold]
 
+
+def update_affine(affine, original_res, new_res):
+    """
+    Update the affine matrix based on the new resolutions.
+    :param affine: Original affine matrix.
+    :param original_res: Tuple of original (x_res, y_res, z_res).
+    :param new_res: Tuple of new (x_res, y_res, z_res).
+    :return: Updated affine matrix.
+    """
+    scaling_factors = np.array(new_res) / np.array(original_res)
+    updated_affine = affine.copy()
+    updated_affine[:3, :3] *= scaling_factors
+    return updated_affine
+
+
+def resize_xy_05(img_path):
+    """
+    Resize x and y dimensions by 0.5.
+    Metadata res x and y should be updated. (res_x / 2)
+    :param img_path: Path to image.
+    :return: Resized image.
+    """
+    img = read_image(img_path)
+    metadata, affine = load_metadata(img_path)
+
+    original_x, original_y, original_z = img.shape
+    new_x, new_y = original_x // 2, original_y // 2
+
+    zoom_factors = (0.5, 0.5, 1)
+    resized_img = zoom(img, zoom_factors, order=1)
+
+    # Update metadata
+    metadata['x_size'], metadata['y_size'] = new_x, new_y
+    metadata['x_res'] /= 2
+    metadata['y_res'] /= 2
+
+    affine = update_affine(
+        affine,
+        (metadata['x_res'] * 2, metadata['y_res'] * 2, metadata['z_res']),
+        (metadata['x_res'], metadata['y_res'], metadata['z_res'])
+    )
+
+    img_path = img_path.replace('.nii.gz', '_0.5.nii.gz')
+    save_nii(resized_img.astype(np.uint8), img_path, affine=affine, metadata=metadata, verbose=1)
+
+    print(f'{c.OKGREEN}Resized image{c.ENDC}: {img_path}')
+    print(f'{c.BOLD}Metadata{c.ENDC}: {metadata}')
+    print(f'{c.BOLD}Affine{c.ENDC}: {affine}')
+    print(f'{c.OKBLUE}Saving resized image{c.ENDC}: {img_path}')

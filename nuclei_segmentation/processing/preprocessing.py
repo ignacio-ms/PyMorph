@@ -128,7 +128,7 @@ class Preprocessing:
         if pipeline is None:
             pipeline = [
                 'isotropy',
-                'normalization',
+                'norm_percentile',
                 'anisodiff',
                 'bilateral',
             ]
@@ -268,6 +268,8 @@ class Preprocessing:
         metadata, _ = imaging.load_metadata(img_path)
 
         for step in self.pipeline:
+            print(f'{c.OKGREEN}Running step{c.ENDC}: {step}')
+
             step_func = self.mapped_pipeline[step]
             step_kwargs = self.filter_kwargs(step_func, kwargs)
 
@@ -283,5 +285,5 @@ class Preprocessing:
                 verbose=verbose, axes='ZYX'
             )
 
-        return img
+        return img.astype(np.int8)
 
