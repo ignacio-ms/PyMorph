@@ -227,14 +227,14 @@ class Preprocessing:
 
         if 'verbose' in kwargs:
             print(
-                f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
-                f'X: {metadata["x_res"]} um/px\n'
-                f'Y: {metadata["y_res"]} um/px\n'
-                f'Z: {metadata["z_res"]} um/px'
+                f'\t{c.OKBLUE}Image resolution{c.ENDC}: \n'
+                f'\tX: {metadata["x_res"]} um/px\n'
+                f'\tY: {metadata["y_res"]} um/px\n'
+                f'\tZ: {metadata["z_res"]} um/px'
             )
-            print(f'Resampling factor: {resampling_factor}')
-            print(f'Original shape: {img.shape}')
-            print(f'Resampled shape: {img_iso.shape}')
+            print(f'\tResampling factor: {resampling_factor}')
+            print(f'\tOriginal shape: {img.shape}')
+            print(f'\tResampled shape: {img_iso.shape}')
 
         return img_iso
 

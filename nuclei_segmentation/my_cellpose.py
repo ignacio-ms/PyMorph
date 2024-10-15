@@ -151,21 +151,12 @@ def predict(
 
     # Set anisotropy
     metadata, _ = imaging.load_metadata(img_path)
-    anisotropy = metadata['z_res'] / metadata['x_res']
-    inverse_anisotropy = 1 / anisotropy
-    print(
-        f'{c.OKBLUE}Image resolution{c.ENDC}: \n'
-        f'X: {metadata["x_res"]} um/px\n'
-        f'Y: {metadata["y_res"]} um/px\n'
-        f'Z: {metadata["z_res"]} um/px'
-    )
-    print(f'{c.OKBLUE}Anisotropy{c.ENDC}: {anisotropy}')
-
-    # Crop img by tissue
-    specimen = find_specimen(img_path)
-    lines_path, _ = dataset.read_line(specimen)
 
     if tissue is not None:
+        # Crop img by tissue
+        specimen = find_specimen(img_path)
+        lines_path, _ = dataset.read_line(specimen)
+
         margins = get_margins(
             line_path=lines_path, img_path=img_path,
             tissue=tissue, verbose=verbose
@@ -184,25 +175,25 @@ def predict(
         diameter=diameter,
         channels=channels,
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else True,
-        stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else .6,
-        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .1,
+        stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else None,
+        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .0,
         flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .3,
         verbose=verbose
     )
 
     # masks = filter_by_volume(masks, percentile=96, verbose=verbose)
     # Anisotropic recosntruction
-    masks = ndimage.zoom(masks, (inverse_anisotropy, 1, 1), order=0)
+    masks_reconstructed = preprocessing.reconstruct(masks, metadata=metadata)
 
     pp = postprocessing.PostProcessing(['clean_boundaries_opening'])
-    masks = pp.run(masks, verbose=verbose)
+    masks_post = pp.run(masks_reconstructed, verbose=verbose)
 
     if tissue is not None:
-        masks = filter_by_margin(masks, verbose=verbose)
+        masks_post = filter_by_margin(masks_post, verbose=verbose)
 
         # Restore original shape
-        masks = restore_img(
-            masks, margins,
+        masks_post = restore_img(
+            masks_post, margins,
             depth=metadata['z_size'], resolution=metadata['x_size'],
             axes='ZYX', verbose=verbose
         )
@@ -213,4 +204,4 @@ def predict(
     img_path_out = img_path_out.replace(
         '.nii.gz', f'_{tissue if tissue is not None else "all"}.nii.gz'
     )
-    imaging.save_nii(masks, img_path_out, verbose=verbose, axes='ZYX')
+    imaging.save_nii(masks_post, img_path_out, verbose=verbose, axes='ZYX')
