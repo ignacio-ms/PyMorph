@@ -14,4 +14,4 @@ done
 # Loop over the specimens based on the array job index
 singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ --nv /data_lab_MT/Ignacio/ht_morphogenesis_latest.sif python /app/nuclei_segmentation/run_cellpose.py -p /data/ -s $specimen -m 'nuclei' -n True -e True -d 17 -v $verbose
 #singularity clean cache all
-singularity cache clean -T all
+singularity cache clean all

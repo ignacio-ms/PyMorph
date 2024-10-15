@@ -8,6 +8,7 @@ from skimage import morphology
 
 from joblib import Parallel, delayed
 
+from plyfile import PlyData, PlyElement  # Importing plyfile for PLY export
 
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data import imaging
@@ -17,16 +18,7 @@ from filtering.cardiac_region import filter_by_tissue
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-
-# def get_color_from_id(cell_id):
-#     """
-#     Generates a unique RGB color from a cell ID.
-#     This function maps integer IDs to RGB colors.
-#     """
-#     if cell_id < 0:
-#         cell_id = -cell_id
-#     np.random.seed(cell_id.astype(np.int16))  # Ensure consistent colors for the same ID
-#     return np.random.randint(0, 255, size=3)
+# Remove the get_color_from_id function if not needed
 
 
 def median_3d_array(img, disk_size=3):
@@ -66,18 +58,20 @@ def process_cell(cell_data, metadata):
     )
     mesh = mesh.simplify_quadratic_decimation(250)
 
-    mesh.metadata['cell_id'] = cell_id
-    # color = get_color_from_id(cell_id)
-    # mesh.visual.face_colors = np.tile(np.append(color, 255), (len(mesh.faces), 1))  # RGBA
+    # Access vertex normals (computes them if not already computed)
+    normals = mesh.vertex_normals
 
-    # Assign cell ID to face_attributes
-    face_ids = np.full(len(mesh.faces), cell_id, dtype=np.int16)
-    mesh.face_attributes = {'cell_id': face_ids}
+    # Prepare cell IDs for vertices and faces
+    vertex_cell_ids = np.full(len(mesh.vertices), cell_id, dtype=np.int32)
+    face_cell_ids = np.full(len(mesh.faces), cell_id, dtype=np.int32)
 
-    # Assign cell ID to vertex_attributes
-    vertex_ids = np.full(len(mesh.vertices), cell_id, dtype=np.int16)
-    mesh.vertex_attributes = {'cell_id': vertex_ids}
-    return mesh
+    return {
+        'vertices': mesh.vertices,
+        'faces': mesh.faces,
+        'normals': normals,
+        'vertex_cell_ids': vertex_cell_ids,
+        'face_cell_ids': face_cell_ids
+    }
 
 
 def marching_cubes(img, metadata):
@@ -98,33 +92,50 @@ def marching_cubes(img, metadata):
         cell_data_list.append(cell_data)
 
     # Process cells in parallel
-    meshes = Parallel(n_jobs=num_jobs)(
+    cell_meshes = Parallel(n_jobs=num_jobs)(
         delayed(process_cell)(cell_data, metadata) for cell_data in cell_data_list
     )
 
-    # Filter out None results and combine meshes
-    meshes = [mesh for mesh in meshes if mesh is not None]
-    combined_mesh = trimesh.util.concatenate(meshes)
+    # Initialize lists to collect data
+    all_vertices = []
+    all_faces = []
+    all_normals = []
+    all_vertex_cell_ids = []
+    all_face_cell_ids = []
 
-    # Combine face_attributes
-    combined_face_ids = []
-    for mesh in meshes:
-        cell_id = mesh.metadata['cell_id']
-        face_ids = mesh.face_attributes.get('cell_id', np.full(len(mesh.faces), cell_id, dtype=np.int32))
-        combined_face_ids.append(face_ids)
-    combined_face_ids = np.concatenate(combined_face_ids)
-    combined_mesh.face_attributes['cell_id'] = combined_face_ids
+    vertex_offset = 0
 
-    # Combine vertex_attributes
-    combined_vertex_ids = []
-    for mesh in meshes:
-        cell_id = mesh.metadata['cell_id']
-        vertex_ids = mesh.vertex_attributes.get('cell_id', np.full(len(mesh.vertices), cell_id, dtype=np.int32))
-        combined_vertex_ids.append(vertex_ids)
-    combined_vertex_ids = np.concatenate(combined_vertex_ids)
-    combined_mesh.vertex_attributes['cell_id'] = combined_vertex_ids
+    for cell_mesh in cell_meshes:
+        if cell_mesh is None:
+            continue
+        vertices = cell_mesh['vertices']
+        faces = cell_mesh['faces'] + vertex_offset  # Adjust face indices
+        normals = cell_mesh['normals']
+        vertex_cell_ids = cell_mesh['vertex_cell_ids']
+        face_cell_ids = cell_mesh['face_cell_ids']
 
-    return combined_mesh
+        all_vertices.append(vertices)
+        all_faces.append(faces)
+        all_normals.append(normals)
+        all_vertex_cell_ids.append(vertex_cell_ids)
+        all_face_cell_ids.append(face_cell_ids)
+
+        vertex_offset += len(vertices)
+
+    # Combine all data
+    all_vertices = np.vstack(all_vertices)
+    all_faces = np.vstack(all_faces)
+    all_normals = np.vstack(all_normals)
+    all_vertex_cell_ids = np.concatenate(all_vertex_cell_ids)
+    all_face_cell_ids = np.concatenate(all_face_cell_ids)
+
+    return {
+        'vertices': all_vertices,
+        'faces': all_faces,
+        'normals': all_normals,
+        'vertex_cell_ids': all_vertex_cell_ids,
+        'face_cell_ids': all_face_cell_ids
+    }
 
 
 def run(img_path, path_out, img_path_raw, lines_path, tissue, level, verbose=0):
@@ -138,9 +149,40 @@ def run(img_path, path_out, img_path_raw, lines_path, tissue, level, verbose=0):
         verbose=1
     )
 
-    mesh = marching_cubes(img, metadata)
-    mesh.export(path_out)
+    mesh_data = marching_cubes(img, metadata)
+
+    vertices = mesh_data['vertices']
+    faces = mesh_data['faces']
+    normals = mesh_data['normals']
+    vertex_cell_ids = mesh_data['vertex_cell_ids']
+    face_cell_ids = mesh_data['face_cell_ids']
+
+    # Prepare structured arrays for vertices and faces
+    vertex_dtype = [
+        ('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+        ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
+        ('cell_id', 'i4')
+    ]
+    vertex_data = np.empty(len(vertices), dtype=vertex_dtype)
+    vertex_data['x'] = vertices[:, 0]
+    vertex_data['y'] = vertices[:, 1]
+    vertex_data['z'] = vertices[:, 2]
+    vertex_data['nx'] = normals[:, 0]
+    vertex_data['ny'] = normals[:, 1]
+    vertex_data['nz'] = normals[:, 2]
+    vertex_data['cell_id'] = vertex_cell_ids
+
+    face_dtype = [('vertex_indices', 'i4', (3,)), ('cell_id', 'i4')]
+    face_data = np.empty(len(faces), dtype=face_dtype)
+    face_data['vertex_indices'] = faces
+    face_data['cell_id'] = face_cell_ids
+
+    # Create PlyElement objects
+    vertex_element = PlyElement.describe(vertex_data, 'vertex')
+    face_element = PlyElement.describe(face_data, 'face')
+
+    # Write the PLY file using plyfile
+    PlyData([vertex_element, face_element], text=True).write(path_out)
 
     if verbose:
         print(f'{c.OKGREEN}Saved{c.ENDC}: {path_out}')
-

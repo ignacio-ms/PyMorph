@@ -10,7 +10,7 @@ from auxiliary.data import imaging
 
 from filtering.cardiac_region import get_margins, crop_img, restore_img
 from feature_extraction.feature_extractor import filter_by_volume, filter_by_margin
-from nuclei_segmentation.processing import preprocessing
+from nuclei_segmentation.processing import preprocessing, postprocessing
 
 # Configurations
 use_gpu = core.use_gpu()
@@ -87,6 +87,16 @@ def run(
 
     if channels is None:
         channels = [0, 0]
+
+    if verbose:
+        print(f'{c.OKGREEN}Image shape{c.ENDC}: {img.shape}')
+        print(f'\n{c.BOLD}Diameter{c.ENDC}: {diameter}')
+        print(f'\n{c.BOLD}Channels{c.ENDC}: {channels}')
+        print(f'\n{c.BOLD}Anisotropy{c.ENDC}: {anisotropy}')
+        print(f'\n{c.BOLD}Do 3D{c.ENDC}: {do_3D}')
+        print(f'\n{c.BOLD}Stitch threshold{c.ENDC}: {stitch_threshold}')
+        print(f'\n{c.BOLD}Cellprob threshold{c.ENDC}: {cellprob_threshold}')
+        print(f'\n{c.BOLD}Flow threshold{c.ENDC}: {flow_threshold}')
 
     if isinstance(model, models.Cellpose):
         masks, _, _, _ = model.eval(
@@ -175,15 +185,17 @@ def predict(
         channels=channels,
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else True,
         stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else .6,
-        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .1,
+        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .4,
         flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .2,
         verbose=verbose
     )
 
-    masks = filter_by_volume(masks, percentile=96, verbose=verbose)
-
+    # masks = filter_by_volume(masks, percentile=96, verbose=verbose)
     # Anisotropic recosntruction
     masks = ndimage.zoom(masks, (inverse_anisotropy, 1, 1), order=0)
+
+    pp = postprocessing.PostProcessing(['clean_boundaries_opening'])
+    masks = pp.run(masks, verbose=verbose)
 
     if tissue is not None:
         masks = filter_by_margin(masks, verbose=verbose)

@@ -2,8 +2,8 @@
 
 source /home/imarcoss/mambaforge/etc/profile.d/conda.sh
 
-conda activate plant-seg
-python membrane_segmentation/run_plantseg.py -v 1
+#conda activate plant-seg
+#python membrane_segmentation/run_plantseg.py -v 1
 #conda deactivate
 
 #conda activate cellpose

@@ -129,7 +129,6 @@ class Preprocessing:
             pipeline = [
                 'isotropy',
                 'norm_percentile',
-                'anisodiff',
                 'bilateral',
             ]
 
