@@ -223,6 +223,7 @@ class Preprocessing:
 
         metadata = kwargs['metadata']
         resampling_factor = metadata['z_res'] / metadata['x_res']
+        img_iso = ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
 
         if 'verbose' in kwargs:
             print(
@@ -232,8 +233,10 @@ class Preprocessing:
                 f'Z: {metadata["z_res"]} um/px'
             )
             print(f'Resampling factor: {resampling_factor}')
+            print(f'Original shape: {img.shape}')
+            print(f'Resampled shape: {img_iso.shape}')
 
-        return ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
+        return img_iso
 
     @staticmethod
     def gaussian(img, **kwargs):
@@ -273,7 +276,7 @@ class Preprocessing:
             step_kwargs = self.filter_kwargs(step_func, kwargs)
 
             if step in ['isotropy']:
-                img = step_func(img, metadata=metadata, **step_kwargs)
+                img = step_func(img, metadata=metadata, verbose=verbose, **step_kwargs)
                 continue
 
             img = step_func(img, **step_kwargs)

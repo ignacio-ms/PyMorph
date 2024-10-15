@@ -90,13 +90,13 @@ def run(
 
     if verbose:
         print(f'{c.OKGREEN}Image shape{c.ENDC}: {img.shape}')
-        print(f'\n{c.BOLD}Diameter{c.ENDC}: {diameter}')
-        print(f'\n{c.BOLD}Channels{c.ENDC}: {channels}')
-        print(f'\n{c.BOLD}Anisotropy{c.ENDC}: {anisotropy}')
-        print(f'\n{c.BOLD}Do 3D{c.ENDC}: {do_3D}')
-        print(f'\n{c.BOLD}Stitch threshold{c.ENDC}: {stitch_threshold}')
-        print(f'\n{c.BOLD}Cellprob threshold{c.ENDC}: {cellprob_threshold}')
-        print(f'\n{c.BOLD}Flow threshold{c.ENDC}: {flow_threshold}')
+        print(f'\t{c.BOLD}Diameter{c.ENDC}: {diameter}')
+        print(f'\t{c.BOLD}Channels{c.ENDC}: {channels}')
+        print(f'\t{c.BOLD}Anisotropy{c.ENDC}: {anisotropy}')
+        print(f'\t{c.BOLD}Do 3D{c.ENDC}: {do_3D}')
+        print(f'\t{c.BOLD}Stitch threshold{c.ENDC}: {stitch_threshold}')
+        print(f'\t{c.BOLD}Cellprob threshold{c.ENDC}: {cellprob_threshold}')
+        print(f'\t{c.BOLD}Flow threshold{c.ENDC}: {flow_threshold}')
 
     if isinstance(model, models.Cellpose):
         masks, _, _, _ = model.eval(
