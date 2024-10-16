@@ -56,8 +56,8 @@ def w_cel_loss():
     return weighted_cross_entropy_with_logits
 
 
-def extended_w_cel_loss():
-    def ext_weighted_cross_entropy_with_logits(y_true, y_pred):
+def extended_w_cel_loss(from_logits=False):
+    def ext_weighted_cross_entropy(y_true, y_pred):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
 
@@ -67,7 +67,20 @@ def extended_w_cel_loss():
         loss = beta_p * y_true * tf.math.log(y_pred + 1e-6) + beta_n * (1 - y_true) * tf.math.log(1 - y_pred + 1e-6)
         return -tf.reduce_mean(loss)
 
-    return ext_weighted_cross_entropy_with_logits
+    def ext_weighted_cross_entropy_with_logits(y_true, logits):
+        y_true = tf.cast(y_true, tf.float32)
+        logits = tf.cast(logits, tf.float32)
+
+        # Compute probabilities from logits using sigmoid for multilabel classification
+        y_pred = tf.nn.sigmoid(logits)
+
+        beta_p = (tf.reduce_sum(1 - y_true, axis=0) + tf.reduce_sum(y_true, axis=0)) / (tf.reduce_sum(y_true, axis=0) + 1e-6)
+        beta_n = (tf.reduce_sum(1 - y_true, axis=0) + tf.reduce_sum(y_true, axis=0)) / (tf.reduce_sum(1 - y_true, axis=0) + 1e-6)
+
+        loss = beta_p * y_true * tf.math.log(y_pred + 1e-6) + beta_n * (1 - y_true) * tf.math.log(1 - y_pred + 1e-6)
+        return -tf.reduce_mean(loss)
+
+    return ext_weighted_cross_entropy_with_logits if from_logits else ext_weighted_cross_entropy
 
 
 def extended_w_cel_loss_soft():

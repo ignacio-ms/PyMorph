@@ -141,18 +141,12 @@ def predict(
     if 'test_name' in kwargs:
         img_path_out = img_path_out.replace('.nii.gz', f'_{kwargs["test_name"]}.nii.gz')
 
-    img = load_img(
-        img_path,
-        test_name=kwargs['test_name'] if 'test_name' in kwargs else None,
-        pipeline=kwargs['pipeline'] if 'pipeline' in kwargs else None,
-        verbose=verbose
-    )
-    model = load_model(model_type=model)
-
     # Set anisotropy
     metadata, _ = imaging.load_metadata(img_path)
 
     if tissue is not None:
+        img = imaging.read_image(img_path, axes='ZYX')
+
         # Crop img by tissue
         specimen = find_specimen(img_path)
         lines_path, _ = dataset.read_line(specimen)
@@ -169,6 +163,15 @@ def predict(
         )
         img = crop_img(img, margins, verbose=verbose)
 
+    img = load_img(
+        img_path,
+        image=img if tissue is not None else None,
+        test_name=kwargs['test_name'] if 'test_name' in kwargs else None,
+        pipeline=kwargs['pipeline'] if 'pipeline' in kwargs else None,
+        verbose=verbose
+    )
+    model = load_model(model_type=model)
+
     # Run segmentation
     masks = run(
         model, img,
@@ -176,8 +179,8 @@ def predict(
         channels=channels,
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else True,
         stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else None,
-        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .0,
-        flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .3,
+        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .1,
+        flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .2,
         verbose=verbose
     )
 

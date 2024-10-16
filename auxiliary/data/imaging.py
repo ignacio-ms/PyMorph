@@ -270,7 +270,7 @@ def iqr_filter(img, get_params=False, verbose=0):
         print(f'Removing {np.sum(intensities < threshold)} z-slices')
 
     if get_params:
-        return img[:, :, :, intensities > threshold], intensities, threshold
+        return img[:, :, intensities > threshold], intensities, threshold
 
     return img[:, :, intensities > threshold]
 

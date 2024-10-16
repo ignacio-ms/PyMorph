@@ -87,16 +87,8 @@ class CellDataset(tf.keras.utils.Sequence):
             img = img.astype(np.float16)
         return img
 
-    # def __get_label(self, idx):
-    #     return tf.one_hot(np.int16(idx), self.N_CLASSES, dtype=tf.int16)
-
-    def __get_label(self, label):
-        if isinstance(label, str):
-            # Safely parse the label string to a list
-            label = ast.literal_eval(label)
-        label = np.array(label, dtype=np.int16)
-        # Transform into tensor?
-        return label
+    def __get_label(self, idx):
+        return tf.one_hot(np.int16(idx), self.N_CLASSES, dtype=tf.int16)
 
     def __len__(self):
         return math.ceil(len(self.img_names) / self.batch_size)
@@ -109,6 +101,12 @@ class CellDataset(tf.keras.utils.Sequence):
         y = [self.__get_label(idx) for idx in batch_y]
 
         return tf.convert_to_tensor(x), tf.convert_to_tensor(y)
+
+    def get_all(self):
+        x = [self.__get_image(idx) for idx in self.img_names]
+        y = [self.__get_label(idx) for idx in self.img_labels]
+
+        return np.array(x), np.array(y)
 
     def oh2class(self, oh):
         return self.CLASSES[np.argmax(oh)]

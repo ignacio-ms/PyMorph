@@ -128,7 +128,7 @@ class Preprocessing:
         if pipeline is None:
             pipeline = [
                 'isotropy',
-                'norm_percentile',
+                'norm_minmax',
                 'bilateral',
             ]
 
@@ -221,6 +221,9 @@ class Preprocessing:
     def isotropy(img, **kwargs):
         assert kwargs['metadata'] is not None, 'Metadata is required for isotropy step.'
 
+        if 'image' in kwargs:
+            img = kwargs['image']
+
         metadata = kwargs['metadata']
         resampling_factor = metadata['z_res'] / metadata['x_res']
         img_iso = ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
@@ -266,7 +269,11 @@ class Preprocessing:
         return exposure.rescale_intensity(img, **kwargs)
 
     def run(self, img_path, test_name=None, verbose=0, **kwargs):
-        img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
+        try:
+            img = kwargs['image']
+            assert img is not None
+        except Exception:
+            img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
         metadata, _ = imaging.load_metadata(img_path)
 
         for step in self.pipeline:

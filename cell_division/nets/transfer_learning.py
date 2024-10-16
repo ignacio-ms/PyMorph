@@ -1,6 +1,9 @@
 # Standard Packages
 import focal_loss
+import numpy as np
 import tensorflow as tf
+from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import (
     Conv2D, Dense,
@@ -14,11 +17,11 @@ from tensorflow.keras.callbacks import (
     ReduceLROnPlateau
 )
 
-from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 
 # Custom Packages
-from cell_division.nets.custom_layers import (
+from cell_division.layers.calibration import BetaCalibration, TemperatureScaling
+from cell_division.layers.custom_layers import (
     LSEPooling,
     w_cel_loss,
     focal_loss,
@@ -26,7 +29,6 @@ from cell_division.nets.custom_layers import (
     ExtendedLSEPooling,
     extended_w_cel_loss_soft
 )
-from auxiliary import values as v
 
 
 class CNN:
@@ -93,10 +95,10 @@ class CNN:
 
     def compile(self, lr=1e-3, metrics=None, loss=None, optimizer=None):
         if metrics is None:
-            metrics = [tf.keras.metrics.AUC(name='auc')]
+            metrics = [tf.keras.metrics.AUC(name='auc', multi_label=True)]
 
         if loss is None:
-            loss = extended_w_cel_loss_soft()
+            loss = extended_w_cel_loss(from_logits=False)
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
@@ -156,6 +158,119 @@ class CNN:
             plt.show()
 
         return history
+
+    def add_temperature_scaling(self):
+        logits = self.model.output
+
+        temperature_layer = TemperatureScaling(name='temperature_scaling')
+        scaled_logits = temperature_layer(logits)
+
+        calibrated_probs = Activation('softmax', name='calibrated_softmax')(scaled_logits)
+
+        self.calibrated_model = Model(inputs=self.model.input, outputs=calibrated_probs)
+
+    def compile_calibrated_model(self, lr=1e-1, metrics=None, loss=None, optimizer=None):
+        if self.calibrated_model is None:
+            raise ValueError("Calibrated model is not created. Call add_temperature_scaling() first.")
+
+        if metrics is None:
+            metrics = [tf.keras.metrics.AUC(name='auc', multi_label=True)]
+
+        if loss is None:
+            loss = extended_w_cel_loss(from_logits=True)
+
+        if optimizer is None:
+            optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+
+        # Freeze all layers except the temperature scaling layer
+        for layer in self.calibrated_model.layers:
+            if layer.name != 'temperature_scaling':
+                layer.trainable = False
+            else:
+                layer.trainable = True
+
+        print("Trainable variables: ", len(self.calibrated_model.trainable_variables))
+        for var in self.calibrated_model.trainable_variables:
+            print(var.name)
+
+        self.calibrated_model.compile(
+            optimizer=optimizer,
+            loss=loss,
+            metrics=metrics
+        )
+
+    def fit_calibrated_model(self, X_calib, y_calib, epochs=50, batch_size=32):
+        if self.calibrated_model is None:
+            raise ValueError("Calibrated model is not created. Call add_temperature_scaling() first.")
+
+        callbacks = [
+            EarlyStopping(monitor='auc', patience=15, restore_best_weights=True, verbose=1),
+            ReduceLROnPlateau(monitor='auc', patience=5, factor=0.1, verbose=1)
+        ]
+
+        # Train only the temperature parameter
+        self.calibrated_model.fit(
+            X_calib, y_calib,
+            batch_size=batch_size,
+            epochs=epochs,
+            callbacks=callbacks,
+            verbose=1
+        )
+
+    def calibrate(self, X_calib, y_calib, method='temperature'):
+        if method == 'temperature':
+            self.add_temperature_scaling()
+            self.compile_calibrated_model()
+            self.fit_calibrated_model(X_calib, y_calib)
+        else:
+            # Use existing calibration methods
+            # Obtain predicted probabilities
+            predicted_probs = self.model.predict(X_calib)
+
+            self.calibrators = []
+            num_classes = predicted_probs.shape[1]
+
+            for i in range(num_classes):
+                prob_pos = predicted_probs[:, i]
+                y_true = y_calib[:, i]
+
+                if method == 'beta':
+                    calibrator = BetaCalibration()
+                    calibrator.fit(prob_pos, y_true)
+                elif method == 'isotonic':
+                    calibrator = IsotonicRegression(out_of_bounds='clip')
+                    calibrator.fit(prob_pos, y_true)
+                elif method == 'sigmoid':
+                    calibrator = LogisticRegression(solver='lbfgs')
+                    calibrator.fit(prob_pos.reshape(-1, 1), y_true)
+                else:
+                    raise ValueError("Unsupported calibration method")
+
+                self.calibrators.append(calibrator)
+
+    def predict_proba(self, X):
+        assert self.model is not None, "Model is not trained yet"
+
+        if hasattr(self, 'calibrated_model') and self.calibrated_model is not None:
+            # Use the calibrated model for predictions
+            return self.calibrated_model.predict(X)
+        elif len(self.calibrators) > 0:
+            # Use calibrators to adjust predicted probabilities
+            predicted_probs = self.model.predict(X)
+            calibrated_probs = np.zeros_like(predicted_probs)
+            num_classes = predicted_probs.shape[1]
+
+            for i in range(num_classes):
+                prob_pos = predicted_probs[:, i]
+                calibrator = self.calibrators[i]
+                if isinstance(calibrator, (IsotonicRegression, BetaCalibration)):
+                    calibrated_probs[:, i] = calibrator.predict(prob_pos)
+                elif isinstance(calibrator, LogisticRegression):
+                    calibrated_probs[:, i] = calibrator.predict_proba(prob_pos.reshape(-1, 1))[:, 1]
+            return calibrated_probs
+        else:
+            # Return model's predicted probabilities
+            return self.model.predict(X)
 
     def load(self, path):
         self.model = tf.keras.models.load_model(

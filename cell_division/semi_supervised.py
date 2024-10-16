@@ -3,14 +3,9 @@ import sys
 import os
 
 import pandas as pd
-from scipy import stats
 
-import tensorflow as tf
 import numpy as np
 import cv2
-
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 from imblearn.under_sampling import RandomUnderSampler
 
@@ -20,32 +15,15 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from cell_division.nets.transfer_learning import CNN
-from auxiliary.data.dataset_cell import CellDataset
 from auxiliary import values as v
 from auxiliary.utils.colors import bcolors as c
-from auxiliary.utils import visualizer as vis
 from auxiliary.data import imaging
-
-from sklearn.metrics import classification_report, confusion_matrix
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.layers import GlobalAveragePooling2D
-from cell_division.nets.custom_layers import (
-    w_cel_loss,
-    focal_loss,
-    ExtendedLSEPooling,
-    extended_w_cel_loss,
-    LSEPooling
-)
-
-from cell_division.nets.cam import GradCAM, overlay_heatmap, CAM, GradCAMpp
 
 # GPU config
 from auxiliary.utils.timer import LoadingBar
 from auxiliary.gpu.gpu_tf import (
     increase_gpu_memory,
-    set_gpu_allocator,
-    clear_session
+    set_gpu_allocator
 )
 
 increase_gpu_memory()
