@@ -163,13 +163,13 @@ class CNN:
         logits = self.model.output
 
         temperature_layer = TemperatureScaling(name='temperature_scaling')
-        scaled_logits = temperature_layer(logits)
+        calibrated_probs = temperature_layer(logits)
 
         calibrated_probs = Activation('softmax', name='calibrated_softmax')(scaled_logits)
 
         self.calibrated_model = Model(inputs=self.model.input, outputs=calibrated_probs)
 
-    def compile_calibrated_model(self, lr=1e-1, metrics=None, loss=None, optimizer=None):
+    def compile_calibrated_model(self, lr=1e-2, metrics=None, loss=None, optimizer=None):
         if self.calibrated_model is None:
             raise ValueError("Calibrated model is not created. Call add_temperature_scaling() first.")
 
@@ -199,12 +199,12 @@ class CNN:
             metrics=metrics
         )
 
-    def fit_calibrated_model(self, X_calib, y_calib, epochs=50, batch_size=32):
+    def fit_calibrated_model(self, X_calib, y_calib, epochs=100, batch_size=32):
         if self.calibrated_model is None:
             raise ValueError("Calibrated model is not created. Call add_temperature_scaling() first.")
 
         callbacks = [
-            EarlyStopping(monitor='auc', patience=15, restore_best_weights=True, verbose=1),
+            EarlyStopping(monitor='auc', patience=20, restore_best_weights=True, verbose=1),
             ReduceLROnPlateau(monitor='auc', patience=5, factor=0.1, verbose=1)
         ]
 
