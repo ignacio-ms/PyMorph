@@ -13,7 +13,8 @@ from feature_extraction.feature_extractor import filter_by_volume, filter_by_mar
 from nuclei_segmentation.processing import preprocessing, postprocessing
 
 # Configurations
-use_gpu = core.use_gpu()
+# use_gpu = core.use_gpu()
+use_gpu = False
 print(f"GPU activated: {use_gpu}")
 logger_setup()
 

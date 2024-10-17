@@ -275,6 +275,7 @@ class Preprocessing:
             assert img is not None
         except Exception:
             img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
+        img = img.astype(np.uint8)
         metadata, _ = imaging.load_metadata(img_path)
 
         for step in self.pipeline:
