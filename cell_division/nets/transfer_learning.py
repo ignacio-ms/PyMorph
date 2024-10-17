@@ -20,7 +20,12 @@ from tensorflow.keras.callbacks import (
 import matplotlib.pyplot as plt
 
 # Custom Packages
-from cell_division.layers.calibration import BetaCalibration, TemperatureScaling
+from cell_division.layers.calibration_layers import (
+    VectorScalingLayer,
+    TemperatureScalingLayer,
+    MatrixScalingLayer,
+    DirichletCalibrationLayer
+)
 from cell_division.layers.custom_layers import (
     LSEPooling,
     w_cel_loss,
@@ -135,7 +140,7 @@ class CNN:
         )
 
         if verbose > 1:
-            # self.model.summary()
+            self.model.summary()
 
             acc = history.history['auc']
             val_acc = history.history['val_auc']
@@ -159,17 +164,35 @@ class CNN:
 
         return history
 
-    def add_temperature_scaling(self):
-        logits = self.model.output
+    def add_calibration_layers(self, method='temperature'):
+        if self.model.layers[-1].activation != tf.keras.activations.softmax:
+            logits = Dense(
+                self.n_classes,
+                activation=None,
+                name='logits_layer'
+            )(self.model.layers[-2].output)
+        else:
+            logits = self.model.output
 
-        temperature_layer = TemperatureScaling(name='temperature_scaling')
-        calibrated_probs = temperature_layer(logits)
+        if method == 'temperature':
+            temperature_layer = TemperatureScalingLayer(name='temperature_scaling')
+            scaled_logits = temperature_layer(logits)
+        elif method == 'vector':
+            vector_layer = VectorScalingLayer(name='vector_scaling')
+            scaled_logits = vector_layer(logits)
+        elif method == 'matrix':
+            matrix_layer = MatrixScalingLayer(name='matrix_scaling')
+            scaled_logits = matrix_layer(logits)
+        elif method == 'dirichlet':
+            dirichlet_layer = DirichletCalibrationLayer(name='dirichlet_scaling')
+            scaled_logits = dirichlet_layer(logits)
+        else:
+            raise ValueError("Unsupported calibration method")
 
         calibrated_probs = Activation('softmax', name='calibrated_softmax')(scaled_logits)
-
         self.calibrated_model = Model(inputs=self.model.input, outputs=calibrated_probs)
 
-    def compile_calibrated_model(self, lr=1e-2, metrics=None, loss=None, optimizer=None):
+    def compile_calibrated_model(self, lr=5e-2, metrics=None, loss=None, optimizer=None):
         if self.calibrated_model is None:
             raise ValueError("Calibrated model is not created. Call add_temperature_scaling() first.")
 
@@ -177,14 +200,17 @@ class CNN:
             metrics = [tf.keras.metrics.AUC(name='auc', multi_label=True)]
 
         if loss is None:
-            loss = extended_w_cel_loss(from_logits=True)
+            loss = extended_w_cel_loss(from_logits=False)
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
-        # Freeze all layers except the temperature scaling layer
+        # Freeze all layers except the calibration layers
         for layer in self.calibrated_model.layers:
-            if layer.name != 'temperature_scaling':
+            if layer.name not in [
+                'temperature_scaling', 'vector_scaling',
+                'matrix_scaling', 'dirichlet_scaling'
+            ]:
                 layer.trainable = False
             else:
                 layer.trainable = True
@@ -218,35 +244,12 @@ class CNN:
         )
 
     def calibrate(self, X_calib, y_calib, method='temperature'):
-        if method == 'temperature':
-            self.add_temperature_scaling()
-            self.compile_calibrated_model()
-            self.fit_calibrated_model(X_calib, y_calib)
-        else:
-            # Use existing calibration methods
-            # Obtain predicted probabilities
-            predicted_probs = self.model.predict(X_calib)
+        assert self.model is not None, "Model is not trained yet"
+        assert method in ['temperature', 'vector', 'matrix', 'dirichlet'], "Unsupported calibration method"
 
-            self.calibrators = []
-            num_classes = predicted_probs.shape[1]
-
-            for i in range(num_classes):
-                prob_pos = predicted_probs[:, i]
-                y_true = y_calib[:, i]
-
-                if method == 'beta':
-                    calibrator = BetaCalibration()
-                    calibrator.fit(prob_pos, y_true)
-                elif method == 'isotonic':
-                    calibrator = IsotonicRegression(out_of_bounds='clip')
-                    calibrator.fit(prob_pos, y_true)
-                elif method == 'sigmoid':
-                    calibrator = LogisticRegression(solver='lbfgs')
-                    calibrator.fit(prob_pos.reshape(-1, 1), y_true)
-                else:
-                    raise ValueError("Unsupported calibration method")
-
-                self.calibrators.append(calibrator)
+        self.add_calibration_layers(method)
+        self.compile_calibrated_model()
+        self.fit_calibrated_model(X_calib, y_calib)
 
     def predict_proba(self, X):
         assert self.model is not None, "Model is not trained yet"
@@ -254,23 +257,11 @@ class CNN:
         if hasattr(self, 'calibrated_model') and self.calibrated_model is not None:
             # Use the calibrated model for predictions
             return self.calibrated_model.predict(X)
-        elif len(self.calibrators) > 0:
-            # Use calibrators to adjust predicted probabilities
-            predicted_probs = self.model.predict(X)
-            calibrated_probs = np.zeros_like(predicted_probs)
-            num_classes = predicted_probs.shape[1]
-
-            for i in range(num_classes):
-                prob_pos = predicted_probs[:, i]
-                calibrator = self.calibrators[i]
-                if isinstance(calibrator, (IsotonicRegression, BetaCalibration)):
-                    calibrated_probs[:, i] = calibrator.predict(prob_pos)
-                elif isinstance(calibrator, LogisticRegression):
-                    calibrated_probs[:, i] = calibrator.predict_proba(prob_pos.reshape(-1, 1))[:, 1]
-            return calibrated_probs
         else:
-            # Return model's predicted probabilities
             return self.model.predict(X)
+
+    def predict(self, X):
+        return np.argmax(self.predict_proba(X), axis=1)
 
     def load(self, path):
         self.model = tf.keras.models.load_model(
@@ -281,6 +272,10 @@ class CNN:
                 'weighted_cross_entropy_with_logits': w_cel_loss(),
                 'focal_loss': focal_loss(),
                 'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss(),
-                'ext_weighted_cross_entropy_with_logits_soft': extended_w_cel_loss_soft()
+                'ext_weighted_cross_entropy_with_logits_soft': extended_w_cel_loss_soft(),
+                'TemperatureScalingLayer': TemperatureScalingLayer,
+                'VectorScalingLayer': VectorScalingLayer,
+                'MatrixScalingLayer': MatrixScalingLayer,
+                'DirichletCalibrationLayer': DirichletCalibrationLayer
             }
         )
