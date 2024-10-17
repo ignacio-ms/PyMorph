@@ -106,6 +106,7 @@ def reconstruct(img, **kwargs):
 
     metadata = kwargs['metadata']
     resampling_factor = metadata['x_res'] / metadata['z_res']
+    print(f'{c.OKBLUE}Reconstructing image{c.ENDC}: {resampling_factor}')
     return ndimage.zoom(img, (resampling_factor, 1, 1), order=0)
 
 
@@ -128,7 +129,7 @@ class Preprocessing:
         if pipeline is None:
             pipeline = [
                 'isotropy',
-                'norm_minmax',
+                'norm_percentile',
                 'bilateral',
             ]
 
@@ -294,5 +295,5 @@ class Preprocessing:
                 verbose=verbose, axes='ZYX'
             )
 
-        return img.astype(np.int8)
+        return img
 

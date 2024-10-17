@@ -179,8 +179,8 @@ def predict(
         channels=channels,
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else True,
         stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else None,
-        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .1,
-        flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .2,
+        cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .4,
+        flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .4,
         verbose=verbose
     )
 
