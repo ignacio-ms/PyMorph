@@ -296,5 +296,5 @@ class Preprocessing:
                 verbose=verbose, axes='ZYX'
             )
 
-        return img
+        return img.astype(np.float16)
 
