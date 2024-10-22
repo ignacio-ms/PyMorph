@@ -53,7 +53,10 @@ class MeshFeatureExtractor:
             cell_mesh = cell_mesh.dump(concatenate=True)
 
         closest_face = find_closest_face(centroid, self.tissue_face_tree)
-        neigh_points = get_neighborhood_points(self.tissue_mesh, closest_face, radius=12.0, graph=self.tissue_graph)
+        neigh_points = get_neighborhood_points(
+            self.tissue_mesh, closest_face, radius=15.0,
+            graph=self.tissue_graph
+        )
         plane = fit_plane(neigh_points[0])
         ellipse_c, ellipse_axes, ellipse_lengths = approximate_ellipsoid(
             cell_vertices,
@@ -81,10 +84,9 @@ class MeshFeatureExtractor:
 
             visualization.render_scene(live=dynamic_display)
 
-        print(f'Angle: {angle}')
         return deg2perpen(angle)
 
-    def cell_sphericity(self, cell_id, method='eigenvalues'):
+    def cell_sphericity(self, cell_id, method='adjusted'):
         cell_mesh = self.cell_mesh.submesh([
             np.where(self.face_cell_ids == cell_id)[0]
         ], append=True)
@@ -92,19 +94,29 @@ class MeshFeatureExtractor:
         if isinstance(cell_mesh, trimesh.Scene):
             cell_mesh = cell_mesh.dump(concatenate=True)
 
-        if method == 'eigenvalues':
+        if method == 'standard':
             cov = np.cov(cell_mesh.vertices.T)
             eigvals = np.linalg.eigvalsh(cov)
             eigvals = np.sort(eigvals)[::-1]
-            sphericity_value = np.sqrt(eigvals[-1] / eigvals[0])
-            sphericity_value = min(max(sphericity_value, 0.0), 1.0)
+            sphericity_value = ((eigvals[-1] / eigvals[0]) * (eigvals[-2] / eigvals[0])) ** (1 / 3)
+            sphericity_value = np.clip(sphericity_value, 0, 1)
 
-        elif method == 'volume':
+        elif method == 'adjusted':
             cov = np.cov(cell_mesh.vertices.T)
             eigvals = np.linalg.eigvalsh(cov)
             eigvals = np.sort(eigvals)[::-1]
             k = np.sqrt(eigvals[0] / eigvals[-1])
             sphericity_value = (1 / (k + 1))
+
+        elif method == 'mvee':
+            volume = cell_mesh.volume
+            area = cell_mesh.area
+
+            if volume == 0 or area == 0:
+                return 0.0
+
+            roundness_value = (36 * np.pi) * (volume ** 2) / (area ** 3)
+            sphericity_value = min(max(roundness_value, 0.0), 1.0)
 
 
         else:
@@ -118,12 +130,11 @@ class MeshFeatureExtractor:
     def extract(self, n_jobs=-1):
         def compute_features(cell_id):
             perpendicularity = self.cell_perpendicularity(cell_id)
-            sphericity = self.cell_sphericity(cell_id)
+            sphericity = self.cell_sphericity(cell_id, method='standard')
             columnarity = self.cell_columnarity(sphericity, perpendicularity)
 
             return {
                 'cell_id': cell_id,
-                'angle': perpendicularity,
                 'perpendicularity': perpendicularity,
                 'sphericity': sphericity,
                 'columnarity': columnarity
@@ -136,5 +147,5 @@ class MeshFeatureExtractor:
 
         return pd.DataFrame(
             features_rows,
-            columns=['cell_id', 'angle', 'perpendicularity', 'sphericity', 'columnarity']
+            columns=['cell_id', 'perpendicularity', 'sphericity', 'columnarity']
         )

@@ -2,6 +2,9 @@
 # import sys
 # import getopt
 #
+# import trimesh
+# import pandas as pd
+#
 # # Custom packages
 # try:
 #     current_dir = os.path.dirname(__file__)
@@ -18,7 +21,9 @@
 #
 #
 # def run(mesh_path, tissue_path, features_path):
-#
+#     cell_mesh = trimesh.load(mesh_path, file_type='ply')
+#     tissue_mesh = trimesh.load(tissue_path, file_type='ply')
+#     featres = pd.read_csv(features_path)
 #
 # def print_usage():
 #     """

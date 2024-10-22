@@ -461,6 +461,38 @@ class CellVisualization:
         )
         self.scene.add(pyrender_arrow, name=name)
 
+    def add_geodesic_path(self, mesh, path, color=[0.0, 0.0, 0.0, 1.0], name='Geodesic Path'):
+        """
+        Add the geodesic path to the scene by highlighting the faces along the path.
+
+        Parameters:
+        - mesh: trimesh.Trimesh, the original mesh
+        - path: list of face indices along the geodesic path
+        - color: list of 4 floats, RGBA color for the path
+        - name: str, name identifier for the path
+        """
+        path_faces = mesh.faces[path]
+
+        unique_vertex_indices = np.unique(path_faces.flatten())
+        index_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(unique_vertex_indices)}
+        new_faces = np.array([[index_mapping[idx] for idx in face] for face in path_faces])
+
+        path_vertices = mesh.vertices[unique_vertex_indices]
+        path_mesh = trimesh.Trimesh(vertices=path_vertices, faces=new_faces, process=False)
+
+        material = pyrender.MetallicRoughnessMaterial(
+            baseColorFactor=color,
+            metallicFactor=0.0,
+            roughnessFactor=0.5,
+            alphaMode='OPAQUE'
+        )
+
+        pyrender_mesh = pyrender.Mesh.from_trimesh(
+            path_mesh, smooth=False, material=material
+        )
+
+        self.scene.add(pyrender_mesh, name=name)
+
     def render_scene(self, live=False):
         """
         Render the current scene using an offscreen renderer and display the image.

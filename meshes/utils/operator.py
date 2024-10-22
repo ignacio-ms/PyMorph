@@ -89,11 +89,12 @@ def get_neighborhood_points(mesh, face_idx, graph=None, radius=10.0):
     iters = 0
     while True:
         # Compute shortest paths from the starting face
-        distances, predecessors = dijkstra(
+        distances = dijkstra(
             csgraph=graph, directed=False,
             indices=face_idx, return_predecessors=True,
-            limit=radius
-        )
+            min_only=True,
+            # limit=radius
+        )[0]
 
         # Get faces within the radius
         faces_within_radius = np.where(distances <= radius)[0]
@@ -189,3 +190,40 @@ def get_angle(v1, v2):
     alpha_deg = np.degrees(alpha_rad)
 
     return alpha_deg
+
+
+def compute_geodesic_distance(face_idx_start, face_idx_end, graph=None):
+    """
+    Computes the geodesic distance between two faces and returns the path.
+    """
+
+    # Use Dijkstra's algorithm to compute shortest paths from face_idx_start
+    distances, predecessors = dijkstra(
+        csgraph=graph,
+        directed=False,
+        indices=face_idx_start,
+        return_predecessors=True
+    )
+
+    # Get the distance to the target face
+    geodesic_distance = distances[face_idx_end]
+
+    if np.isinf(geodesic_distance):
+        print(f"No path found between face {face_idx_start} and face {face_idx_end}.")
+        return None, None
+
+    # Reconstruct the path from start to end
+    path = []
+    current_face = face_idx_end
+    while current_face != face_idx_start and current_face != -9999:
+        path.append(current_face)
+        current_face = predecessors[current_face]
+
+    if current_face == -9999:
+        print(f"No path found between face {face_idx_start} and face {face_idx_end}.")
+        return None, None
+
+    path.append(face_idx_start)
+    path.reverse()  # Reverse to get path from start to end
+
+    return geodesic_distance, path
