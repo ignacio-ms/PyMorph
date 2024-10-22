@@ -5,3 +5,4 @@ daniela/
 *.ckpt
 .env
 *.sif
+*.ply

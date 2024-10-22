@@ -32,6 +32,9 @@ class MeshFeatureExtractor:
         self.tissue_vertices_tree = cKDTree(self.tissue_mesh.vertices)
 
     def cell_perpendicularity(self, cell_id, display=False, dynamic_display=False):
+        def deg2perpen(angle):
+            return np.sin(np.deg2rad(angle))
+
         centroid, cell_vertices = get_centroid(
             self.cell_mesh, cell_id,
             self.face_cell_ids, self.vertex_cell_ids
@@ -73,9 +76,9 @@ class MeshFeatureExtractor:
 
             visualization.render_scene(live=dynamic_display)
 
-        return angle
+        return deg2perpen(angle)
 
-    def cell_sphericity(self, cell_id):
+    def cell_sphericity(self, cell_id, method='eigenvalues'):
         cell_mesh = self.cell_mesh.submesh([
             np.where(self.face_cell_ids == cell_id)[0]
         ], append=True)
@@ -83,20 +86,33 @@ class MeshFeatureExtractor:
         if isinstance(cell_mesh, trimesh.Scene):
             cell_mesh = cell_mesh.dump(concatenate=True)
 
-        cov = np.cov(cell_mesh.vertices.T)
-        eigvals, _ = np.linalg.eig(cov)
-        idx = np.argsort(eigvals)
-        eigenvalues = eigvals[idx]
-        elongation = np.sqrt(eigenvalues[1] / eigenvalues[0])  # minor / major
-        return 1.0 - elongation
+        if method == 'eigenvalues':
+            cov = np.cov(cell_mesh.vertices.T)
+            eigvals = np.linalg.eigvalsh(cov)
+            eigvals = np.sort(eigvals)[::-1]
+            eigvals = np.clip(eigvals, a_min=1e-12, a_max=None)
+            sphericity_value = (eigvals[2] / eigvals[0]) ** (1/2)
+            sphericity_value = min(max(sphericity_value, 0.0), 1.0)
+
+        elif method == 'volume':
+            volume = cell_mesh.volume
+            surface_area = cell_mesh.area
+
+            if volume == 0 or surface_area == 0:
+                return 0.0
+
+            sphericity_value = (np.pi ** (1 / 3)) * ((6 * volume) ** (2 / 3)) / surface_area
+            sphericity_value = min(max(sphericity_value, 0.0), 1.0)
+
+        else:
+            raise ValueError(f'Invalid method: {method}')
+
+        return sphericity_value
 
     def cell_columnarity(self, sphericity, perpendicularity):
         return (1 - sphericity) * perpendicularity
 
     def extract(self, n_jobs=-1):
-        def deg2perpen(angle):
-            return 1.0 - np.cos(np.deg2rad(angle))
-
         def compute_features(cell_id):
             perpendicularity = self.cell_perpendicularity(cell_id)
             sphericity = self.cell_sphericity(cell_id)
@@ -104,7 +120,8 @@ class MeshFeatureExtractor:
 
             return {
                 'cell_id': cell_id,
-                'perpendicularity': deg2perpen(perpendicularity),
+                'angle': perpendicularity,
+                'perpendicularity': perpendicularity,
                 'sphericity': sphericity,
                 'columnarity': columnarity
             }
@@ -116,5 +133,5 @@ class MeshFeatureExtractor:
 
         return pd.DataFrame(
             features_rows,
-            columns=['cell_id', 'perpendicularity', 'sphericity', 'columnarity']
+            columns=['cell_id', 'angle', 'perpendicularity', 'sphericity', 'columnarity']
         )
