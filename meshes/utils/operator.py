@@ -12,6 +12,9 @@ from IPython.display import Image as IPyImage
 from scipy.spatial import cKDTree
 from sklearn.decomposition import PCA
 
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
+
 import keyboard
 import time
 import scipy
@@ -44,28 +47,62 @@ def find_closest_face(centroid, tissue_face_tree):
     return dace_idx
 
 
-def get_neighborhood_points(tissue_mesh, face_idx, radius=10.0):
-    closest_face_centroid = tissue_mesh.triangles_center[face_idx]
+def build_face_adjacency_csr_matrix(mesh):
+    """
+    Builds a CSR matrix representation of the face adjacency graph.
+    """
+    # Number of faces
+    num_faces = len(mesh.faces)
 
-    tissue_vertices_tree = cKDTree(tissue_mesh.vertices)
-    distance, source_vertex = tissue_vertices_tree.query(closest_face_centroid)
+    # Get face adjacency information
+    adjacency = mesh.face_adjacency
+
+    # Initialize data for CSR matrix
+    row_indices = []
+    col_indices = []
+    data = []
+
+    for idx, (face_idx_1, face_idx_2) in enumerate(adjacency):
+        # Edge weight: length of the shared edge
+        shared_edge = mesh.face_adjacency_edges[idx]
+        edge_vertices = mesh.vertices[shared_edge]
+        edge_length = np.linalg.norm(edge_vertices[0] - edge_vertices[1])
+
+        # Add entries for both directions
+        row_indices.extend([face_idx_1, face_idx_2])
+        col_indices.extend([face_idx_2, face_idx_1])
+        data.extend([edge_length, edge_length])
+
+    # Create CSR matrix
+    adjacency_matrix = csr_matrix((data, (row_indices, col_indices)), shape=(num_faces, num_faces))
+
+    return adjacency_matrix
+
+
+def get_neighborhood_points(mesh, face_idx, graph=None, radius=10.0):
+    """
+    Uses scipy.sparse.csgraph to find neighboring faces within a specified radius.
+    """
+    if graph is None:
+        graph = build_face_adjacency_csr_matrix(mesh)
 
     iters = 0
     while True:
-        try:
-            distances_matrix = gdist.local_gdist_matrix(
-                vertices=tissue_mesh.vertices,
-                triangles=tissue_mesh.faces.astype(np.int32),
-                max_distance=radius
-            )
-        except Exception as e:
-            print(f"Error computing geodesic distances with gdist: {e}")
-            raise e
+        # Compute shortest paths from the starting face
+        distances, predecessors = dijkstra(
+            csgraph=graph, directed=False,
+            indices=face_idx, return_predecessors=True,
+            limit=radius
+        )
 
-        row = distances_matrix.getrow(source_vertex).tocoo()
-        neighborhood_vertex_indices = row.col[row.data <= radius]
+        # Get faces within the radius
+        faces_within_radius = np.where(distances <= radius)[0]
 
-        neighborhood_points = tissue_mesh.vertices[neighborhood_vertex_indices]
+        # Collect the centroids of these faces
+        neighborhood_points = mesh.triangles_center[faces_within_radius]
+
+        # Get the centroid of the starting face
+        closest_face_centroid = mesh.triangles_center[face_idx]
 
         if len(neighborhood_points) >= 3:
             return neighborhood_points, closest_face_centroid

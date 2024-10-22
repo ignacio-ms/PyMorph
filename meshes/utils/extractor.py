@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import trimesh
 from joblib import Parallel, delayed
+
 from auxiliary.utils.timer import LoadingBar
 from meshes.utils.visualizer import CellVisualization
 from scipy.spatial import cKDTree
@@ -12,8 +13,10 @@ from meshes.utils.operator import (
     fit_plane,
     approximate_ellipsoid,
     get_longest_axis,
-    get_angle
+    get_angle,
+    build_face_adjacency_csr_matrix
 )
+
 
 class MeshFeatureExtractor:
     def __init__(self, cell_mesh, tissue_mesh, features):
@@ -31,9 +34,11 @@ class MeshFeatureExtractor:
         self.tissue_face_tree = cKDTree(self.tissue_face_centroids)
         self.tissue_vertices_tree = cKDTree(self.tissue_mesh.vertices)
 
-    def cell_perpendicularity(self, cell_id, display=False, dynamic_display=False):
+        self.tissue_graph = build_face_adjacency_csr_matrix(self.tissue_mesh)
+
+    def cell_perpendicularity(self, cell_id, sigma=30, display=False, dynamic_display=False):
         def deg2perpen(angle):
-            return np.sin(np.deg2rad(angle))
+            return np.clip(1 - np.exp(-((angle - 90) ** 2) / (2 * sigma ** 2)), 0, 1)
 
         centroid, cell_vertices = get_centroid(
             self.cell_mesh, cell_id,
@@ -48,7 +53,7 @@ class MeshFeatureExtractor:
             cell_mesh = cell_mesh.dump(concatenate=True)
 
         closest_face = find_closest_face(centroid, self.tissue_face_tree)
-        neigh_points = get_neighborhood_points(self.tissue_mesh, closest_face, radius=8.0)
+        neigh_points = get_neighborhood_points(self.tissue_mesh, closest_face, radius=12.0, graph=self.tissue_graph)
         plane = fit_plane(neigh_points[0])
         ellipse_c, ellipse_axes, ellipse_lengths = approximate_ellipsoid(
             cell_vertices,
@@ -76,6 +81,7 @@ class MeshFeatureExtractor:
 
             visualization.render_scene(live=dynamic_display)
 
+        print(f'Angle: {angle}')
         return deg2perpen(angle)
 
     def cell_sphericity(self, cell_id, method='eigenvalues'):
@@ -90,19 +96,16 @@ class MeshFeatureExtractor:
             cov = np.cov(cell_mesh.vertices.T)
             eigvals = np.linalg.eigvalsh(cov)
             eigvals = np.sort(eigvals)[::-1]
-            eigvals = np.clip(eigvals, a_min=1e-12, a_max=None)
-            sphericity_value = (eigvals[2] / eigvals[0]) ** (1/2)
+            sphericity_value = np.sqrt(eigvals[-1] / eigvals[0])
             sphericity_value = min(max(sphericity_value, 0.0), 1.0)
 
         elif method == 'volume':
-            volume = cell_mesh.volume
-            surface_area = cell_mesh.area
+            cov = np.cov(cell_mesh.vertices.T)
+            eigvals = np.linalg.eigvalsh(cov)
+            eigvals = np.sort(eigvals)[::-1]
+            k = np.sqrt(eigvals[0] / eigvals[-1])
+            sphericity_value = (1 / (k + 1))
 
-            if volume == 0 or surface_area == 0:
-                return 0.0
-
-            sphericity_value = (np.pi ** (1 / 3)) * ((6 * volume) ** (2 / 3)) / surface_area
-            sphericity_value = min(max(sphericity_value, 0.0), 1.0)
 
         else:
             raise ValueError(f'Invalid method: {method}')
