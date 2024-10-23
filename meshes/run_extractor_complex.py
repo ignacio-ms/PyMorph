@@ -20,12 +20,10 @@ from auxiliary.data.dataset_ht import HtDataset
 from meshes.utils.extractor import MeshFeatureExtractor
 
 
-def run(mesh_path, tissue_path, features, path_out=None, verbose=0, parallelize=True):
+def run(mesh_path, tissue_path, features_path, path_out=None, verbose=0, parallelize=True):
     cell_mesh = trimesh.load(mesh_path, file_type='ply')
     tissue_mesh = trimesh.load(tissue_path, file_type='ply')
-
-    if isinstance(features, str) and features.endswith('.csv'):
-        features = pd.read_csv(features)
+    features = pd.read_csv(features_path)
 
     if verbose:
         print(f'{c.OKBLUE}Extracting features{c.ENDC} for {c.BOLD}{mesh_path}{c.ENDC}:')
@@ -34,10 +32,18 @@ def run(mesh_path, tissue_path, features, path_out=None, verbose=0, parallelize=
         print(f'\t{c.BOLD}Columnarity')
 
     extractor = MeshFeatureExtractor(cell_mesh, tissue_mesh)
-    new_features = extractor.extract(n_jobs=-1 if parallelize else 1)
+    new_features = extractor.extract(n_jobs=6 if parallelize else 1)
 
     if verbose:
         print(f'{c.OKGREEN}Features extracted{c.ENDC} [{len(new_features)} / {len(features)}]')
+
+    # Rename original_labels -> cell_id if needed
+    if 'original_labels' in features:
+        features.rename(columns={'original_labels': 'cell_id'}, inplace=True)
+
+    columns2overwrite = ['perpendicularity', 'sphericity', 'columnarity']
+    if any([col in features.columns for col in columns2overwrite]):
+        features.drop(columns=columns2overwrite, inplace=True)
 
     # Ensure data types
     features['cell_id'] = features['cell_id'].astype(int)
@@ -162,9 +168,9 @@ if __name__ == '__main__':
         try:
             mesh_path = ds.get_mesh_cell(spec, level, tissue, verbose)
             tissue_path = ds.get_mesh_tissue(spec, verbose)
-            features = ds.get_features(spec, level, tissue, verbose)
+            features_path = ds.get_features(spec, level, tissue, verbose, only_path=True)
 
-            run(mesh_path, tissue_path, features, path_out, verbose, parallelize)
+            run(mesh_path, tissue_path, features_path, path_out, verbose, parallelize)
 
         except Exception as e:
             print(f'{c.FAIL}Error{c.ENDC}: {e}')

@@ -121,7 +121,7 @@ class MeshFeatureExtractor:
     def cell_columnarity(self, sphericity, perpendicularity):
         return (1 - sphericity) * perpendicularity
 
-    def extract(self, n_jobs=-1):
+    def extract(self, n_jobs=6):
         def compute_features(cell_id):
             perpendicularity = self.cell_perpendicularity(cell_id)
             sphericity = self.cell_sphericity(cell_id, method='standard')
