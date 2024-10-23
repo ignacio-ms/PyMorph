@@ -19,10 +19,9 @@ from meshes.utils.operator import (
 
 
 class MeshFeatureExtractor:
-    def __init__(self, cell_mesh, tissue_mesh, features):
+    def __init__(self, cell_mesh, tissue_mesh):
         self.cell_mesh = cell_mesh
         self.tissue_mesh = tissue_mesh
-        self.features = features
 
         self.face_cell_ids = self.cell_mesh.metadata['_ply_raw']['face']['data']['cell_id']
         self.vertex_cell_ids = self.cell_mesh.metadata['_ply_raw']['vertex']['data']['cell_id']
@@ -86,7 +85,10 @@ class MeshFeatureExtractor:
 
         return deg2perpen(angle)
 
-    def cell_sphericity(self, cell_id, method='adjusted'):
+    def cell_sphericity(self, cell_id, method='standard', sigma=35, center=0.6):
+        def activation(x):
+            return 1 / (1 + np.exp(-sigma * (x - center)))
+
         cell_mesh = self.cell_mesh.submesh([
             np.where(self.face_cell_ids == cell_id)[0]
         ], append=True)
@@ -98,17 +100,10 @@ class MeshFeatureExtractor:
             cov = np.cov(cell_mesh.vertices.T)
             eigvals = np.linalg.eigvalsh(cov)
             eigvals = np.sort(eigvals)[::-1]
-            sphericity_value = ((eigvals[-1] / eigvals[0]) * (eigvals[-2] / eigvals[0])) ** (1 / 3)
-            sphericity_value = np.clip(sphericity_value, 0, 1)
+            sphericity = ((eigvals[-1] / eigvals[0]) * (eigvals[-2] / eigvals[0])) ** (1 / 3)
+            sphericity = np.clip(sphericity, 0, 1)
 
-        elif method == 'adjusted':
-            cov = np.cov(cell_mesh.vertices.T)
-            eigvals = np.linalg.eigvalsh(cov)
-            eigvals = np.sort(eigvals)[::-1]
-            k = np.sqrt(eigvals[0] / eigvals[-1])
-            sphericity_value = (1 / (k + 1))
-
-        elif method == 'mvee':
+        elif method == 'volume':
             volume = cell_mesh.volume
             area = cell_mesh.area
 
@@ -116,13 +111,12 @@ class MeshFeatureExtractor:
                 return 0.0
 
             roundness_value = (36 * np.pi) * (volume ** 2) / (area ** 3)
-            sphericity_value = min(max(roundness_value, 0.0), 1.0)
-
+            sphericity = min(max(roundness_value, 0.0), 1.0)
 
         else:
             raise ValueError(f'Invalid method: {method}')
 
-        return sphericity_value
+        return activation(sphericity)
 
     def cell_columnarity(self, sphericity, perpendicularity):
         return (1 - sphericity) * perpendicularity

@@ -111,9 +111,7 @@ if __name__ == '__main__':
             sys.exit(2)
     else:
         # Process all specimens
-        specimens = []
-        for group_name, group_specimens in ds.specimens.items():
-            specimens.extend(group_specimens)
+        specimens = ds.check_meshes(level, tissue, verbose)
 
     print(f'{c.OKBLUE}Level{c.ENDC}: {level}')
     print(f'{c.OKBLUE}Tissue{c.ENDC}: {tissue}')
