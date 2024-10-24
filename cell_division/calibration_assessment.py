@@ -1,25 +1,73 @@
 from sklearn.calibration import calibration_curve
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import brier_score_loss
+from sklearn.metrics import brier_score_loss, log_loss
 import tensorflow as tf
 
 
-def plot_multilabel_reliability_diagram(y_true, y_pred, class_names, n_bins=10, sub_index=None, nrows=1, ncols=2):
+NLL = lambda probs, labels: log_loss(labels, probs)
+
+
+def plot_confidence_histogram(y_true, y_pred, n_bins=10, sub_index=None, nrows=1, ncols=1):
+    """
+    Plots a confidence histogram for the predicted probabilities.
+
+    :param y_pred: predicted probabilities (softmax output) of shape (n_samples, n_classes)
+    :param n_bins: number of bins for the histogram
+    """
     if sub_index:
         plt.subplot(nrows, ncols, sub_index)
     else:
         plt.figure(figsize=(5, 5))
 
-    num_classes = y_pred.shape[1]
+    # Flattening the predicted probabilities to get confidence for all classes
+    confidences = np.max(y_pred, axis=1)
 
-    for i in range(num_classes):
-        prob_true, prob_pred = calibration_curve(y_true[:, i], y_pred[:, i], n_bins=n_bins)
-        plt.plot(prob_pred, prob_true, marker='o', label=f'{class_names[i]}')
-    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-    plt.xlabel('Mean Predicted Probability')
-    plt.ylabel('Fraction of Positives')
-    plt.title('Multilabel Reliability Diagram')
+    plt.hist(confidences, range=(0, 1), edgecolor='black', color='blue', alpha=0.7)
+
+    # Vertical lines with accuracy and average confidence
+    plt.axvline(x=np.mean(confidences), color='black', linestyle='--', label='Mean Confidence')
+    plt.axvline(x=np.mean(np.argmax(y_true, axis=1) == np.argmax(y_pred, axis=1)), color='green', linestyle='--', label='Accuracy')
+
+    plt.legend()
+    plt.xlabel('Confidence')
+    plt.ylabel('% of Samples')
+    plt.title('Confidence Histogram')
+    plt.tight_layout()
+
+
+# Function to plot the reliability diagram
+def plot_reliability_diagram(y_true, y_pred, n_bins=10, sub_index=None, nrows=1, ncols=1):
+    """
+    Plots a reliability diagram.
+
+    :param y_true: true labels (one-hot encoded) of shape (n_samples, n_classes)
+    :param y_pred: predicted probabilities (softmax output) of shape (n_samples, n_classes)
+    :param n_bins: number of bins to use
+    """
+    if sub_index:
+        plt.subplot(nrows, ncols, sub_index)
+    else:
+        plt.figure(figsize=(5, 5))
+
+    # Convert one-hot encoded y_true to labels
+    y_true_labels = np.argmax(y_true, axis=1)
+    y_pred_labels = np.argmax(y_pred, axis=1)
+
+    confidences = np.max(y_pred, axis=1)  # Maximum predicted probabilities for each sample
+    accuracy = (y_pred_labels == y_true_labels)  # Whether each prediction is correct
+
+    # Compute calibration curve
+    prob_true, prob_pred = calibration_curve(accuracy, confidences, n_bins=n_bins)
+
+    # Plot the reliability diagram
+    plt.plot([0, 1], [0, 1], linestyle='--', label='Perfectly calibrated', color='gray')
+    plt.plot(prob_pred, prob_true, label='Outputs', color='blue')
+    plt.fill_between(prob_pred, prob_true, prob_pred, color='red', alpha=0.2, label='Gap')
+
+    plt.xlabel('Confidence')
+    plt.ylabel('Accuracy')
+    plt.title(f'Reliability Diagram \n Error: {compute_ece(y_true, y_pred):.4f}')
     plt.legend()
     plt.tight_layout()
 
@@ -128,7 +176,7 @@ def plot_learned_calibration_map(model_calibrated, title, sub_index=None, nrows=
     calibration_layers = []
     input_found = False
     for layer in model_calibrated.layers:
-        if layer.name in ['temperature_scaling', 'vector_scaling', 'matrix_scaling', 'dirichlet_calibration']:
+        if layer.name in ['temperature_scaling', 'vector_scaling', 'matrix_scaling', 'dirichlet_scaling']:
             calibration_layers.append(layer)
             input_found = True
         elif input_found:

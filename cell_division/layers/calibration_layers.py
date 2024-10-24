@@ -66,22 +66,20 @@ class DirichletCalibrationLayer(tf.keras.layers.Layer):
     def __init__(self, **kwargs):
         super(DirichletCalibrationLayer, self).__init__(**kwargs)
         self.num_classes = 3
-        # Initialize calibration parameters
-        # Parameters a and b are vectors of size num_classes
-        # Parameter c is a scalar bias
-        initializer = tf.keras.initializers.Identity()
-        self.A = self.add_weight(name='A',
-                                 shape=(self.num_classes, self.num_classes),
-                                 initializer=initializer,
-                                 trainable=True)
-        self.b = self.add_weight(name='b',
-                                 shape=(self.num_classes,),
-                                 initializer='zeros',
-                                 trainable=True)
+        # Initialize alpha parameters (positive values)
+        self.alpha = self.add_weight(
+            name='alpha',
+            shape=(self.num_classes,),
+            initializer='zeros',
+            trainable=True
+        )
 
-    def call(self, logits):
-        # Apply the Dirichlet calibration transformation
-        # Transformation: scaled_logits = softmax(A * logits + b)
-        # Note: A is a matrix, b is a bias vector
-        scaled_logits = tf.matmul(logits, self.A) + self.b
-        return scaled_logits
+    def call(self, probabilities):
+        # Ensure alpha parameters are positive
+        alpha = tf.nn.softplus(self.alpha)
+        # Apply Dirichlet calibration
+        adjusted_probs = tf.pow(probabilities, alpha)
+        # Normalize to ensure probabilities sum to 1
+        adjusted_probs /= tf.reduce_sum(adjusted_probs, axis=1, keepdims=True)
+        return adjusted_probs
+

@@ -165,7 +165,7 @@ class CNN:
         return history
 
     def add_calibration_layers(self, method='temperature'):
-        if self.model.layers[-1].activation != tf.keras.activations.softmax:
+        if self.model.layers[-1].activation != tf.keras.activations.softmax and method != 'dirichlet':
             logits = Dense(
                 self.n_classes,
                 activation=None,
@@ -186,6 +186,8 @@ class CNN:
         elif method == 'dirichlet':
             dirichlet_layer = DirichletCalibrationLayer(name='dirichlet_scaling')
             scaled_logits = dirichlet_layer(logits)
+            self.calibrated_model = Model(inputs=self.model.input, outputs=scaled_logits)
+            return
         else:
             raise ValueError("Unsupported calibration method")
 

@@ -14,7 +14,8 @@ from meshes.utils.operator import (
     approximate_ellipsoid,
     get_longest_axis,
     get_angle,
-    build_face_adjacency_csr_matrix
+    build_face_adjacency_csr_matrix,
+    compute_geodesic_distance
 )
 
 
@@ -53,7 +54,7 @@ class MeshFeatureExtractor:
 
         closest_face = find_closest_face(centroid, self.tissue_face_tree)
         neigh_points = get_neighborhood_points(
-            self.tissue_mesh, closest_face, radius=15.0,
+            self.tissue_mesh, closest_face, radius=10.0,
             graph=self.tissue_graph
         )
         plane = fit_plane(neigh_points[0])

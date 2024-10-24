@@ -63,10 +63,14 @@ def build_face_adjacency_csr_matrix(mesh):
     data = []
 
     for idx, (face_idx_1, face_idx_2) in enumerate(adjacency):
-        # Edge weight: length of the shared edge
-        shared_edge = mesh.face_adjacency_edges[idx]
-        edge_vertices = mesh.vertices[shared_edge]
-        edge_length = np.linalg.norm(edge_vertices[0] - edge_vertices[1])
+        # # Edge weight: length of the shared edge
+        # shared_edge = mesh.face_adjacency_edges[idx]
+        # edge_vertices = mesh.vertices[shared_edge]
+        # edge_length = np.linalg.norm(edge_vertices[0] - edge_vertices[1])
+
+        # Egde weight: Euclidean distance between face centroids
+        face_centroids = mesh.triangles_center
+        edge_length = np.linalg.norm(face_centroids[face_idx_1] - face_centroids[face_idx_2])
 
         # Add entries for both directions
         row_indices.extend([face_idx_1, face_idx_2])
