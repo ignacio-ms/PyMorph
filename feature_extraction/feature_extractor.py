@@ -4,6 +4,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from numba import njit
 
 from skimage import morphology
 import SimpleITK as sitk
@@ -35,7 +36,6 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     """
     if verbose:
         print(f'{c.OKBLUE}Filtering by volume...{c.ENDC}')
-        print(f'Pre-filtering cells: {c.BOLD}{len(np.unique(seg_img))}{c.ENDC}')
 
     props = ps.metrics.regionprops_3D(morphology.label(seg_img))
     centroids = [[round(i) for i in p.centroid] for p in props]
@@ -48,7 +48,7 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     remove = []
 
     for i, p in enumerate(props):
-        if centroids_labels[i] == 0 or p.volume <= 10:
+        if centroids_labels[i] == 0 or p.volume <= 20:
             remove.append(centroids_labels[i])
             continue
 
@@ -65,18 +65,25 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     remove += df[df.volumes > upper_bound].original_labels.tolist()
     remove += df[df.volumes < lower_bound].original_labels.tolist()
 
-    remove = set(remove)
+    remove = set(map(int, remove))
 
     if verbose:
         print(f'\tRemoving {c.BOLD}{len(remove)}{c.ENDC} cells...')
 
-    seg_membrane_int = seg_img.astype(int)
-    remove_int = np.array(list(remove)).astype(int)
+    @njit
+    def remove_cells_numba(seg_img, remove):
+        shape = seg_img.shape
 
-    mask = np.isin(seg_membrane_int, remove_int)
-    seg_img[mask] = 0
+        flat = seg_img.flatten()
+        for i in range(len(flat)):
+            if flat[i] in remove:
+                flat[i] = 0
 
-    print(f'Post-filtering cells: {c.BOLD}{len(np.unique(seg_img))}{c.ENDC}')
+        return flat.reshape(shape)
+
+    seg_img = remove_cells_numba(seg_img, remove)
+    if verbose:
+        print(f'\tRemoved {c.BOLD}{len(remove)}{c.ENDC} cells...')
 
     return seg_img
 
@@ -304,7 +311,6 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
         if f_type == 'Nuclei':
             result.update(first_order_features(sitk_img, sitk_mask))
 
-        result['original_labels'] = row[1].original_labels
         result['cell_in_props'] = cell
         results.append(result)  # :)
 
