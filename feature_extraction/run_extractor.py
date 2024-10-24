@@ -42,9 +42,10 @@ def run(ds, s, type, tissue=None, verbose=0):
     raw_img = imaging.read_image(path_raw, verbose=verbose)
     seg_img = imaging.read_image(path_seg, verbose=verbose)
 
-    seg_img = filter_by_volume(seg_img, verbose=verbose)
     if tissue:
         seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 1, verbose=verbose)
+
+    seg_img = filter_by_volume(seg_img, verbose=verbose)
 
     return extract(
         seg_img, raw_img, lines, path_raw,

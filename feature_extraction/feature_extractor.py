@@ -35,6 +35,7 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     """
     if verbose:
         print(f'{c.OKBLUE}Filtering by volume...{c.ENDC}')
+        print(f'Pre-filtering cells: {c.BOLD}{len(np.unique(seg_img))}{c.ENDC}')
 
     props = ps.metrics.regionprops_3D(morphology.label(seg_img))
     centroids = [[round(i) for i in p.centroid] for p in props]
@@ -44,9 +45,11 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
         print(f'\tFound{c.BOLD} {len(centroids)} {c.ENDC} cells')
 
     new_rows = []
+    remove = []
 
     for i, p in enumerate(props):
         if centroids_labels[i] == 0 or p.volume <= 10:
+            remove.append(centroids_labels[i])
             continue
 
         new_rows.append({
@@ -59,7 +62,6 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     lower_bound = np.percentile(df.volumes, 100 - percentile)
     upper_bound = np.percentile(df.volumes, percentile)
 
-    remove = []
     remove += df[df.volumes > upper_bound].original_labels.tolist()
     remove += df[df.volumes < lower_bound].original_labels.tolist()
 
@@ -68,19 +70,13 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     if verbose:
         print(f'\tRemoving {c.BOLD}{len(remove)}{c.ENDC} cells...')
 
-    # Optimize the removal of cells using integer labels and boolean mask
-    # instead of iterating over the whole image
     seg_membrane_int = seg_img.astype(int)
     remove_int = np.array(list(remove)).astype(int)
 
-    # Create a boolean mask for the integer labels
-    max_label = np.max(seg_membrane_int)
-    bool_mask = np.zeros(max_label + 1, dtype=bool)
-    bool_mask[remove_int] = True
-
-    # Apply the boolean mask
-    mask = bool_mask[seg_membrane_int]
+    mask = np.isin(seg_membrane_int, remove_int)
     seg_img[mask] = 0
+
+    print(f'Post-filtering cells: {c.BOLD}{len(np.unique(seg_img))}{c.ENDC}')
 
     return seg_img
 
@@ -162,10 +158,11 @@ def standard_features(lines, props, centroids, centroids_labels, type, verbose=0
         print(f'{c.OKBLUE}Computing standard features...{c.ENDC}')
 
     new_rows = []
-    most_commons = compute_most_common(lines, props)
+    if type == 'Membrane':
+        most_commons = compute_most_common(lines, props)
 
     for i, p in enumerate(props):
-        if centroids_labels[i] == 0:
+        if centroids_labels[i] == 0 or p.volume <= 20:
             continue
 
         if type == 'Membrane':
@@ -280,14 +277,16 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
 
     df = standard_features(lines, props, centroids, centroids_labels, f_type, verbose=verbose)
 
-    bar = LoadingBar(len(props))
+    bar = LoadingBar(len(df))
 
     if verbose:
         print(f'{c.OKBLUE}Computing {f_type} features...{c.ENDC}')
 
     results = []
 
-    for cell in range(len(props)):
+    for row in df.iterrows():
+        cell = row[1].cell_in_props
+
         img = np.swapaxes(np.swapaxes(raw_img[props[cell].slice], 0, 2), 1, 2)
         m = np.swapaxes(np.swapaxes(props[cell].mask, 0, 2), 1, 2)
 
@@ -305,6 +304,7 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
         if f_type == 'Nuclei':
             result.update(first_order_features(sitk_img, sitk_mask))
 
+        result['original_labels'] = row[1].original_labels
         result['cell_in_props'] = cell
         results.append(result)  # :)
 
@@ -314,7 +314,7 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
     bar.end()
 
     df_radiomics = pd.DataFrame(results)
-    df = df.merge(df_radiomics, on='cell_in_props')
+    df = pd.merge(df, df_radiomics, on='cell_in_props', how='left')
     return df
 
 
