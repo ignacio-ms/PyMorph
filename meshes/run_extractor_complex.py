@@ -12,12 +12,11 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset
 
-from meshes.utils.extractor import MeshFeatureExtractor
+from meshes.utils.features.extractor import MeshFeatureExtractor
 
 
 def run(mesh_path, tissue_path, features_path, path_out=None, verbose=0, parallelize=True):
@@ -167,7 +166,7 @@ if __name__ == '__main__':
 
         try:
             mesh_path = ds.get_mesh_cell(spec, level, tissue, verbose)
-            tissue_path = ds.get_mesh_tissue(spec, verbose)
+            tissue_path = ds.get_mesh_tissue(spec, tissue, verbose)
             features_path = ds.get_features(spec, level, tissue, verbose, only_path=True)
 
             run(mesh_path, tissue_path, features_path, path_out, verbose, parallelize)

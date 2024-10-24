@@ -13,177 +13,119 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary import values as v
-from filtering.cardiac_region import filter_by_tissue
+from filtering.mesh_filtering import run
 from auxiliary.data.dataset_ht import HtDataset
 from auxiliary.utils.timer import LoadingBar
 from auxiliary.data import imaging
 
 
-def run():
-    """
-    Filter segmented 3D image by tissue.
-    :return:
-    """
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hp:s:l:i:o:g:t:v:", [
-            "help", 'data_path=', 'specimen=', 'level=', "img=", "output=", 'group=', "tissue=", "verbose="
-        ])
-
-        if len(opts) == 0 or len(opts) > 7:
-            print_usage()
-    except getopt.GetoptError as err:
-        print(err)
-        sys.exit(2)
-
-    data_path, spec, img, output_path, group, tissue, level, verbose = None, None, None, None, None, None, None, None
-
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print_usage()
-        elif opt in ('-p', '--data_path'):
-            data_path = arg_check(opt, arg, "-p", "--data_path", str, print_usage)
-        elif opt in ('-s', '--specimen'):
-            spec = arg_check(opt, arg, "-s", "--specimen", str, print_usage)
-        elif opt in ('-i', '--img'):
-            img = arg_check(opt, arg, "-i", "--img", str, print_usage)
-        elif opt in ('-o', '--output'):
-            output_path = arg_check(opt, arg, "-o", "--output", str, print_usage)
-        elif opt in ('-g', '--group'):
-            group = arg_check(opt, arg, "-g", "--group", str, print_usage)
-        elif opt in ('-t', '--tissue'):
-            tissue = arg_check(opt, arg, "-t", "--tissue", str, print_usage)
-        elif opt in ('-l', '--level'):
-            level = arg_check(opt, arg, "-l", "--level", str, print_usage)
-        elif opt in ('-v', '--verbose'):
-            verbose = arg_check(opt, arg, "-v", "--verbose", int, print_usage)
-        else:
-            print(f"{c.FAIL}Invalid option{c.ENDC}: {opt}")
-            print_usage()
-
-    if tissue is None:
-        print(f'{c.BOLD}Tissue not provided{c.ENDC}: Filtering by default tissue (myocardium)')
-        tissue = 'myocardium'
-
-    if level is None:
-        print(f'{c.BOLD}Level not provided{c.ENDC}: Filtering by default level (Nuclei)')
-        level = 'Nuclei'
-
-    if data_path is None:
-        data_path = v.data_path
-
-    ds = HtDataset(data_path=data_path)
-
-    if img is not None:
-        if verbose:
-            print(f'{c.OKBLUE}Filtering image:{c.ENDC} {img}')
-
-        img_paths = [img]
-        img_paths_out = [
-            output_path if output_path else img
-            .replace('.nii.gz', f'_{tissue}.nii.gz')
-            .replace(f'{level}', f'{level}/{tissue}')
-            .replace('.nii.gz', f'_{tissue}.nii.gz')
-        ]
-
-        aux = img.split('/')[-1].split('_')[0].split('2019')[-1]
-        aux_e = img.split('/')[-1].split('_')[1]
-        spec = f'{aux}_{aux_e}'
-        line_paths = [ds.read_line(spec, verbose=verbose)[0]]
-
-    elif spec is not None:
-        if verbose:
-            print(f'{c.OKBLUE}Filtering specimen:{c.ENDC} {spec}')
-
-        img_path, _ = ds.read_specimen(spec, type='Segmentation', level=level, verbose=verbose)
-        img_paths = [img_path]
-        img_paths_out = [
-            img_path
-            .replace('.nii.gz', f'_{tissue}.nii.gz')
-            .replace(f'{level}', f'{level}/{tissue}')
-            .replace('.nii.gz', f'_{tissue}.nii.gz')
-        ]
-
-        line_paths = [ds.read_line(spec, verbose=verbose)[0]]
-
-    elif group is not None:
-        if verbose:
-            print(f'{c.OKBLUE}Filtering group:{c.ENDC} {group}')
-
-        ds.read_img_paths(type='Segmentation')
-
-        if group not in ds.specimens.keys():
-            print(f'{c.FAIL}Invalid group{c.ENDC}: {group}')
-            print(f'{c.BOLD}Available groups{c.ENDC}: {list(ds.specimens.keys())}')
-            sys.exit(2)
-
-        specimens = ds.specimens[group]
-        img_paths = ds.segmentation_nuclei_path if level == 'Nuclei' else ds.segmentation_membrane_path
-        img_paths = [
-            img_path for img_path in img_paths if any(
-                specimen in img_path for specimen in specimens
-            )
-        ]
-
-        img_paths_out = [
-            img_path_out.replace(f'{level}', f'{level}/{tissue}')
-            .replace('.nii.gz', f'_{tissue}.nii.gz')
-            .replace('.nii.gz', f'_{tissue}.nii.gz')
-            for img_path_out in img_paths
-        ]
-
-        line_paths = [ds.read_line(spec, verbose=verbose)[0] for spec in specimens]
-
-    if len(img_paths) == 0 or len(img_paths_out) == 0:
-        print(f'{c.FAIL}No images found{c.ENDC}')
-        sys.exit(2)
-
-    if len(img_paths) != len(img_paths_out):
-        print(f'{c.FAIL}Number of input and output images must be the same{c.ENDC}')
-        sys.exit(2)
-
-    bar = LoadingBar(len(img_paths))
-    for img_path, img_path_out, line_path in zip(img_paths, img_paths_out, line_paths):
-        img = imaging.read_image(img_path, verbose=verbose)
-        lines = imaging.read_nii(line_path, verbose=verbose)
-
-        filtered_img = filter_by_tissue(
-            img, lines, tissue_name=tissue,
-            dilate=2, dilate_size=3,
-            verbose=verbose
-        )
-
-        bar.update()
-
-        try:
-            imaging.save_nii(filtered_img, img_path_out, verbose=verbose)
-        except FileNotFoundError:
-            print(f'\n{c.WARNING}Folder not found{c.ENDC}: Creating directory for {c.BOLD}{tissue}{c.ENDC} filtered images')
-
-            if group is None:
-                group = img_path.split('/')[-4]
-            tissue_folder = data_path + f'{group}/Segmentation/{level}/{tissue}/'
-
-            os.makedirs(tissue_folder, exist_ok=True)
-            imaging.save_nii(filtered_img, img_path_out, verbose=verbose)
-
-    bar.end()
-
-
 def print_usage():
     print(
-        "Usage: python run_filter_tissue.py -i <img> -t <tissue> -l <level> -o <output> -p <data_path> -s <specimen> -g <group> -v <verbose>\n"
-        "Options:\n"
-        '<img> Input segmented image path (nii.gz or tiff).\n'
-        '<tissue> Tissue to filter by. (Default: myocardium)\n'
-        '<level> Nuclei level or Membrane level. (Default: Nuclei)\n'
-        '<output> Output path for filtered image. (Default: input image path with tissue name)\n'
-        '<data_path> Path to data directory. (Default: v.data_path)\n'
-        '<specimen> Specimen to filter. (Default: None)\n'
-        '<group> Group of specimens to filter. (Default: None)\n'
-        '<verbose> Verbosity level. (Default: 0)\n'
+        'usage: run_filter_tissue.py -l <level> -t <tissue> -s <specimen> -g <group> -m <mesh_path> -t <tissue_path> -f <features_path> -v <verbose>'
+        f'\n\n{c.BOLD}Options{c.ENDC}:\n'
+        f'{c.BOLD}-l, --level{c.ENDC}: Level to use. (Default: Membrane)\n'
+        f'{c.BOLD}-t, --tissue{c.ENDC}: Tissue to use. (Default: myocardium)\n'
+        f'{c.BOLD}-s, --specimen{c.ENDC}: Specimen to process.\n'
+        f'{c.BOLD}-g, --group{c.ENDC}: Group to process.\n'
+        f'{c.BOLD}-m, --mesh_path{c.ENDC}: Path to mesh data.\n'
+        f'{c.BOLD}-t, --tissue_path{c.ENDC}: Path to tissue data.\n'
+        f'{c.BOLD}-f, --features_path{c.ENDC}: Path to features data.\n'
+        f'{c.BOLD}-v, --verbose{c.ENDC}: Verbosity level. (Default: 0)\n'
     )
     sys.exit(2)
 
 
+def get_group(ds, specimen):
+    for group_name, specimens in ds.specimens.items():
+        if specimen in specimens:
+            return group_name
+    return None
+
+
 if __name__ == "__main__":
-    run()
+    argv = sys.argv[1:]
+    level = 'Membrane'
+    tissue = 'myocardium'
+    specimen = None
+    group = None
+    mesh_path = None
+    tissue_path = None
+    features_path = None
+    verbose = 0
+
+    try:
+        opts, args = getopt.getopt(argv, "hl:t:s:g:m:t:f:v:", [
+            "help", "level=", "tissue=", "specimen=", "group=", "mesh_path=", "tissue_path=", "features_path=", "verbose="
+        ])
+
+        if len(opts) == 0:
+            print_usage()
+            sys.exit(2)
+
+        for opt, arg in opts:
+            if opt in ("-h", "--help"):
+                print_usage()
+                sys.exit()
+            elif opt in ("-l", "--level"):
+                level = arg_check(opt, arg, '-l', '--level', str, print_usage)
+            elif opt in ("-t", "--tissue"):
+                tissue = arg_check(opt, arg, '-t', '--tissue', str, print_usage)
+            elif opt in ("-s", "--specimen"):
+                specimen = arg_check(opt, arg, '-s', '--specimen', str, print_usage)
+            elif opt in ("-g", "--group"):
+                group = arg_check(opt, arg, '-g', '--group', str, print_usage)
+            elif opt in ("-m", "--mesh_path"):
+                mesh_path = arg_check(opt, arg, '-m', '--mesh_path', str, print_usage)
+            elif opt in ("-t", "--tissue_path"):
+                tissue_path = arg_check(opt, arg, '-t', '--tissue_path', str, print_usage)
+            elif opt in ("-f", "--features_path"):
+                features_path = arg_check(opt, arg, '-f', '--features_path', str, print_usage)
+            elif opt in ("-v", "--verbose"):
+                verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
+            else:
+                print(f"{c.FAIL}Invalid option{c.ENDC}: {opt}")
+                print_usage()
+
+    except getopt.GetoptError:
+        print_usage()
+
+    ds = HtDataset()
+
+    # If mesh_path, tissue_path, and features_path are provided, process them directly
+    if mesh_path is not None and tissue_path is not None and features_path is not None:
+        if verbose > 0:
+            print(f"{c.OKBLUE}Processing mesh data{c.ENDC}")
+
+        run(mesh_path, tissue_path, features_path, verbose=verbose)
+
+    if specimen is not None:
+        specimens = [specimen]
+    elif group is not None:
+        if group in ds.specimens:
+            specimens = ds.specimens[group]
+        else:
+            print(f"{c.FAIL}Invalid group{c.ENDC}: {group}")
+            sys.exit(2)
+    else:
+        specimens = [specimen for sublist in ds.specimens.values() for specimen in sublist]
+
+    print(f"{c.OKBLUE}Level{c.ENDC}: {level}")
+    print(f"{c.OKBLUE}Tissue{c.ENDC}: {tissue}")
+
+    for spec in specimens:
+        try:
+            if verbose > 0:
+                print(f"{c.OKBLUE}Processing specimen{c.ENDC}: {spec}")
+
+            mesh_path = ds.get_mesh_cell(spec, level, tissue, verbose)
+            tissue_path = ds.get_mesh_tissue(spec, tissue, verbose)
+            features_path = ds.get_features(spec, level, tissue, verbose, only_path=True)
+
+            run(mesh_path, tissue_path, features_path, verbose=verbose)
+        except Exception as e:
+            print(f"{c.FAIL}Error processing specimen{c.ENDC}: {spec}")
+            print(e)
+            if verbose:
+                import traceback
+                traceback.print_exc()
+            continue

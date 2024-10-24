@@ -202,8 +202,8 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
 
         if isinstance(tissue_name, list):
             tissue = np.zeros_like(lines)
-            for tissue_name in tissue_name:
-                tissue += np.where(lines == v.lines[tissue_name], 1, 0)
+            for tissue_n in tissue_name:
+                tissue += np.where(lines == v.lines[tissue_n], 1, 0)
             cell_ids = np.unique(img[tissue > 0])
         else:
             tissue = v.lines[tissue_name]

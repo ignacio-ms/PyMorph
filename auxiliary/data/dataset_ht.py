@@ -333,7 +333,7 @@ class HtDataset:
 
         raise FileNotFoundError(f'No specimen found: {spec} (Get mesh) [{type} - {tissue}]')
 
-    def get_mesh_tissue(self, spec, verbose=0):
+    def get_mesh_tissue(self, spec, tissue='myocardium', verbose=0):
         """
         Get tissue mesh for a specific specimen.
         :param spec: Specimen to get mesh.
@@ -343,7 +343,7 @@ class HtDataset:
         """
         for group in self.specimens.keys():
             try:
-                f_raw_dir = os.path.join(self.data_path, group, '3DShape/Tissue')
+                f_raw_dir = os.path.join(self.data_path, group, '3DShape/Tissue/', tissue)
                 walk = os.walk(f_raw_dir).__next__()
             except StopIteration:
                 if verbose:
