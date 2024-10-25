@@ -235,10 +235,12 @@ def merge_and_save_mesh(individual_cells, intersecting_cell_ids, path_out):
         print("Data verification failed. Aborting export.")
         return
 
-    # Create Trimesh object to check manifoldness
-    merged_mesh = trimesh.Trimesh(vertices=merged_mesh_data['vertices'],
-                                  faces=merged_mesh_data['faces'],
-                                  process=False)
+    merged_mesh = trimesh.Trimesh(
+        vertices=merged_mesh_data['vertices'],
+        faces=merged_mesh_data['faces'],
+        process=False
+    )
+
     if check_non_manifold(merged_mesh):
         print("Warning: Merged mesh has non-manifold edges. Attempting to repair.")
         merged_mesh = merged_mesh.fill_holes()
@@ -246,11 +248,10 @@ def merge_and_save_mesh(individual_cells, intersecting_cell_ids, path_out):
             print("Error: Unable to repair non-manifold edges.")
             return
         else:
-            # Update merged_mesh_data after repair
             merged_mesh_data['vertices'] = merged_mesh.vertices
             merged_mesh_data['faces'] = merged_mesh.faces
             merged_mesh_data['normals'] = merged_mesh.vertex_normals
-            # Note: cell_ids remain unchanged as per previous steps
+
             vertex_data, face_data = create_structured_arrays(merged_mesh_data)
 
     ply_elements = create_ply_elements(vertex_data, face_data)
@@ -295,19 +296,19 @@ def run(mesh_path, tissue_path, features_path, verbose=0):
     if verbose:
         print(f"{c.OKBLUE}Updating CSV{c.ENDC}...")
 
-    update_csv(features_path, non_intersecting_cell_ids, verbose)
+    update_csv(features_path.replace('.csv', '_filtered.csv'), non_intersecting_cell_ids, verbose)
 
     if verbose:
         print(f"{c.OKBLUE}Merging intersecting cells{c.ENDC}...")
 
-    merged_intersecting_mesh = merge_and_save_mesh(individual_cells, intersecting_cell_ids, mesh_path)
+    _ = merge_and_save_mesh(individual_cells, intersecting_cell_ids, mesh_path.replace('.ply', '_filtered.ply'))
 
     if verbose:
         total_cells = len(individual_cells)
         intersecting_cells = len(intersecting_cell_ids)
         non_intersecting_cells = len(non_intersecting_cell_ids)
         percentage = (intersecting_cells / total_cells) * 100 if total_cells > 0 else 0
-        
+
         print(f'{c.OKGREEN}Summary{c.ENDC}')
         print(f'\tTotal Cells: {total_cells}')
         print(f'\tIntersecting Cells: {intersecting_cells} ({percentage:.2f}%)')

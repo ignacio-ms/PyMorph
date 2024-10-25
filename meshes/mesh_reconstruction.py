@@ -145,13 +145,6 @@ def run(img_path, path_out, img_path_raw, lines_path, tissue, level, verbose=0):
     lines = imaging.read_image(lines_path, axes='XYZ', verbose=1)
     metadata, _ = imaging.load_metadata(img_path_raw)
 
-    s = find_specimen(img_path)
-    if s in ['0504_E1', '0122_E1', '0123_E1', '0402_E2']:
-        print(f'{c.OKGREEN}Resizing lines{c.ENDC}')
-        print(f'\t{c.OKBLUE}Old shape{c.ENDC}: {lines.shape}')
-        lines = zoom(lines, (1, 1, 2), order=1)
-        print(f'\t{c.OKBLUE}New shape{c.ENDC}: {lines.shape}')
-
     img = filter_by_tissue(
         img, lines, tissue,
         dilate=2 if level == 'Membrane' else 3, dilate_size=3,

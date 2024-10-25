@@ -283,13 +283,16 @@ def update_affine(affine, original_res, new_res):
     :param new_res: Tuple of new (x_res, y_res, z_res).
     :return: Updated affine matrix.
     """
+    if affine is None:
+        affine = np.eye(4)
+
     scaling_factors = np.array(new_res) / np.array(original_res)
     updated_affine = affine.copy()
     updated_affine[:3, :3] *= scaling_factors
     return updated_affine
 
 
-def resize_xy_05(img_path):
+def resize_xyz_05(img_path):
     """
     Resize x and y dimensions by 0.5.
     Metadata res x and y should be updated. (res_x / 2)
@@ -300,24 +303,28 @@ def resize_xy_05(img_path):
     metadata, affine = load_metadata(img_path)
 
     original_x, original_y, original_z = img.shape
-    new_x, new_y = original_x // 2, original_y // 2
+    new_x, new_y, new_z = original_x // 2, original_y // 2, original_z // 2
 
-    zoom_factors = (0.5, 0.5, 1)
+    zoom_factors = (0.5, 0.5, 0.5)
     resized_img = zoom(img, zoom_factors, order=1)
 
     # Update metadata
-    metadata['x_size'], metadata['y_size'] = new_x, new_y
+    metadata['x_size'], metadata['y_size'], metadata['z_size'] = new_x, new_y, new_z
     metadata['x_res'] /= 2
     metadata['y_res'] /= 2
+    metadata['z_res'] /= 2
 
     affine = update_affine(
         affine,
-        (metadata['x_res'] * 2, metadata['y_res'] * 2, metadata['z_res']),
+        (metadata['x_res'] * 2, metadata['y_res'] * 2, metadata['z_res'] * 2),
         (metadata['x_res'], metadata['y_res'], metadata['z_res'])
     )
 
-    img_path = img_path.replace('.nii.gz', '_0.5.nii.gz')
-    save_nii(resized_img.astype(np.uint8), img_path, affine=affine, metadata=metadata, verbose=1)
+    img_path = img_path.replace('.tif', '_0.5.nii.gz')
+    save_nii(
+        resized_img.astype(np.uint8), img_path,
+        affine=affine, metadata=metadata, verbose=1
+    )
 
     print(f'{c.OKGREEN}Resized image{c.ENDC}: {img_path}')
     print(f'{c.BOLD}Metadata{c.ENDC}: {metadata}')

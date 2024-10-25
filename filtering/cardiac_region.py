@@ -186,6 +186,9 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
             img = img[..., 0]
         filtered = np.zeros_like(img)
 
+        print(f'lines shape: {lines.shape}')
+        print(f'img shape: {img.shape}')
+
         if dilate and dilate_size:
             if verbose:
                 print(f'{c.BOLD}Dilating mask{c.ENDC}: ({dilate_size}x{dilate_size}) {dilate} times...')
@@ -206,6 +209,12 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
                 tissue += np.where(lines == v.lines[tissue_n], 1, 0)
             cell_ids = np.unique(img[tissue > 0])
         else:
+            if img.shape[-1] > lines.shape[-1]:
+                img = img[..., :lines.shape[-1]]
+            elif img.shape[-1] < lines.shape[-1]:
+                lines = lines[..., :img.shape[-1]]
+            print(f'img shape: {img.shape}')
+            print(f'lines shape: {lines.shape}')
             tissue = v.lines[tissue_name]
             cell_ids = np.unique(img[lines == tissue])
 
@@ -239,7 +248,3 @@ def main():
         verbose=1
     )
     save_prediction(filtered_img, 'filtering/filtered_example_d1.3.tif', verbose=1)
-
-
-if __name__ == '__main__':
-    main()

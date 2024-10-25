@@ -26,5 +26,5 @@ python meshes/run_mesh.py -t 'splanchnic' -l 'Nuclei' -v 1
 #python meshes/run_extractor_complex.py -l 'Membrane' -t 'myocardium' -v 1 -m 1
 #python meshes/run_extractor_complex.py -l 'Membrane' -t 'splanchnic' -v 1 -m 1
 
-python meshes/run_extractor_complex.py -l 'Nuclei' -t 'myocardium' -v 1 -m 1
-python meshes/run_extractor_complex.py -l 'Nuclei' -t 'splanchnic' -v 1 -m 1
+#python meshes/run_extractor_complex.py -l 'Nuclei' -t 'myocardium' -v 1 -m 1
+#python meshes/run_extractor_complex.py -l 'Nuclei' -t 'splanchnic' -v 1 -m 1

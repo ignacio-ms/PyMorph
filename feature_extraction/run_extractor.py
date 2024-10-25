@@ -43,12 +43,6 @@ def run(ds, s, type, tissue=None, verbose=0):
     raw_img = imaging.read_image(path_raw, verbose=verbose)
     seg_img = imaging.read_image(path_seg, verbose=verbose)
 
-    if s in ['0504_E1', '0122_E1', '0123_E1', '0402_E2']:
-        print(f'{c.OKGREEN}Resizing lines{c.ENDC}')
-        print(f'\t{c.OKBLUE}Old shape{c.ENDC}: {lines.shape}')
-        lines = zoom(lines, (1, 1, 2), order=1)
-        print(f'\t{c.OKBLUE}New shape{c.ENDC}: {lines.shape}')
-
     if tissue:
         seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 1, verbose=verbose)
 
