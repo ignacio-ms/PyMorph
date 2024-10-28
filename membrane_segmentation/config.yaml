@@ -1,5 +1,5 @@
 # Contains the path to the directory or file to process
-path: /run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_MT/LAB/Ignacio/Gr3/RawImages/Membrane/20190503_E2_mGFP_decon_0.5.h5
+path: /run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_MT/LAB/Ignacio/Gr8/RawImages/Membrane/20190402_E2_mGFP_decon_0.5.h5
 
 preprocessing:
   # enable/disable preprocessing
