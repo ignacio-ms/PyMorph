@@ -53,11 +53,12 @@ if __name__ == '__main__':
     segmentation_path = None
     raw_path = None
     path_out = None
+    run_all = False
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, 'hl:t:s:g:e:r:o:v:', [
-            'help', 'level=', 'tissue=', 'specimen=', 'group=', 'segmentation_path=', 'raw_path=', 'path_out=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hl:t:s:g:e:r:o:a:v:', [
+            'help', 'level=', 'tissue=', 'specimen=', 'group=', 'segmentation_path=', 'raw_path=', 'path_out=', 'all=', 'verbose='
         ])
 
         if len(opts) == 0:
@@ -82,6 +83,8 @@ if __name__ == '__main__':
                 path_out = arg_check(opt, arg, '-o', '--path_out', str, print_usage)
             elif opt in ('-v', '--verbose'):
                 verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
+            elif opt in ('-a', '--all'):
+                run_all = arg_check(opt, arg, '-a', '--all', bool, print_usage)
             else:
                 print(f"{c.FAIL}Invalid option{c.ENDC}: {opt}")
                 print_usage()
@@ -111,7 +114,12 @@ if __name__ == '__main__':
             sys.exit(2)
     else:
         # Process all specimens
-        specimens = ds.check_meshes(level, tissue, verbose)
+        if run_all:
+            specimens = []
+            for group_name, group_specimens in ds.specimens.items():
+                specimens.extend(group_specimens)
+        else:
+            specimens = ds.check_meshes(level, tissue, verbose)
 
     print(f'{c.OKBLUE}Level{c.ENDC}: {level}')
     print(f'{c.OKBLUE}Tissue{c.ENDC}: {tissue}')

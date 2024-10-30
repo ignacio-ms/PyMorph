@@ -175,8 +175,3 @@ myo_spl_landmark_names = (
     [f'p{i}' for i in range(1, 5)] +
     ['p15', 'p16', 'p15p16_in', 'p15p16_out', 'p9', 'p10', 'p17_spl']
 )
-
-spl_myo_landmark_names = (
-    [f'p{i}' for i in range(1, 5)] +
-    ['p15', 'p16', 'p15p16_in', 'p15p16_out', 'p9', 'p10', 'p17_myo']
-)

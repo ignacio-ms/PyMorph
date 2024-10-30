@@ -213,6 +213,10 @@ class Preprocessing:
         }
 
         default_kwargs.update(kwargs)
+
+        if img.ndim == 2:
+            return denoise_bilateral(img, **default_kwargs)
+
         return np.array([
             denoise_bilateral(img[z], **default_kwargs)
             for z in range(img.shape[0])
