@@ -120,7 +120,10 @@ def update_csv(csv_path, non_intersecting_cell_ids, verbose=0):
     df = pd.read_csv(csv_path)
 
     if 'cell_id' not in df.columns:
-        raise ValueError("The CSV file does not contain a 'cell_id' column.")
+        if 'original_labels' in df.columns:
+            df.rename(columns={'original_labels': 'cell_id'}, inplace=True)
+        else:
+            raise ValueError("The CSV file does not contain a 'cell_id' column.")
 
     initial_count = len(df)
     df_filtered = df[~df['cell_id'].isin(non_intersecting_cell_ids)]
@@ -296,7 +299,7 @@ def run(mesh_path, tissue_path, features_path, verbose=0):
     if verbose:
         print(f"{c.OKBLUE}Updating CSV{c.ENDC}...")
 
-    update_csv(features_path.replace('.csv', '_filtered.csv'), non_intersecting_cell_ids, verbose)
+    update_csv(features_path, non_intersecting_cell_ids, verbose)
 
     if verbose:
         print(f"{c.OKBLUE}Merging intersecting cells{c.ENDC}...")
