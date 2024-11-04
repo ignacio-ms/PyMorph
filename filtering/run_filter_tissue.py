@@ -51,11 +51,12 @@ if __name__ == "__main__":
     mesh_path = None
     tissue_path = None
     features_path = None
+    all_remaining = False
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, "hl:t:s:g:m:t:f:v:", [
-            "help", "level=", "tissue=", "specimen=", "group=", "mesh_path=", "tissue_path=", "features_path=", "verbose="
+        opts, args = getopt.getopt(argv, "hl:t:s:g:m:t:f:a:v:", [
+            "help", "level=", "tissue=", "specimen=", "group=", "mesh_path=", "tissue_path=", "features_path=", "all=", "verbose="
         ])
 
         if len(opts) == 0:
@@ -82,6 +83,9 @@ if __name__ == "__main__":
                 features_path = arg_check(opt, arg, '-f', '--features_path', str, print_usage)
             elif opt in ("-v", "--verbose"):
                 verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
+            elif opt in ("-a", "--all"):
+                all_remaining = arg_check(opt, arg, '-a', '--all', bool, print_usage)
+
             else:
                 print(f"{c.FAIL}Invalid option{c.ENDC}: {opt}")
                 print_usage()
@@ -107,7 +111,10 @@ if __name__ == "__main__":
             print(f"{c.FAIL}Invalid group{c.ENDC}: {group}")
             sys.exit(2)
     else:
-        specimens = [specimen for sublist in ds.specimens.values() for specimen in sublist]
+        if all_remaining:
+            specimens = [specimen for sublist in ds.specimens.values() for specimen in sublist]
+        else:
+            specimens = ds.check_meshes(level, tissue, verbose, filtered=True)
 
     print(f"{c.OKBLUE}Level{c.ENDC}: {level}")
     print(f"{c.OKBLUE}Tissue{c.ENDC}: {tissue}")
@@ -117,7 +124,7 @@ if __name__ == "__main__":
             if verbose > 0:
                 print(f"{c.OKBLUE}Processing specimen{c.ENDC}: {spec}")
 
-            mesh_path = ds.get_mesh_cell(spec, level, tissue, verbose)
+            mesh_path = ds.get_mesh_cell(spec, level, tissue, verbose, filtered=False)
             tissue_path = ds.get_mesh_tissue(spec, tissue, verbose)
             features_path = ds.get_features(spec, level, tissue, verbose, only_path=True)
 

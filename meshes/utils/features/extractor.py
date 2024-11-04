@@ -122,16 +122,25 @@ class MeshFeatureExtractor:
 
     def extract(self, n_jobs=6):
         def compute_features(cell_id):
-            perpendicularity = self.cell_perpendicularity(cell_id)
-            sphericity = self.cell_sphericity(cell_id, method='standard')
-            columnarity = self.cell_columnarity(sphericity, perpendicularity)
+            try:
+                perpendicularity = self.cell_perpendicularity(cell_id)
+                sphericity = self.cell_sphericity(cell_id, method='standard')
+                columnarity = self.cell_columnarity(sphericity, perpendicularity)
 
-            return {
-                'cell_id': cell_id,
-                'perpendicularity': perpendicularity,
-                'sphericity': sphericity,
-                'columnarity': columnarity
-            }
+                return {
+                    'cell_id': cell_id,
+                    'perpendicularity': perpendicularity,
+                    'sphericity': sphericity,
+                    'columnarity': columnarity
+                }
+            except Exception as e:
+                print(f'Error in cell {cell_id}: {e}')
+                return {
+                    'cell_id': cell_id,
+                    'perpendicularity': np.nan,
+                    'sphericity': np.nan,
+                    'columnarity': np.nan
+                }
 
         # Use Parallel to compute features in parallel
         features_rows = Parallel(n_jobs=n_jobs)(

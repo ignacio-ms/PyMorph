@@ -114,7 +114,7 @@ def get_neighborhood_points(mesh, face_idx, graph=None, radius=10.0):
         else:
             iters += 1
             radius += 1.0
-            if iters > 10:
+            if iters > 25:
                 raise ValueError('Could not find enough neighborhood points')
 
 

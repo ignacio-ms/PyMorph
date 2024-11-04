@@ -92,11 +92,12 @@ if __name__ == '__main__':
     tissue_path = None
     path_out = None
     parallelize = True
+    all_remaining = False
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, 'hl:t:s:g:e:r:p:o:m:v:', [
-            'help', 'level=', 'tissue=', 'specimen=', 'group=', 'mesh_path=', 'features_path=', 'tissue_path=', 'path_out=', 'multiprocessing=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hl:t:s:g:e:r:p:o:m:a:v:', [
+            'help', 'level=', 'tissue=', 'specimen=', 'group=', 'mesh_path=', 'features_path=', 'tissue_path=', 'path_out=', 'multiprocessing=', 'all=', 'verbose='
         ])
 
         if len(opts) == 0:
@@ -125,6 +126,8 @@ if __name__ == '__main__':
                 parallelize = arg_check(opt, arg, '-m', '--multiprocessing', int, print_usage)
             elif opt in ('-v', '--verbose'):
                 verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
+            elif opt in ('-a', '--all'):
+                all_remaining = arg_check(opt, arg, '-a', '--all', bool, print_usage)
             else:
                 print(f"{c.FAIL}Invalid option{c.ENDC}: {opt}")
                 print_usage()
@@ -153,10 +156,13 @@ if __name__ == '__main__':
             print(f"{c.FAIL}Invalid group{c.ENDC}: {group}")
             sys.exit(2)
     else:
-        # Process all specimens
-        specimens = []
-        for group_name, group_specimens in ds.specimens.items():
-            specimens.extend(group_specimens)
+        if all_remaining:
+            # Process all specimens
+            specimens = []
+            for group_name, group_specimens in ds.specimens.items():
+                specimens.extend(group_specimens)
+        else:
+            specimens = ds.check_features_complex(level, tissue, verbose)
 
     print(f'{c.OKBLUE}Level{c.ENDC}: {level}')
     print(f'{c.OKBLUE}Tissue{c.ENDC}: {tissue}')

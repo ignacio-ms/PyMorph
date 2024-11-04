@@ -278,6 +278,49 @@ class HtDataset:
 
         return todo_specimens, todo_out_paths
 
+    def check_features_complex(self, type='NA', tissue='myocardium', verbose=0):
+        """
+        Check if complex features have been extracted for each specimen.
+        Get a list of not extracted features. (missing_features)
+        :param type: Type of features for output path. (Membrane, Nuclei) (Default: NA)
+        :param verbose: Verbosity level.
+        :return: List of specimens with missing features and their output paths.
+        """
+        todo_specimens = []
+
+        for group in self.specimens.keys():
+            if verbose:
+                print(f'{c.OKBLUE}Group{c.ENDC}: {group}')
+
+            try:
+                f_raw_dir = os.path.join(self.data_path, group, 'Features')
+                walk = os.walk(f_raw_dir).__next__()
+            except StopIteration:
+                if verbose:
+                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                continue
+
+            spec_set = set(self.specimens[group])
+
+            for file in walk[2]:
+                for specimen in spec_set:
+                    if re.search(specimen, file) and re.search(type, file) and re.search(tissue, file):
+
+                        df = pd.read_csv(os.path.join(f_raw_dir, file))
+                        if 'columnarity' in df.columns:
+                            if verbose:
+                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                            spec_set.remove(specimen)
+                            break
+
+            for i in spec_set:
+                if verbose:
+                    print(f'\t{c.FAIL}Missing complex features{c.ENDC}: {i}')
+
+                todo_specimens.append(i)
+
+        return todo_specimens
+
     def get_features(self, spec, type='Membrane', tissue='myocardium', verbose=0, only_path=False):
         """
         Get features for a specific specimen.
@@ -307,7 +350,7 @@ class HtDataset:
 
         raise FileNotFoundError(f'No specimen found: {spec} (Get features) [{type} - {tissue}]')
 
-    def get_mesh_cell(self, spec, type='Membrane', tissue='myocardium', verbose=0):
+    def get_mesh_cell(self, spec, type='Membrane', tissue='myocardium', verbose=0, filtered=False):
         """
         Get cells mesh for a specific specimen.
         :param spec: Specimen to get mesh.
@@ -325,13 +368,18 @@ class HtDataset:
                 continue
 
             for file in walk[2]:
-                if re.search(spec, file):
-                    if verbose:
-                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                if filtered:
+                    if re.search(spec, file) and re.search('filtered', file):
+                        if verbose:
+                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                        return os.path.join(f_raw_dir, file)
+                else:
+                    if re.search(spec, file) and not re.search('filtered', file):
+                        if verbose:
+                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                        return os.path.join(f_raw_dir, file)
 
-                    return os.path.join(f_raw_dir, file)
-
-        raise FileNotFoundError(f'No specimen found: {spec} (Get mesh) [{type} - {tissue}]')
+        raise FileNotFoundError(f'No specimen found: {spec} (Get mesh) [{type} - {tissue}] - Filtered: {filtered}')
 
     def get_mesh_tissue(self, spec, tissue='myocardium', verbose=0):
         """
@@ -359,7 +407,7 @@ class HtDataset:
 
         raise FileNotFoundError(f'No specimen found: {spec} (Get tissue mesh)]')
 
-    def check_meshes(self, type='Membrane', tissue='myocardium', verbose=0):
+    def check_meshes(self, type='Membrane', tissue='myocardium', verbose=0, filtered=False):
         """
         Check if meshes have been created for each specimen.
         Get a list of not created meshes. (missing_meshes)
@@ -386,11 +434,18 @@ class HtDataset:
 
             for file in walk[2]:
                 for specimen in spec_set:
-                    if re.search(specimen, file):
-                        if verbose:
-                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
-                        spec_set.remove(specimen)
-                        break
+                    if filtered:
+                        if re.search(specimen, file) and re.search('filtered', file):
+                            if verbose:
+                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                            spec_set.remove(specimen)
+                            break
+                    else:
+                        if re.search(specimen, file) and not re.search('filtered', file):
+                            if verbose:
+                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                            spec_set.remove(specimen)
+                            break
 
             for i in spec_set:
                 if verbose:
