@@ -1,4 +1,5 @@
 # Standard Packages
+import cv2
 import focal_loss
 import numpy as np
 import tensorflow as tf
@@ -20,6 +21,7 @@ from tensorflow.keras.callbacks import (
 import matplotlib.pyplot as plt
 
 # Custom Packages
+from auxiliary.data.dataset_nuclei import NucleiDataset
 from cell_division.layers.calibration_layers import (
     VectorScalingLayer,
     TemperatureScalingLayer,
@@ -264,6 +266,34 @@ class CNN:
 
     def predict(self, X):
         return np.argmax(self.predict_proba(X), axis=1)
+
+    def predict3d(self, X, mask):
+        if X.ndim == 3:
+            n_slices = X.shape[2]
+
+            areas = np.array([np.sum(mask[..., z]) for z in range(n_slices)])
+            weights = (areas - np.min(areas)) / (np.max(areas) - np.min(areas))
+            weights /= np.sum(weights)
+
+            preds = []
+            for z in range(n_slices):
+                aux = cv2.cvtColor(X[..., z], cv2.COLOR_GRAY2RGB)[np.newaxis, ...]
+                aux = tf.image.resize(aux, (100, 100))
+                preds.append(self.predict_proba(aux)[0])
+
+            preds = np.array(preds)
+
+            # Majority voting with weights
+            pred = np.sum(preds * weights[:, np.newaxis], axis=0)
+            return np.argmax(pred)
+
+        elif X.ndim == 2:
+            aux = cv2.cvtColor(X, cv2.COLOR_GRAY2RGB)[np.newaxis, ...]
+            aux = tf.image.resize(aux, (100, 100))
+            return self.predict(aux)[0]
+
+        else:
+            raise ValueError(f"Unsupported input shape {X.shape} for 3D prediction, expected (H, W, Z) or (H, W)")
 
     def load(self, path):
         self.model = tf.keras.models.load_model(

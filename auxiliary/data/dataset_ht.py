@@ -278,7 +278,7 @@ class HtDataset:
 
         return todo_specimens, todo_out_paths
 
-    def check_features_complex(self, type='NA', tissue='myocardium', verbose=0):
+    def check_features_complex(self, type='NA', tissue='myocardium', attr='columnarity', verbose=0):
         """
         Check if complex features have been extracted for each specimen.
         Get a list of not extracted features. (missing_features)
@@ -307,7 +307,7 @@ class HtDataset:
                     if re.search(specimen, file) and re.search(type, file) and re.search(tissue, file):
 
                         df = pd.read_csv(os.path.join(f_raw_dir, file))
-                        if 'columnarity' in df.columns:
+                        if attr in df.columns:
                             if verbose:
                                 print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
                             spec_set.remove(specimen)
@@ -315,7 +315,7 @@ class HtDataset:
 
             for i in spec_set:
                 if verbose:
-                    print(f'\t{c.FAIL}Missing complex features{c.ENDC}: {i}')
+                    print(f'\t{c.FAIL}Missing complex features{c.ENDC}: {i} - {attr}')
 
                 todo_specimens.append(i)
 
