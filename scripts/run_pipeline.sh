@@ -14,6 +14,9 @@ conda activate py310ml
 #python feature_extraction/run_extractor.py -l 'myocardium' -t 'Nuclei' -v 1
 #python feature_extraction/run_extractor.py -l 'splanchnic' -t 'Nuclei' -v 1
 
+#python cell_division/run_cell_division.py -t 'myocardium' -v 1
+#python cell_division/run_cell_division.py -t 'splanchnic' -v 1
+
 #python feature_extraction/run_extractor.py -l 'myocardium' -t 'Membrane' -v 1
 #python feature_extraction/run_extractor.py -l 'splanchnic' -t 'Membrane' -v 1
 

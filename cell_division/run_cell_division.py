@@ -1,12 +1,11 @@
 import os
 import sys
+import multiprocessing
 import getopt
+from joblib import Parallel, delayed
 
 import numpy as np
 import pandas as pd
-
-from cell_division.layers.custom_layers import ExtendedLSEPooling, extended_w_cel_loss
-from cell_division.nets.transfer_learning import CNN
 import tensorflow as tf
 
 # Custom packages
@@ -16,15 +15,46 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
+from cell_division.layers.custom_layers import ExtendedLSEPooling, extended_w_cel_loss
+from cell_division.nets.transfer_learning import CNN
+
 from auxiliary import values as v
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset
 from auxiliary.data.dataset_nuclei import NucleiDataset
-from auxiliary.data import imaging
+from auxiliary.utils.timer import LoadingBar
+from auxiliary.gpu.gpu_tf import (
+    increase_gpu_memory,
+    set_gpu_allocator,
+    set_mixed_precision,
+    clear_session
+)
+
+
+# Global variable for the model to be initialized in each worker
+model = None
+
+
+def setup_gpu(): # gpu_id
+    # os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if not gpus:
+        print(f'{c.WARNING}Warning{c.ENDC}: No GPU found. Running on CPU.')
+        return
+
+    increase_gpu_memory()
+    set_gpu_allocator()
+    # if gpu_id == 0:
+    #     set_mixed_precision()
 
 
 def load_model():
+    """
+    Load the model with custom layers and loss function.
+    This function will be called within each worker process.
+    """
     model = CNN(
         base=tf.keras.applications.VGG16,
         input_shape=(100, 100, 3),
@@ -36,9 +66,32 @@ def load_model():
         loss=extended_w_cel_loss()
     )
 
-    model.load('../models/cellular_division_models/vgg16_nuclei_under.h5')
+    model_dir = os.path.join(current_dir, os.pardir, 'models', 'cellular_division_models', 'vgg16_nuclei_under.h5')
+    model.load(model_dir)
     return model
 
+
+def process_cell(i, nuclei_ds): # gpu_id
+    """
+    Process a single cell, performing prediction using the global model.
+    """
+    global model
+    if model is None:
+        model = load_model()  # Load the model if not already loaded in this worker
+
+    try:
+        img, mask, cell_id = nuclei_ds[i]
+        pred = model.predict3d(img, mask)
+        return {
+            'cell_id': cell_id,
+            'cell_division': pred
+        }
+    except Exception as e:
+        print(f'{c.WARNING}Warning{c.ENDC}: Error in cell {cell_id}: {e}')
+        return {
+            'cell_id': cell_id,
+            'cell_division': np.nan
+        }
 
 def print_usage():
     """
@@ -100,10 +153,9 @@ if __name__ == '__main__':
 
     ds = HtDataset()
 
-    # Else, proceed with specimens/groups
+    # Determine specimens to process
     if specimen is not None:
         specimens = [specimen]
-
     elif group is not None:
         if group in ds.specimens:
             specimens = ds.specimens[group]
@@ -111,7 +163,6 @@ if __name__ == '__main__':
             print(f"{c.FAIL}Invalid group{c.ENDC}: {group}")
             sys.exit(2)
     else:
-        # Process all specimens
         if run_all:
             specimens = []
             for group_name, group_specimens in ds.specimens.items():
@@ -122,7 +173,14 @@ if __name__ == '__main__':
     print(f'{c.OKGREEN}Running Cell Division{c.ENDC}')
     print(f'{c.OKBLUE}Tissue{c.ENDC}: {tissue}')
 
+    # # Set multiprocessing start method to spawn
+    # multiprocessing.set_start_method('spawn', force=True)
+    #
+    # num_gpus = len(tf.config.experimental.list_physical_devices('GPU'))
+    # n_jobs = 1 if num_gpus == 0 else num_gpus
+
     model = load_model()
+
     for spec in specimens:
         print(f'{c.BOLD}Specimen{c.ENDC}: {spec}')
 
@@ -137,23 +195,20 @@ if __name__ == '__main__':
                 else:
                     raise ValueError('cell_id not found in features')
 
+            # # Parallel processing of each cell
+            # new_rows = Parallel(n_jobs=n_jobs, backend='multiprocessing')(
+            #     delayed(process_cell)(i, nuclei_ds, gpu_id=i % num_gpus)
+            #     for i in range(len(nuclei_ds.cell_ids))
+            # )
+
             new_rows = []
+            bar = LoadingBar(len(nuclei_ds.cell_ids))
             for i in range(len(nuclei_ds.cell_ids)):
-                try:
-                    img, mask, cell_id = nuclei_ds[i]
-                    pred = model.predict3d(img, mask)
-                    new_rows.append({
-                        'cell_id': cell_id,
-                        'cell_division': pred
-                    })
+                new_rows.append(process_cell(i, nuclei_ds))
+                bar.update()
+            bar.end()
 
-                except Exception as e:
-                    print(f'{c.WARNING}Warning{c.ENDC}: Error in cell {cell_id}: {e}')
-                    new_rows.append({
-                        'cell_id': cell_id,
-                        'cell_division': np.nan
-                    })
-
+            # Save results to DataFrame and CSV
             columns2overwrite = ['cell_division']
             if any([col in features.columns for col in columns2overwrite]):
                 features.drop(columns=columns2overwrite, inplace=True)

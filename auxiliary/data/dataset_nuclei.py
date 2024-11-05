@@ -45,6 +45,16 @@ class NucleiDataset(tf.keras.utils.Sequence):
 
         ds = HtDataset()
         self.features = ds.get_features(specimen, 'Nuclei', tissue, verbose=verbose)
+
+        if 'cell_id' not in self.features.columns:
+            if 'original_labels' in self.features.columns:
+                self.features.rename(
+                    columns={'original_labels': 'cell_id'},
+                    inplace=True
+                )
+            else:
+                raise ValueError('cell_id not found in features')
+
         self.cell_ids = self.features['cell_id']
         centroids = self.features['centroids']
         self.centroids = np.array([parse_centroids(c) for c in centroids])
@@ -96,7 +106,7 @@ class NucleiDataset(tf.keras.utils.Sequence):
 
         # IQR filter ver intensity
         img_cell_no_bg, intensities, thr = imaging.iqr_filter(
-            img_cell_no_bg, get_params=True, verbose=1
+            img_cell_no_bg, get_params=True, verbose=0
         )
         mask_dilated = mask_dilated[..., intensities > thr]
         return img_cell_no_bg, mask_dilated

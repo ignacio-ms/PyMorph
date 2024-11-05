@@ -30,7 +30,10 @@ class ExtendedLSEPooling(tf.keras.layers.Layer):
         self.r = r
 
     def call(self, inputs, *args, **kwargs):
-        S = tf.cast(tf.shape(inputs)[1] * tf.shape(inputs)[2], tf.float32)
+        # Ensure same dtype for all operations
+        inputs = tf.cast(inputs, tf.float16)
+
+        S = tf.cast(tf.shape(inputs)[1] * tf.shape(inputs)[2], tf.float16)
         x_star = tf.reduce_max(inputs, axis=self.axis, keepdims=True)
 
         lse = x_star + (1.0 / self.r) * tf.math.log(tf.reduce_sum(tf.exp(self.r * (inputs - x_star)), axis=self.axis, keepdims=True) / S)
@@ -44,10 +47,10 @@ class ExtendedLSEPooling(tf.keras.layers.Layer):
 
 def w_cel_loss():
     def weighted_cross_entropy_with_logits(y_true, y_pred):
-        y_true = tf.cast(y_true, tf.float32)
-        y_pred = tf.cast(y_pred, tf.float32)
+        y_true = tf.cast(y_true, tf.float16)
+        y_pred = tf.cast(y_pred, tf.float16)
 
-        positive_weight = tf.reduce_sum(y_true) / tf.cast(tf.size(y_true), tf.float32)
+        positive_weight = tf.reduce_sum(y_true) / tf.cast(tf.size(y_true), tf.float16)
         weight = 1 / (positive_weight + 1e-9)
 
         loss = tf.nn.weighted_cross_entropy_with_logits(y_true, y_pred, pos_weight=weight)
@@ -58,8 +61,8 @@ def w_cel_loss():
 
 def extended_w_cel_loss(from_logits=False):
     def ext_weighted_cross_entropy(y_true, y_pred):
-        y_true = tf.cast(y_true, tf.float32)
-        y_pred = tf.cast(y_pred, tf.float32)
+        y_true = tf.cast(y_true, tf.float16)
+        y_pred = tf.cast(y_pred, tf.float16)
 
         beta_p = (tf.reduce_sum(1 - y_true, axis=0) + tf.reduce_sum(y_true, axis=0)) / (tf.reduce_sum(y_true, axis=0) + 1e-6)
         beta_n = (tf.reduce_sum(1 - y_true, axis=0) + tf.reduce_sum(y_true, axis=0)) / (tf.reduce_sum(1 - y_true, axis=0) + 1e-6)
@@ -68,8 +71,8 @@ def extended_w_cel_loss(from_logits=False):
         return -tf.reduce_mean(loss)
 
     def ext_weighted_cross_entropy_with_logits(y_true, logits):
-        y_true = tf.cast(y_true, tf.float32)
-        logits = tf.cast(logits, tf.float32)
+        y_true = tf.cast(y_true, tf.float16)
+        logits = tf.cast(logits, tf.float16)
 
         # Compute probabilities from logits using sigmoid for multilabel classification
         y_pred = tf.nn.sigmoid(logits)
@@ -88,8 +91,8 @@ def extended_w_cel_loss_soft():
         """
         Extended weighted cross-entropy loss that handles soft labels.
         """
-        y_true = tf.cast(y_true, tf.float32)
-        y_pred = tf.cast(y_pred, tf.float32)
+        y_true = tf.cast(y_true, tf.float16)
+        y_pred = tf.cast(y_pred, tf.float16)
 
         # Compute class weights based on the batch
         class_totals = tf.reduce_sum(y_true, axis=0)
@@ -102,15 +105,15 @@ def extended_w_cel_loss_soft():
         weighted_loss = tf.reduce_sum(class_weights * loss)
 
         # Return the mean loss over the batch
-        return weighted_loss / tf.cast(tf.shape(y_true)[0], tf.float32)
+        return weighted_loss / tf.cast(tf.shape(y_true)[0], tf.float16)
 
     return ext_weighted_cross_entropy_with_logits_soft
 
 
 def focal_loss(gamma=2., alpha=.25):
     def focal_loss_fixed(y_true, y_pred):
-        y_true = tf.cast(y_true, tf.float32)
-        y_pred = tf.cast(y_pred, tf.float32)
+        y_true = tf.cast(y_true, tf.float16)
+        y_pred = tf.cast(y_pred, tf.float16)
 
         epsilon = tf.keras.backend.epsilon()
         y_pred = tf.clip_by_value(y_pred, epsilon, 1. - epsilon)
