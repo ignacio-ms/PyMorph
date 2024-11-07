@@ -69,13 +69,6 @@ def run(
     source_landmarks = source_landmarks.split('/')[-1]
     target_landmarks = target_landmarks.split('/')[-1]
 
-    # Run the surface map computation
-    # current_dir = subprocess.run(
-    #     'pwd',
-    #     shell=True, check=True,
-    #     stdout=subprocess.PIPE
-    # ).stdout.decode('utf-8').strip()
-
     try:
         current_dir = os.path.dirname(__file__)
     except NameError:
@@ -120,18 +113,4 @@ def run(
     if verbose:
         print(f'{c.OKGREEN}Output moved{c.ENDC}')
         print(f'{c.OKGREEN}Surface map computation finished{c.ENDC}')
-
-
-def check_mesh_consistency(source_mesh, target_mesh):
-    """
-    Check if the meshes are consistent. If not, transform the mesh with the least number of vertices to have the same,
-    the same number of vertices, faces, and edges.
-    :param source_mesh:
-    :param target_mesh:
-    :return:
-    """
-    source = trimesh.load(source_mesh, file_type='ply')
-    target = trimesh.load(target_mesh, file_type='ply')
-
-    if source.vertex.
 

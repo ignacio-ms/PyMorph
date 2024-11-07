@@ -18,6 +18,7 @@ from auxiliary.utils.timer import LoadingBar
 
 from meshes.utils.registration.surface_map_computation import run
 
+
 def print_usage():
     print(
         'usage: run_surface_map.py -p <path> -i <image> -s <specimen> -gr <group> -v <verbose>'
