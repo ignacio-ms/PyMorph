@@ -93,6 +93,7 @@ def process_cell(i, nuclei_ds): # gpu_id
             'cell_division': np.nan
         }
 
+
 def print_usage():
     """
     Print usage of script.

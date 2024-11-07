@@ -150,7 +150,7 @@ specimen_mapping = {
 myo_myo_landmark_names = (
         [
             f'p{i}' for i in range(1, 16)
-            if i not in [12, 13, 14]
+            if i not in [5, 6, 7, 8, 9, 10, 12, 13, 14]
         ] +
         ['p1p3_0', 'p2p4_0'] +
         [
