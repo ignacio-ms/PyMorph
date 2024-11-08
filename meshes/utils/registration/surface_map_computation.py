@@ -2,6 +2,7 @@ import numpy
 import subprocess
 
 import trimesh
+import pymeshlab
 
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import find_specimen, HtDataset
@@ -82,12 +83,12 @@ def run(
 
     # Define the LD_LIBRARY_PATH
     subprocess.run(
-        f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{current_dir}/surface_map/{gpu_type}/libs/',
+        f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{current_dir}/meshes/surface_map/{gpu_type}/libs/',
         shell=True, check=True
     )
 
     subprocess.run(
-        f'bash {current_dir}/surface_map/{gpu_type}/SurfaceMapComputation --path {data_path} '
+        f'{current_dir}/surface_map/{gpu_type}/SurfaceMapComputation --path {data_path} '
         f'--init_method {init_method} --n_pre_iters {n_pre_iters} '
         f'--n_main_iters {n_main_iters} --shapeA {source_mesh} '
         f'--shapeB {target_mesh} --landmarksA {source_landmarks} '
@@ -105,12 +106,58 @@ def run(
     )
 
     # Remove auxiliary directories
-    subprocess.run(
-        f'rm -r {data_path} {data_path_out}',
-        shell=True, check=True
-    )
+    # subprocess.run(
+    #     f'rm -r {data_path} {data_path_out}',
+    #     shell=True, check=True
+    # )
 
     if verbose:
         print(f'{c.OKGREEN}Output moved{c.ENDC}')
         print(f'{c.OKGREEN}Surface map computation finished{c.ENDC}')
 
+
+def check_mesh_consistency(source_mesh, target_mesh):
+    """
+    Check if the source and target meshes have the same number of vertices and faces.
+    """
+    source = trimesh.load(source_mesh, file_type='ply')
+    target = trimesh.load(target_mesh, file_type='ply')
+
+    if len(source.faces) > len(target.faces):
+        print(f'{c.WARNING}Source mesh has more faces than target mesh{c.ENDC}')
+        print(f'{c.WARNING}Decimating source mesh{c.ENDC}')
+        target = subdivide_mesh(target, len(source.faces))
+        target.export(target_mesh)
+    elif len(source.faces) < len(target.faces):
+        print(f'{c.WARNING}Target mesh has more faces than source mesh{c.ENDC}')
+        print(f'{c.WARNING}Decimating target mesh{c.ENDC}')
+        source = subdivide_mesh(source, len(target.faces))
+        source.export(source_mesh)
+
+    print(f'\t{c.OKGREEN}Source mesh number of faces: {len(source.faces)}{c.ENDC}')
+    print(f'\t{c.OKGREEN}Target mesh number of faces: {len(target.faces)}{c.ENDC}')
+
+
+def subdivide_mesh(mesh, target_face_count):
+    mesh.export('temp_mesh.ply')
+
+    ms = pymeshlab.MeshSet()
+    ms.load_new_mesh('temp_mesh.ply')
+    # ms.show_polyscope()
+
+    current_face_count = len(mesh.faces)
+
+    while current_face_count < target_face_count:
+        ms.apply_filter('meshing_surface_subdivision_loop', iterations=1)
+        current_face_count = ms.current_mesh().face_number()
+
+    ms.save_current_mesh('subdivided_mesh.ply')
+    subdivided_mesh = trimesh.load('subdivided_mesh.ply')
+
+    if len(subdivided_mesh.faces) > target_face_count:
+        subdivided_mesh = subdivided_mesh.simplify_quadric_decimation(target_face_count)
+
+    subprocess.run(['rm', 'temp_mesh.ply'])
+    subprocess.run(['rm', 'subdivided_mesh.ply'])
+
+    return subdivided_mesh

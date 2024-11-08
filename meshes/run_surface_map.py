@@ -16,7 +16,7 @@ from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset, find_group
 from auxiliary.utils.timer import LoadingBar
 
-from meshes.utils.registration.surface_map_computation import run
+from meshes.utils.registration.surface_map_computation import run, check_mesh_consistency
 
 
 def print_usage():
@@ -88,6 +88,8 @@ if __name__ == '__main__':
             try:
                 source_mesh = data_path + f'ATLAS/{tissue}/ATLAS_{gr}.ply'
                 target_mesh = dataset.get_mesh_tissue(s, tissue)
+
+                check_mesh_consistency(source_mesh, target_mesh)
 
                 source_landmarks = data_path + f'Landmarks/ATLAS/ATLAS_{gr}_landmarks.pinned'
                 target_landmarks = data_path + f'Landmarks/2019{s}_landmarks.pinned'

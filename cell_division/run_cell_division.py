@@ -2,6 +2,8 @@ import os
 import sys
 import multiprocessing
 import getopt
+
+import trimesh
 from joblib import Parallel, delayed
 
 import numpy as np
@@ -224,3 +226,6 @@ if __name__ == '__main__':
                 import traceback
                 traceback.print_exc()
             continue
+
+
+
