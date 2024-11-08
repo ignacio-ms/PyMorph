@@ -37,13 +37,10 @@ def run(
     """
     if data_path is None or data_path == v.data_path:
         data_path = v.data_path + 'surface_map/'
-        data_path_out = v.data_path + 'surface_map_output/'
+        data_path_out = v.data_path + 'surface_map/map/'
 
     else:
-        data_path_out = data_path.replace(
-            data_path.split('/')[-1],
-            data_path.split('/')[-1] + '_output'
-        )
+        data_path_out = data_path + 'map/'
 
     if verbose:
         print(f'{c.OKBLUE}Running surface map computation{c.ENDC}...')
@@ -101,15 +98,20 @@ def run(
 
     # Move the output to the output directory
     subprocess.run(
-        f'mv {data_path_out}/* {output_path}',
+        f'mv {data_path}/*_on_*.ply {output_path}/',
+        shell=True, check=True
+    )
+
+    subprocess.run(
+        f'mv {data_path_out}/* {output_path}/map/',
         shell=True, check=True
     )
 
     # Remove auxiliary directories
-    # subprocess.run(
-    #     f'rm -r {data_path} {data_path_out}',
-    #     shell=True, check=True
-    # )
+    subprocess.run(
+        f'rm -r {data_path}',
+        shell=True, check=True
+    )
 
     if verbose:
         print(f'{c.OKGREEN}Output moved{c.ENDC}')

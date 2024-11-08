@@ -14,8 +14,7 @@ from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset
 
-from meshes.mesh_reconstruction import run
-from filtering.cardiac_region import filter_by_tissue
+from meshes.utils.mesh_reconstruction import run
 
 
 def print_usage():
