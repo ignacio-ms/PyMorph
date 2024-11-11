@@ -1,11 +1,16 @@
+import json
+
 import numpy
 import subprocess
 
+import numpy as np
 import trimesh
 import pymeshlab
+from scipy.spatial import cKDTree
+import open3d as o3d
 
 from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import find_specimen, HtDataset
+from auxiliary.data.dataset_ht import find_specimen, HtDataset, find_group
 from auxiliary import values as v
 
 import os
@@ -80,7 +85,7 @@ def run(
 
     # Define the LD_LIBRARY_PATH
     subprocess.run(
-        f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{current_dir}/meshes/surface_map/{gpu_type}/libs/',
+        f'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{current_dir}/surface_map/{gpu_type}/libs/',
         shell=True, check=True
     )
 
@@ -98,12 +103,12 @@ def run(
 
     # Move the output to the output directory
     subprocess.run(
-        f'mv {data_path}/*_on_*.ply {output_path}/',
+        f'cp {data_path}{source_mesh.split(".")[0]}_on_{target_mesh.split(".")[0]}.ply {output_path}',
         shell=True, check=True
     )
 
     subprocess.run(
-        f'mv {data_path_out}/* {output_path}/map/',
+        f'cp {data_path_out}* {output_path}map/',
         shell=True, check=True
     )
 
@@ -130,14 +135,17 @@ def check_mesh_consistency(source_mesh, target_mesh):
         print(f'{c.WARNING}Decimating source mesh{c.ENDC}')
         target = subdivide_mesh(target, len(source.faces))
         target.export(target_mesh)
+        return True
     elif len(source.faces) < len(target.faces):
         print(f'{c.WARNING}Target mesh has more faces than source mesh{c.ENDC}')
         print(f'{c.WARNING}Decimating target mesh{c.ENDC}')
         source = subdivide_mesh(source, len(target.faces))
         source.export(source_mesh)
+        return False
 
     print(f'\t{c.OKGREEN}Source mesh number of faces: {len(source.faces)}{c.ENDC}')
     print(f'\t{c.OKGREEN}Target mesh number of faces: {len(target.faces)}{c.ENDC}')
+    return True
 
 
 def subdivide_mesh(mesh, target_face_count):
@@ -163,3 +171,38 @@ def subdivide_mesh(mesh, target_face_count):
     subprocess.run(['rm', 'subdivided_mesh.ply'])
 
     return subdivided_mesh
+
+
+def update_land_pinned(specimen, path=None):
+    landmarks_guide_names = v.myo_myo_landmark_names
+
+    if path is None:
+        path = v.data_path + f'Landmarks/'
+
+    in_path = path + f'2019{specimen}_key_points.json'
+    out_path = path + f'2019{specimen}_landmarks.pinned'
+
+    with open(in_path, 'r') as f:
+        key_points = json.load(f)
+
+    names = list(key_points.keys())
+    coords = np.array(list(key_points.values()))
+
+    gr = find_group(specimen)
+    mesh_path = v.data_path + f'{gr}/3DShape/Tissue/myocardium/2019{specimen}Shape.ply'
+    mesh = o3d.io.read_triangle_mesh(mesh_path)
+    mesh.compute_vertex_normals()
+
+    kdtree = cKDTree(np.asarray(mesh.vertices))
+
+    landmarks = {}
+
+    for name, coord in zip(names, coords):
+        if name in landmarks_guide_names:
+            _, idx = kdtree.query(coord)
+            landmarks[name] = idx
+
+    with open(out_path, 'w') as f:
+        f.write('\n'.join([str(v) for v in landmarks.values()]))
+
+    print(f'Updated landmarks for {specimen}')
