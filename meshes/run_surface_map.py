@@ -92,9 +92,7 @@ if __name__ == '__main__':
                 source_mesh = data_path + f'ATLAS/{tissue}/ATLAS_{gr}.ply'
                 target_mesh = dataset.get_mesh_tissue(s, tissue)
 
-                is_consistent = check_mesh_consistency(source_mesh, target_mesh)
-                if not is_consistent:
-                    update_land_pinned(s)
+                check_mesh_consistency(source_mesh, target_mesh)
 
                 source_landmarks = data_path + f'Landmarks/ATLAS/ATLAS_{gr}_landmarks.pinned'
                 target_landmarks = data_path + f'Landmarks/2019{s}_landmarks.pinned'

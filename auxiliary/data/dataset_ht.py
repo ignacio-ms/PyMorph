@@ -373,6 +373,11 @@ class HtDataset:
                         if verbose:
                             print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
                         return os.path.join(f_raw_dir, file)
+                    else:
+                        if re.search(spec, file) and not re.search('filtered', file):
+                            if verbose:
+                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                            return os.path.join(f_raw_dir, file)
                 else:
                     if re.search(spec, file) and not re.search('filtered', file):
                         if verbose:

@@ -15,7 +15,7 @@ import json
 
 def main():
     # Load your data paths and meshes
-    gr = 'Gr10'
+    gr = 'Gr9'
     specimens = v.specimens[gr]
     spec_idx = 0
     s = specimens[spec_idx]

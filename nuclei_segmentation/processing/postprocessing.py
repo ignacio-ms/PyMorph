@@ -205,7 +205,7 @@ class PostProcessing:
                         merged_set.add(region.label)
                         merged_set.add(largest_neighbor)
 
-        return merged_labels.astype(np.int16)
+        return merged_labels
 
     @staticmethod
     def merge_graph(segmented_volume, max_distance=5):
@@ -287,7 +287,7 @@ class PostProcessing:
 
         print(f"Number of cells after linking: {new_label - 1}")
 
-        return linked_volume.astype(np.int16)
+        return linked_volume
 
     @staticmethod
     def opening(segmentation, erosion_radius=3, dilation_radius=3):
@@ -305,7 +305,7 @@ class PostProcessing:
 
         eroded = erosion(segmentation, ball(erosion_radius))
         cleaned = dilation(eroded, ball(dilation_radius))
-        return cleaned.astype(np.int16)
+        return cleaned
 
     @staticmethod
     def closing(segmentation, erosion_radius=3, dilation_radius=3):
@@ -323,7 +323,7 @@ class PostProcessing:
 
         dilated = dilation(segmentation, ball(dilation_radius))
         cleaned = erosion(dilated, ball(erosion_radius))
-        return cleaned.astype(np.int16)
+        return cleaned
 
     def run(self, img, **kwargs):
         """

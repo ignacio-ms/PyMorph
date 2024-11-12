@@ -52,7 +52,7 @@ def run(
         print(f'\t{c.BOLD}Creating auxiliary directories{c.ENDC}...')
     # If the output path does not exist, create it
     subprocess.run(
-        f'mkdir -p {output_path} {data_path} {data_path_out}',
+        f'mkdir -p {output_path} {data_path} {data_path_out} {output_path}/map/',
         shell=True, check=True
     )
 
@@ -130,22 +130,28 @@ def check_mesh_consistency(source_mesh, target_mesh):
     source = trimesh.load(source_mesh, file_type='ply')
     target = trimesh.load(target_mesh, file_type='ply')
 
+    print(f'\t{c.OKGREEN}Source mesh number of faces: {c.ENDC}{len(source.faces)}')
+    print(f'\t{c.OKGREEN}Target mesh number of faces: {c.ENDC}{len(target.faces)}')
+
     if len(source.faces) > len(target.faces):
         print(f'{c.WARNING}Source mesh has more faces than target mesh{c.ENDC}')
         print(f'{c.WARNING}Decimating source mesh{c.ENDC}')
         target = subdivide_mesh(target, len(source.faces))
         target.export(target_mesh)
-        return True
+
+        s = find_specimen(target_mesh)
+        update_land_pinned(s)
+
     elif len(source.faces) < len(target.faces):
         print(f'{c.WARNING}Target mesh has more faces than source mesh{c.ENDC}')
         print(f'{c.WARNING}Decimating target mesh{c.ENDC}')
         source = subdivide_mesh(source, len(target.faces))
         source.export(source_mesh)
-        return False
 
-    print(f'\t{c.OKGREEN}Source mesh number of faces: {len(source.faces)}{c.ENDC}')
-    print(f'\t{c.OKGREEN}Target mesh number of faces: {len(target.faces)}{c.ENDC}')
-    return True
+        for g in v.specimens.keys():
+            if g in source_mesh:
+                update_land_pinned('', gr=g)
+                break
 
 
 def subdivide_mesh(mesh, target_face_count):
@@ -173,14 +179,21 @@ def subdivide_mesh(mesh, target_face_count):
     return subdivided_mesh
 
 
-def update_land_pinned(specimen, path=None):
+def update_land_pinned(specimen, gr=None, path=None, tissue='myocardium'):
     landmarks_guide_names = v.myo_myo_landmark_names
 
     if path is None:
         path = v.data_path + f'Landmarks/'
 
-    in_path = path + f'2019{specimen}_key_points.json'
-    out_path = path + f'2019{specimen}_landmarks.pinned'
+    if gr is not None:
+        in_path = path + 'ATLAS/ATLAS_' + gr + '_key_points.json'
+        out_path = path + 'ATLAS/ATLAS_' + gr + '_landmarks.pinned'
+        mesh_path = v.data_path + f'ATLAS/{tissue}/ATLAS_{gr}.ply'
+    else:
+        in_path = path + f'2019{specimen}_key_points.json'
+        out_path = path + f'2019{specimen}_landmarks.pinned'
+        gr = find_group(specimen)
+        mesh_path = v.data_path + f'{gr}/3DShape/Tissue/{tissue}/2019{specimen}Shape.ply'
 
     with open(in_path, 'r') as f:
         key_points = json.load(f)
@@ -188,8 +201,6 @@ def update_land_pinned(specimen, path=None):
     names = list(key_points.keys())
     coords = np.array(list(key_points.values()))
 
-    gr = find_group(specimen)
-    mesh_path = v.data_path + f'{gr}/3DShape/Tissue/myocardium/2019{specimen}Shape.ply'
     mesh = o3d.io.read_triangle_mesh(mesh_path)
     mesh.compute_vertex_normals()
 
@@ -205,4 +216,4 @@ def update_land_pinned(specimen, path=None):
     with open(out_path, 'w') as f:
         f.write('\n'.join([str(v) for v in landmarks.values()]))
 
-    print(f'Updated landmarks for {specimen}')
+    print(f'Updated landmarks for {gr} - {specimen if specimen != "" else "ATLAS"}')
