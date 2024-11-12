@@ -321,7 +321,7 @@ class HtDataset:
 
         return todo_specimens
 
-    def get_features(self, spec, type='Membrane', tissue='myocardium', verbose=0, only_path=False):
+    def get_features(self, spec, type='Membrane', tissue='myocardium', verbose=0, only_path=False, norm=False):
         """
         Get features for a specific specimen.
         :param spec: Specimen to get features.
@@ -340,13 +340,22 @@ class HtDataset:
 
             for file in walk[2]:
                 if re.search(spec, file) and re.search(type, file) and re.search(tissue, file):
-                    if verbose:
-                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                    if norm and re.search('norm', file):
+                        if verbose:
+                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
 
-                    path = os.path.join(f_raw_dir, file)
-                    if only_path:
-                        return path
-                    return pd.read_csv(path)
+                        path = os.path.join(f_raw_dir, file)
+                        if only_path:
+                            return path
+                        return pd.read_csv(path)
+                    else:
+                        if verbose:
+                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+
+                        path = os.path.join(f_raw_dir, file)
+                        if only_path:
+                            return path
+                        return pd.read_csv(path)
 
         raise FileNotFoundError(f'No specimen found: {spec} (Get features) [{type} - {tissue}]')
 

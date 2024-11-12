@@ -4,6 +4,9 @@ import re
 import sys
 
 import getopt
+
+import cv2
+import numpy as np
 from scipy.ndimage import zoom
 
 # Custom packages
@@ -26,7 +29,7 @@ from feature_extraction.feature_extractor import extract, filter_by_volume
 
 
 @timed
-def run(ds, s, type, tissue=None, verbose=0):
+def run(ds, s, type, tissue=None, norm=0, verbose=0):
     """
     Run feature extraction.
     :param ds: HtDataset object.
@@ -41,6 +44,13 @@ def run(ds, s, type, tissue=None, verbose=0):
 
     lines = imaging.read_image(path_lines, verbose=verbose)
     raw_img = imaging.read_image(path_raw, verbose=verbose)
+
+    if norm:
+        raw_img = np.swapaxes(np.swapaxes([
+            cv2.normalize(raw_img[..., z], None, 0, 255, cv2.NORM_MINMAX)
+            for z in range(raw_img.shape[2])
+        ], 0, 1), 1, 2).astype(np.uint8)
+
     seg_img = imaging.read_image(path_seg, verbose=verbose)
 
     if tissue:
@@ -72,11 +82,11 @@ def print_usage():
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    data_path, spec, group, type, tissue, verbose = None, None, None, None, None, 0
+    data_path, spec, group, type, tissue, norm, verbose = None, None, None, None, None, 0, 0
 
     try:
-        opts, args = getopt.getopt(argv, 'hd:s:g:t:l:v:', [
-            'help', 'data_path=', 'specimen=', 'group=', 'type=', 'tissue=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hd:s:g:t:l:n:v:', [
+            'help', 'data_path=', 'specimen=', 'group=', 'type=', 'tissue=', 'norm=', 'verbose='
         ])
 
         if len(opts) == 0 or len(opts) > 5:
@@ -95,6 +105,8 @@ if __name__ == '__main__':
                 type = arg_check(opt, arg, '-t', '--type', str, print_usage)
             elif opt in ('-l', '--tissue'):
                 tissue = arg_check(opt, arg, '-l', '--tissue', str, print_usage)
+            elif opt in ('-n', '--norm'):
+                norm = arg_check(opt, arg, '-n', '--norm', str, print_usage)
             elif opt in ('-v', '--verbose'):
                 verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
             else:
@@ -171,8 +183,12 @@ if __name__ == '__main__':
                     print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {s}')
 
                 try:
-                    features = run(ds, s, type, tissue=tissue, verbose=verbose)
-                    features.to_csv(todo_out_paths[todo_specimens.index(s)], index=False)
+                    out_path = todo_out_paths[todo_specimens.index(s)]
+                    features = run(ds, s, type, tissue=tissue, norm=norm, verbose=verbose)
+
+                    if norm:
+                        out_path = re.sub(r'cell_properties', f'cell_properties_norm', out_path)
+                    features.to_csv(out_path, index=False)
                 except Exception as e:
                     print(f'{c.FAIL}Error{c.ENDC}: {e}')
 

@@ -33,18 +33,18 @@ class CellTissueMap:
         self.verbose = verbose
 
         ds = HtDataset()
-        self.nuclei_mesh_path = ds.get_mesh_cell(spec, 'Nuclei', tissue, verbose=verbose, filtered=True)
+        # self.nuclei_mesh_path = ds.get_mesh_cell(spec, 'Nuclei', tissue, verbose=verbose, filtered=True)
         self.mem_mesh_path = ds.get_mesh_cell(spec, 'Membrane', tissue, verbose=verbose, filtered=True)
         self.tissue_path = ds.get_mesh_tissue(spec, tissue, verbose=verbose)
         self.atlas_path = v.data_path + f'ATLAS/{tissue}/ATLAS_{self.group}.ply'
-        self.nuclei_features_path = ds.get_features(spec, 'Nuclei', tissue, verbose=verbose, only_path=True)
+#         self.nuclei_features_path = ds.get_features(spec, 'Nuclei', tissue, verbose=verbose, only_path=True)
         self.mem_features_path = ds.get_features(spec, 'Membrane', tissue, verbose=verbose, only_path=True)
 
-        self.nuclei_mesh = trimesh.load(self.nuclei_mesh_path)
+#         self.nuclei_mesh = trimesh.load(self.nuclei_mesh_path)
         self.mem_mesh = trimesh.load(self.mem_mesh_path)
         self.tissue_mesh = trimesh.load(self.tissue_path)
         self.atlas_mesh = trimesh.load(self.atlas_path)
-        self.nuclei_features = pd.read_csv(self.nuclei_features_path)
+#         self.nuclei_features = pd.read_csv(self.nuclei_features_path)
         self.mem_features = pd.read_csv(self.mem_features_path)
 
         self.mapping_path = v.data_path + f'{self.group}/3DShape/map/{self.specimen}_cell_map.csv'

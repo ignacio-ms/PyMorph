@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="cuslter.submit" confirmBeforeDeletion="false" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="cuslter.submit" uploadOnCheckin="f78dc089-0fe2-4bf4-8dab-f466dff5134f" confirmBeforeDeletion="false" autoUploadExternalChanges="true">
     <option name="confirmBeforeDeletion" value="false" />
     <serverData>
       <paths name="cuslter.submit">
@@ -11,6 +11,7 @@
         </serverdata>
       </paths>
     </serverData>
+    <option name="myUploadOnCheckinName" value="cuslter.submit" />
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
