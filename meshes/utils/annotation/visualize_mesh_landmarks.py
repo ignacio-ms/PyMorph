@@ -15,20 +15,21 @@ import json
 
 def main():
     # Load your data paths and meshes
-    gr = 'Gr9'
+    gr = 'Gr1'
     specimens = v.specimens[gr]
     spec_idx = 0
-    s = specimens[spec_idx]
+    # s = specimens[spec_idx]
+    s = '0806_E5'
 
-    myo_path = v.data_path + f'{gr}/3DShape/Tissue/myocardium/2019{s}Shape.ply'
-    # myo_path = v.data_path + f'ATLAS/myocardium/ATLAS_{gr}.ply'
+    # myo_path = v.data_path + f'{gr}/3DShape/Tissue/myocardium/2019{s}Shape.ply'
+    myo_path = v.data_path + f'ATLAS/myocardium/ATLAS_{gr}.ply'
     myo_mesh = o3d.io.read_triangle_mesh(myo_path)
     myo_mesh.compute_vertex_normals()
     myo_mesh.paint_uniform_color([1.0, 0.0, 0.0])
 
     # Load landmarks
-    land_path = v.data_path + f'Landmarks/2019{s}_key_points.json'
-    # land_path = v.data_path + f'Landmarks/ATLAS/ATLAS_{gr}_key_points.json'
+    # land_path = v.data_path + f'Landmarks/2019{s}_key_points.json'
+    land_path = v.data_path + f'Landmarks/ATLAS/ATLAS_{gr}_key_points.json'
     with open(land_path, 'r') as f:
         key_points = json.load(f)
         myo_landmarks = {

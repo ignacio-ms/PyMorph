@@ -31,8 +31,8 @@ do
 #  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Nuclei' -v 1
 #  python filtering/run_filter_tissue.py -s $specimen -t 'splanchnic' -l 'Nuclei' -v 1
 
-  python meshes/run_extractor_complex.py -s $specimen -l 'Nuclei' -t 'myocardium' -v 1 -m 1
-  python meshes/run_extractor_complex.py -s $specimen -l 'Nuclei' -t 'splanchnic' -v 1 -m 1
+#  python meshes/run_extractor_complex.py -s $specimen -l 'Nuclei' -t 'myocardium' -v 1 -m 1
+#  python meshes/run_extractor_complex.py -s $specimen -l 'Nuclei' -t 'splanchnic' -v 1 -m 1
 done
 
 for specimen in "${specimens[@]}"
