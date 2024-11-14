@@ -37,3 +37,6 @@ edt
 scikit-fmm
 #pyicu -> with conda
 czifile
+trimesh
+pymeshlab
+open3d

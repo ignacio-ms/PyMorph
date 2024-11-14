@@ -20,9 +20,9 @@ def run(
         source_mesh, target_mesh,
         source_landmarks, target_landmarks,
         output_path, data_path=None,
-        init_method=0,
-        n_pre_iters=100,
-        n_main_iters=500,
+        init_method=2,
+        n_pre_iters=200,
+        n_main_iters=600,
         gpu_type='INTEL',
         verbose=0
 ):
