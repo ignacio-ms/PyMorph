@@ -19,7 +19,7 @@ import os
 def run(
         source_mesh, target_mesh,
         source_landmarks, target_landmarks,
-        output_path, data_path=None,
+        output_path, specimen, data_path=None,
         init_method=2,
         n_pre_iters=200,
         n_main_iters=600,
@@ -40,12 +40,13 @@ def run(
     :param gpu_type: GPU type. 'INTEL' or 'AMD'.
     :param verbose: Verbosity level.
     """
-    if data_path is None or data_path == v.data_path:
-        data_path = v.data_path + 'surface_map/'
-        data_path_out = v.data_path + 'surface_map/map/'
-
-    else:
-        data_path_out = data_path + 'map/'
+    print(f'{c.OKBLUE}Running surface map computation{c.ENDC}...{specimen}')
+    # if data_path is None or data_path == v.data_path:
+    data_path = data_path + f'{specimen}/surface_map/'
+    data_path_out = data_path + f'{specimen}/surface_map/map/'
+    #
+    # else:
+    #     data_path_out = data_path + 'map/'
 
     if verbose:
         print(f'{c.OKBLUE}Running surface map computation{c.ENDC}...')

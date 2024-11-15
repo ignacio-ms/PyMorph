@@ -17,8 +17,7 @@ from auxiliary.data.dataset_ht import HtDataset, find_group
 from auxiliary.utils.timer import LoadingBar
 
 from meshes.utils.registration.surface_map_computation import (
-    run, check_mesh_consistency,
-    update_land_pinned
+    run, check_mesh_consistency
 )
 
 
@@ -104,7 +103,7 @@ if __name__ == '__main__':
                 run(
                     source_mesh, target_mesh,
                     source_landmarks, target_landmarks,
-                    out_path,
+                    out_path, specimen=s, data_path=data_path,
                     verbose=verbose
                 )
             except Exception as e:

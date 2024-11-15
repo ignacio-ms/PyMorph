@@ -2,6 +2,7 @@
 #FROM python:3.10
 FROM python:3.11
 LABEL authors="imarcoss"
+LABEL org.opencontainers.image.source=https://github.com/ignacio-ms/ht_morphogenesis
 
 #RUN apt-get update && apt-get install -y python3 python3-pip
 
