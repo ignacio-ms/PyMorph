@@ -15,11 +15,11 @@ import json
 
 def main():
     # Load your data paths and meshes
-    gr = 'Gr1'
+    gr = 'Gr8'
     specimens = v.specimens[gr]
     spec_idx = 0
-    # s = specimens[spec_idx]
-    s = '0806_E5'
+    s = specimens[spec_idx]
+    # s = '0806_E5'
 
     # myo_path = v.data_path + f'{gr}/3DShape/Tissue/myocardium/2019{s}Shape.ply'
     myo_path = v.data_path + f'ATLAS/myocardium/ATLAS_{gr}.ply'
