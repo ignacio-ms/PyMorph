@@ -1,4 +1,4 @@
-#!/data_lab_MT/Ignacio/ht_morphogenesis/meshes/surface_map/INTEL/bin/bash
+#!/bin/bash
 
 index=$((SGE_TASK_ID - 1))
 
@@ -25,14 +25,7 @@ specimens=(
     "0515_E3"
 )
 
-#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/data_lab_MT/Ignacio/ht_morphogenesis/meshes/surface_map/INTEL/libs/
-#export LD_PRELOAD=$LD_PRELOAD:/data_lab_MT/Ignacio/ht_morphogenesis/meshes/surface_map/INTEL/libs/libc.so.6
-
-#/app/meshes/surface_map/INTEL/base/ld-linux-x86-64.so.2 --library-path /app/meshes/surface_map/INTEL/libs
-
 specimen=${specimens[$index]}
-#singularity exec --env LD_LIBRARY_PATH=/data_lab_MT/Ignacio/ht_morphogenesis/meshes/surface_map/INTEL/libs/ -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ /data_lab_MT/Ignacio/ht_morphogenesis_latest.sif python /app/meshes/run_surface_map_cluster.py -p /data/ -s $specimen -v $verbose
-singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ /data_lab_MT/Ignacio/ht_morphogenesis_latest.sif /app/meshes/surface_map/INTEL/bin/bash -c "export PATH=/app/meshes/surface_map/INTEL/bin:$PATH export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/app/meshes/surface_map/INTEL/libs/ && ldd /app/meshes/surface_map/INTEL/SurfaceMapComputation -help"
+singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/repo/ -B $data_path:/data/ /data_lab_MT/Ignacio/mapping_cluster.sif python3 /repo/meshes/run_surface_map_cluster.py -p /data/ -s $specimen -v $verbose
 singularity cache clean -f
 
-#python /app/meshes/run_surface_map_cluster.py -p /data/ -s $specimen -v $verbose

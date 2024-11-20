@@ -6,3 +6,4 @@ daniela/
 .env
 *.sif
 *.ply
+*.tar

@@ -44,9 +44,6 @@ def run(
     # if data_path is None or data_path == v.data_path:
     data_path = data_path + f'{specimen}/surface_map/'
     data_path_out = data_path + f'{specimen}/surface_map/map/'
-    #
-    # else:
-    #     data_path_out = data_path + 'map/'
 
     if verbose:
         print(f'{c.OKBLUE}Running surface map computation{c.ENDC}...')
@@ -109,7 +106,7 @@ def run(
     )
 
     subprocess.run(
-        f'cp {data_path_out}* {output_path}map/',
+        f'cp -r {data_path_out} {output_path}map/',
         shell=True, check=True
     )
 
@@ -213,6 +210,9 @@ def update_land_pinned(specimen, gr=None, path=None, tissue='myocardium'):
         if name in landmarks_guide_names:
             _, idx = kdtree.query(coord)
             landmarks[name] = idx
+
+    # Assure always the same order
+    landmarks = {k: landmarks[k] for k in landmarks_guide_names if k in landmarks}
 
     with open(out_path, 'w') as f:
         f.write('\n'.join([str(v) for v in landmarks.values()]))

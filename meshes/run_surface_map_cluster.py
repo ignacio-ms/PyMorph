@@ -66,13 +66,17 @@ def run(
     print(f'Target landmarks: {target_landmarks}')
 
     subprocess.run(
-        f'{current_dir}surface_map/{gpu_type}/SurfaceMapComputation --path {data_path} '
+        f'/app/opt/SurfaceMapComputation/SurfaceMapComputation --path {data_path} '
         f'--init_method {init_method} --n_pre_iters {n_pre_iters} '
         f'--n_main_iters {n_main_iters} --shapeA {source_mesh} '
         f'--shapeB {target_mesh} --landmarksA {source_landmarks} '
         f'--landmarksB {target_landmarks}',
         shell=True, check=True
     )
+    # subprocess.run(
+    #     f'ldd /app/opt/SurfaceMapComputation/SurfaceMapComputation',
+    #     shell=True, check=True
+    # )
 
     if verbose:
         print(f'\t{c.BOLD}Moving output{c.ENDC}...')

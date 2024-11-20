@@ -32,38 +32,33 @@ class CellTissueMap:
         self.tissue = tissue
         self.verbose = verbose
 
-        ds = HtDataset()
-        # self.nuclei_mesh_path = ds.get_mesh_cell(spec, 'Nuclei', tissue, verbose=verbose, filtered=True)
-        self.mem_mesh_path = ds.get_mesh_cell(spec, 'Membrane', tissue, verbose=verbose, filtered=True)
-        self.tissue_path = ds.get_mesh_tissue(spec, tissue, verbose=verbose)
-        self.atlas_path = v.data_path + f'ATLAS/{tissue}/ATLAS_{self.group}.ply'
-#         self.nuclei_features_path = ds.get_features(spec, 'Nuclei', tissue, verbose=verbose, only_path=True)
-        self.mem_features_path = ds.get_features(spec, 'Membrane', tissue, verbose=verbose, only_path=True)
-
-#         self.nuclei_mesh = trimesh.load(self.nuclei_mesh_path)
-        self.mem_mesh = trimesh.load(self.mem_mesh_path)
+        self.ds = HtDataset()
+        self.tissue_path = self.ds.get_mesh_tissue(spec, tissue, verbose=verbose)
         self.tissue_mesh = trimesh.load(self.tissue_path)
-        self.atlas_mesh = trimesh.load(self.atlas_path)
-#         self.nuclei_features = pd.read_csv(self.nuclei_features_path)
-        self.mem_features = pd.read_csv(self.mem_features_path)
 
-        self.mapping_path = v.data_path + f'{self.group}/3DShape/map/{self.specimen}_cell_map.csv'
+        self.mapping_path = v.data_path + f'{self.group}/3DShape/Tissue/{tissue}/cell_map/{self.specimen}_cell_map.csv'
+        with open(self.mapping_path, 'r') as f:
+            self.mapping = pd.read_csv(f)
 
         aux = self.mapping_path.split('/')[:-1]
         if not os.path.exists('/'.join(aux)):
             os.makedirs('/'.join(aux), exist_ok=True)
 
     def init_vars(self, type='Membrane'):
-        if type == 'Membrane':
-            self.cell_mesh = self.mem_mesh
-            self.cell_features = self.mem_features
-        elif type == 'Nuclei':
-            self.cell_mesh = self.nuclei_mesh
-            self.cell_features = self.nuclei_features
+        try:
+            cell_mesh_path = self.ds.get_mesh_cell(self.specimen, type, self.tissue, verbose=self.verbose, filtered=True)
+            self.cell_mesh = trimesh.load(cell_mesh_path)
 
-        self.face_cell_ids = self.cell_mesh.metadata['_ply_raw']['face']['data']['cell_id']
-        self.vertex_cell_ids = self.cell_mesh.metadata['_ply_raw']['vertex']['data']['cell_id']
-        self.cell_ids = np.unique(self.face_cell_ids)
+            self.cell_features = self.ds.get_features(self.specimen, type, self.tissue, verbose=self.verbose)
+        except FileNotFoundError:
+            print(f'{c.FAIL}Error - {self.specimen}:{c.ENDC} Cells or features not found')
+
+        try:
+            self.face_cell_ids = self.cell_mesh.metadata['_ply_raw']['face']['data']['cell_id']
+            self.vertex_cell_ids = self.cell_mesh.metadata['_ply_raw']['vertex']['data']['cell_id']
+            self.cell_ids = np.unique(self.face_cell_ids)
+        except KeyError:
+            print(f'{c.FAIL}Error - {self.specimen}:{c.ENDC} Cell IDs not found in the mesh metadata')
 
         assert self.face_cell_ids is not None and self.vertex_cell_ids is not None, 'Cell IDs not found in the mesh metadata'
 
@@ -103,6 +98,12 @@ class CellTissueMap:
             'tissue_face_id': np.arange(len(self.tissue_mesh.faces)),
             f'cell_id_{type}': tissue_face_cell_ids
         })
+
+        if self.mapping is not None:
+            mapping = pd.merge(
+                self.mapping, mapping,
+                on='tissue_face_id', how='left'
+            )
 
         mapping.to_csv(self.mapping_path, index=False)
         print(f'{c.OKGREEN}Cell map saved to:{c.ENDC} {self.mapping_path}')
