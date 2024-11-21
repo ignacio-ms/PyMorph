@@ -1,8 +1,8 @@
 qtpy
 numpy>=1.20.0
-numba>=0.43.1
+#numba>=0.43.1
 scipy
-torch>=1.6
+#torch>=1.6
 opencv-python-headless
 pyqtgraph>=0.11.0rc0
 natsort
@@ -22,8 +22,8 @@ SimpleITK
 #porespy
 #pyradiomics
 #pypardiso
-cupy-cuda11x
-cucim-cu11
+#cupy-cuda11x
+#cucim-cu11
 dask[complete]
 #scikit-learn
 imagecodecs
