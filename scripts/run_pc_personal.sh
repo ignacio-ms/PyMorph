@@ -25,7 +25,7 @@
 #singularity exec -e -B //wsl.localhost/Ubuntu/home/txete/ht_morphogenesis:/repo/ -B $data_path:/data/ //wsl.localhost/Ubuntu/home/txete/ht_morphogenesis/containers/mapping_cluster.sif python3 /repo/meshes/run_surface_map_cluster.py -p /data/ -s $specimen -v $verbose
 #singularity cache clean -f
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/data_lab_MT/Ignacio/ht_morphogenesis/meshes/surface_map/INTEL/libs
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/txete/ht_morphogenesis/meshes/surface_map/INTEL/libs
 
 specimens=(
     "0401_E3"
