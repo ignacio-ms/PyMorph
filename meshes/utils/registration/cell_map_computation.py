@@ -37,8 +37,11 @@ class CellTissueMap:
         self.tissue_mesh = trimesh.load(self.tissue_path)
 
         self.mapping_path = v.data_path + f'{self.group}/3DShape/Tissue/{tissue}/cell_map/{self.specimen}_cell_map.csv'
-        with open(self.mapping_path, 'r') as f:
-            self.mapping = pd.read_csv(f)
+        try:
+            with open(self.mapping_path, 'r') as f:
+                self.mapping = pd.read_csv(f)
+        except FileNotFoundError:
+            self.mapping = None
 
         aux = self.mapping_path.split('/')[:-1]
         if not os.path.exists('/'.join(aux)):
@@ -134,7 +137,7 @@ class CellTissueMap:
         self.mapping.to_csv(self.mapping_path, index=False)
         print(f'{c.OKGREEN}Neighborhood saved to:{c.ENDC} {self.mapping_path}')
 
-    def color_mesh(self, feature_name, type='Membrane', cmap='seismic', normalize=False, smooth=False):
+    def color_mesh(self, feature_name, type='Membrane', cmap='autumn_r', normalize=False, smooth=False):
         if not hasattr(self, 'mapping'):
             if os.path.exists(self.mapping_path):
                 self.mapping = pd.read_csv(self.mapping_path)
@@ -153,7 +156,9 @@ class CellTissueMap:
         aux_face_values = face_values.copy()
         for i, row in self.mapping.iterrows():
             if row['tissue_neighbors'] is not None:
-                aux_face_values[i] = np.mean(face_values[row['tissue_neighbors']])
+                # neigh = row['tissue_neighbors'].replace('[', '').replace(']', '').split()
+                neigh = np.array(row['tissue_neighbors'])
+                aux_face_values[i] = np.mean([face_values[int(n)] for n in neigh])
 
         face_values = aux_face_values
 
@@ -166,8 +171,17 @@ class CellTissueMap:
             f_max = face_values.max()
             face_values = (face_values - f_min) / (f_max - f_min + 1e-9)
 
-        face_colors = cmap(face_values)[:, :3]  # Remove alpha channel
+        face_colors = cmap(face_values)  # Remove alpha channel
         # face_colors = (face_colors * 255).astype(np.uint8)
 
         self.tissue_mesh.visual.face_colors = face_colors
+
+        self.tissue_mesh.export(
+            f'{"/".join(self.tissue_path.split("/")[:-1])}/map/{self.specimen}/{type}_{feature_name}.ply'
+        )
+        self.tissue_mesh.export(
+            f'{"/".join(self.tissue_path.split("/")[:-1])}/map/{self.specimen}/{type}_{feature_name}.obj',
+            file_type='obj'
+        )
+
         return self.tissue_mesh
