@@ -43,7 +43,7 @@ def run(
     print(f'{c.OKBLUE}Running surface map computation{c.ENDC}...{specimen}')
     # if data_path is None or data_path == v.data_path:
     data_path = data_path + f'{specimen}/surface_map/'
-    data_path_out = data_path + f'{specimen}/surface_map/map/'
+    data_path_out = data_path + f'map/'
 
     if verbose:
         print(f'{c.OKBLUE}Running surface map computation{c.ENDC}...')
@@ -99,22 +99,22 @@ def run(
     if verbose:
         print(f'\t{c.BOLD}Moving output{c.ENDC}...')
 
-    # Move the output to the output directory
-    subprocess.run(
-        f'cp {data_path}{source_mesh.split(".")[0]}_on_{target_mesh.split(".")[0]}.ply {output_path}',
-        shell=True, check=True
-    )
+    # # Move the output to the output directory
+    # subprocess.run(
+    #     f'cp {data_path}{source_mesh.split(".")[0]}_on_{target_mesh.split(".")[0]}.ply {output_path}',
+    #     shell=True, check=True
+    # )
 
     subprocess.run(
-        f'cp -r {data_path_out} {output_path}map/',
+        f'cp -r {data_path} {output_path}',
         shell=True, check=True
     )
 
     # Remove auxiliary directories
-    subprocess.run(
-        f'rm -r {data_path}',
-        shell=True, check=True
-    )
+    # subprocess.run(
+    #     f'rm -r {data_path}',
+    #     shell=True, check=True
+    # )
 
     if verbose:
         print(f'{c.OKGREEN}Output moved{c.ENDC}')

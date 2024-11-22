@@ -142,10 +142,9 @@ class CellTissueMap:
             if os.path.exists(self.mapping_path):
                 self.mapping = pd.read_csv(self.mapping_path)
 
-        cmap = plt.get_cmap(cmap)
 
         assert self.mapping is not None, 'Cell map not found'
-        assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', 'tissue_neighbors']).all(), 'Invalid mapping file'
+        # assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', 'tissue_neighbors']).all(), 'Invalid mapping file'
         assert feature_name in self.cell_features.columns, f'Feature not found: {feature_name}'
         self.init_vars(type)
 
@@ -171,6 +170,7 @@ class CellTissueMap:
             f_max = face_values.max()
             face_values = (face_values - f_min) / (f_max - f_min + 1e-9)
 
+        cmap = plt.get_cmap(cmap, len(face_values))
         face_colors = cmap(face_values)  # Remove alpha channel
         # face_colors = (face_colors * 255).astype(np.uint8)
 
