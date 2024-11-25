@@ -101,6 +101,7 @@ if __name__ == '__main__':
                         _ = cell_map.color_mesh(feature, type='Membrane')
                     except Exception as e:
                         print(f'{c.FAIL}Error{c.ENDC}: {feature}')
+                        print(e)
 
                 print(f'{c.OKBLUE}Type{c.ENDC}: Nuclei')
                 cell_map.map_cells(type='Nuclei')

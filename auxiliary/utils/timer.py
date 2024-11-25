@@ -31,6 +31,7 @@ class LoadingBar:
         """
         self.iter = 0
         sys.stdout.write('\n')
+        sys.stdout.flush()
 
 
 def timed(fun):

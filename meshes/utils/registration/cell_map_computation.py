@@ -114,6 +114,10 @@ class CellTissueMap:
 
     def get_neighborhood(self, radius=34.0):
         assert self.mapping is not None, 'Cell map not found'
+        if self.mapping.columns.isin(['tissue_face_id', 'tissue_neighbors']).all():
+            print(f'{c.WARNING}Warning{c.ENDC}: Neighborhood already computed - skipping')
+            return
+
         face_neighbors = {}
 
         for face_idx in np.arange(len(self.tissue_mesh.faces)):
@@ -143,21 +147,27 @@ class CellTissueMap:
                 self.mapping = pd.read_csv(self.mapping_path)
 
 
-        assert self.mapping is not None, 'Cell map not found'
-        # assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', 'tissue_neighbors']).all(), 'Invalid mapping file'
-        assert feature_name in self.cell_features.columns, f'Feature not found: {feature_name}'
         self.init_vars(type)
+        assert self.mapping is not None, 'Cell map not found'
+        assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', 'tissue_neighbors']).all(), 'Invalid mapping file'
+        assert feature_name in self.cell_features.columns, f'Feature not found: {feature_name}'
 
         feature_map = self.cell_features.set_index('cell_id')[feature_name].to_dict()
         face_values = self.mapping[f'cell_id_{type}'].map(feature_map)
+
+        # Normalize feature values within all embryos
+        face_values = self.normalize_features(face_values, feature_name, type)
 
         # Neighbor averaging
         aux_face_values = face_values.copy()
         for i, row in self.mapping.iterrows():
             if row['tissue_neighbors'] is not None:
-                # neigh = row['tissue_neighbors'].replace('[', '').replace(']', '').split()
-                neigh = np.array(row['tissue_neighbors'])
-                aux_face_values[i] = np.mean([face_values[int(n)] for n in neigh])
+                try:
+                    neigh = np.array(row['tissue_neighbors'])
+                    aux_face_values[i] = np.mean([face_values[int(n)] for n in neigh])
+                except Exception as e:
+                    neigh = row['tissue_neighbors'].replace('[', '').replace(']', '').split()
+                    aux_face_values[i] = np.mean([face_values[int(n)] for n in neigh])
 
         face_values = aux_face_values
 
@@ -171,7 +181,7 @@ class CellTissueMap:
             face_values = (face_values - f_min) / (f_max - f_min + 1e-9)
 
         cmap = plt.get_cmap(cmap, len(face_values))
-        face_colors = cmap(face_values)  # Remove alpha channel
+        face_colors = cmap(face_values)
         # face_colors = (face_colors * 255).astype(np.uint8)
 
         self.tissue_mesh.visual.face_colors = face_colors
@@ -185,3 +195,36 @@ class CellTissueMap:
         )
 
         return self.tissue_mesh
+
+    def normalize_features(self, values, feature_name, type='Membrane'):
+        ds = HtDataset()
+
+        all_features = []
+        print(f'{c.OKGREEN}Normalizing feature values across embryos{c.ENDC}')
+        count, missing = 0, 0
+        for g in v.specimens:
+            for s in v.specimens[g]:
+                try:
+                    features = ds.get_features(s, type, self.tissue, verbose=0)
+                    all_features.extend(features[feature_name].values)
+                    count += 1
+                except Exception as e:
+                    print(f'\t{c.WARNING}Warning{c.ENDC}: Embryo {s} - {e}')
+                    missing += 1
+                    continue
+
+        print(f'{c.OKBLUE}Embryos averaged{c.ENDC}: {count} / {count + missing} ({missing} missing)')
+        all_features = np.array(all_features, dtype=np.float64)
+        all_features = all_features[~np.isnan(all_features)]
+        np.sort(all_features)
+
+        f_min = all_features.min()
+        f_max = all_features.max()
+
+        print(f'{c.OKGREEN}Min{c.ENDC}: {f_min}')
+        print(f'{c.OKGREEN}Max{c.ENDC}: {f_max}')
+
+        if f_min == f_max or np.isnan(f_min) or np.isnan(f_max):
+            return values
+
+        return values.map(lambda x: (x - f_min) / (f_max - f_min))

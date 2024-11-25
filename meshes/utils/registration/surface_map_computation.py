@@ -106,7 +106,7 @@ def run(
     # )
 
     subprocess.run(
-        f'cp -r {data_path} {output_path}',
+        f'cp -r {data_path}/* {output_path}',
         shell=True, check=True
     )
 

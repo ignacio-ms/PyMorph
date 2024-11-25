@@ -32,4 +32,4 @@ specimens=(
     "0518_E2"
 )
 
-printf "%s\n" "${specimens[@]}" | parallel -j 8 --progress --joblog joblog.txt python meshes/run_surface_map.py -s {} -p /home/txete/data/cluster -v 1
+printf "%s\n" "${specimens[@]}" | parallel -j 8 --progress --joblog joblog.txt python meshes/run_surface_map_cluster -s {} -p /home/txete/data/cluster -v 1

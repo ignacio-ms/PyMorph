@@ -469,6 +469,35 @@ class HtDataset:
 
         return todo_specimens
 
+    def get_feature_map(self, spec, level='Membrane', tissue='myocardium', feature='columnarity', verbose=0):
+        """
+        Get feature map for a specific specimen.
+        :param spec: Specimen to get feature map.
+        :param level: Level of feature map. (Membrane, Nuclei)
+        :param tissue: Tissue of feature map. (myocardium)
+        :param feature: Feature to get. (columnarity, ...)
+        :param verbose: Verbosity level.
+        :return: Path to the feature map file.
+        """
+        group = find_group(spec)
+        try:
+            f_raw_dir = os.path.join(self.data_path, group, '3DShape/Tissue/', tissue, 'map', spec)
+            walk = os.walk(f_raw_dir).__next__()
+        except StopIteration:
+            if verbose:
+                print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                raise FileNotFoundError(f'No specimen found: {spec} (Get feature map)')
+
+        for file in walk[2]:
+            if re.search(f'{level}_{feature}.ply', file):
+                if verbose:
+                    print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+
+                return os.path.join(f_raw_dir, file)
+
+        raise FileNotFoundError(f'No specimen found: {spec} (Get tissue mesh)]')
+
+
 
 def find_group(specimen):
     for group, specimen_list in v.specimens.items():
