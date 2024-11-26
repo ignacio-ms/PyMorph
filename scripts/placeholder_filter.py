@@ -33,6 +33,8 @@ for gr in v.specimens.keys():
             for t in ['myocardium', 'splanchnic']:
                 split_path = seg_path.split('/')
                 out_path = '/'.join(split_path[:-1]) + f'/filtered/' + split_path[-1].replace('.nii.gz', f'_{t}.nii.gz')
+                if not os.path.exists('/'.join(split_path[:-1]) + f'/filtered/'):
+                    os.makedirs('/'.join(split_path[:-1]) + f'/filtered/')
 
                 features = ds.get_features(s, l, t, verbose=1)
 

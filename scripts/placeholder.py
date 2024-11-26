@@ -12,6 +12,8 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary import values as v
 from meshes.utils.registration.surface_map_computation import check_mesh_consistency
 
+v.data_path = '/home/txete/data/cluster/'
+
 for gr in v.specimens.keys():
     if gr != 'Gr10':
         continue

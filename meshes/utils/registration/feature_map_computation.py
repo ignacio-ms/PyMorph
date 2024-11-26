@@ -144,9 +144,7 @@ class FeatureMap:
 
             bar.update()
 
-        print(face_colors)
         self.atlas.visual.vertex_colors = np.mean(face_colors, axis=0).astype(np.uint8)
-        print(np.mean(face_colors, axis=0).astype(np.uint8))
         self.atlas.export(out_path)
         self.atlas.export(out_path.replace('.ply', '.obj'), file_type='obj')
         print(f'{c.OKGREEN}Atlas saved{c.ENDC}: {out_path}')

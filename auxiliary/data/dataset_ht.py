@@ -485,8 +485,7 @@ class HtDataset:
             walk = os.walk(f_raw_dir).__next__()
         except StopIteration:
             if verbose:
-                print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
-                raise FileNotFoundError(f'No specimen found: {spec} (Get feature map)')
+                raise FileNotFoundError(f'No directory: {f_raw_dir}')
 
         for file in walk[2]:
             if re.search(f'{level}_{feature}.ply', file):
@@ -495,7 +494,7 @@ class HtDataset:
 
                 return os.path.join(f_raw_dir, file)
 
-        raise FileNotFoundError(f'No specimen found: {spec} (Get tissue mesh)]')
+        return None
 
 
 
