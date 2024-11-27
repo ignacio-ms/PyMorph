@@ -90,7 +90,7 @@ if __name__ == '__main__':
             sys.exit(2)
 
         feature_maps = []
-
+        specimens = ['0503_E2', '0516_E3']
         for s in specimens:
             gr = find_group(s)
             print(f'{c.OKGREEN}Specimen{c.ENDC}: {s} ({gr})')
@@ -111,7 +111,7 @@ if __name__ == '__main__':
                     else:
                         print(f'{c.OKGREEN}Mapping{c.ENDC}: Found - skipping')
                         # cell_map.init_vars(type=level)
-                    color_mesh = cell_map.color_mesh(feature, type=level, cmap='inferno_r')
+                    color_mesh = cell_map.color_mesh(feature, type=level)
 
                 else:
                     print(f'{c.OKGREEN}Color mesh{c.ENDC}: Found - skipping')
@@ -133,7 +133,9 @@ if __name__ == '__main__':
             verbose=verbose
         )
 
-        feature_map.avergage_feature_maps(out_path)
+        feature_map.color_atlas(out_path)
+        # feature_map.avergage_feature_maps(out_path)
 
     except getopt.GetoptError:
         print_usage()
+

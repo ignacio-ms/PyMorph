@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import trimesh
 import pymeshlab
 import open3d as o3d
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
 
 from scipy.spatial import cKDTree
 from scipy.sparse.csgraph import dijkstra
@@ -141,11 +142,13 @@ class CellTissueMap:
         self.mapping.to_csv(self.mapping_path, index=False)
         print(f'{c.OKGREEN}Neighborhood saved to:{c.ENDC} {self.mapping_path}')
 
-    def color_mesh(self, feature_name, type='Membrane', cmap='autumn_r', normalize=False, smooth=False):
+    def color_mesh(self, feature_name, type='Membrane', cmap=None, normalize=False):
         if not hasattr(self, 'mapping'):
             if os.path.exists(self.mapping_path):
                 self.mapping = pd.read_csv(self.mapping_path)
 
+        if isinstance(cmap, str):
+            cmap = plt.get_cmap(cmap)
 
         self.init_vars(type)
         assert self.mapping is not None, 'Cell map not found'
@@ -156,7 +159,8 @@ class CellTissueMap:
         face_values = self.mapping[f'cell_id_{type}'].map(feature_map)
 
         # Normalize feature values within all embryos
-        face_values = self.normalize_features(face_values, feature_name, type)
+        if normalize:
+            face_values = self.normalize_features(face_values, feature_name, type)
 
         # Neighbor averaging
         aux_face_values = face_values.copy()
@@ -171,17 +175,23 @@ class CellTissueMap:
 
         face_values = aux_face_values
 
-        if smooth:
-            from scipy.ndimage import gaussian_filter1d
-            face_values = gaussian_filter1d(face_values, sigma=1)
+        if cmap is None:
+            colors = [
+                (0, 0, 1),  # Pure blue
+                (0, 0.5, 1),  # Cyan-like
+                (0, 1, 0),  # Green
+                (1, 1, 0),  # Yellow
+                (1, 0, 0),  # Red
+            ]
+            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=256)
 
-        if normalize:
-            f_min = face_values.min()
-            f_max = face_values.max()
-            face_values = (face_values - f_min) / (f_max - f_min + 1e-9)
-
-        cmap = plt.get_cmap(cmap, len(face_values))
-        face_colors = cmap(face_values)
+        norm = BoundaryNorm(
+            boundaries=np.linspace(
+                face_values.min(), face_values.max(),
+                cmap.N
+            ), ncolors=cmap.N
+        )
+        face_colors = cmap(norm(face_values))
         # face_colors = (face_colors * 255).astype(np.uint8)
 
         self.tissue_mesh.visual.face_colors = face_colors
