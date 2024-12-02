@@ -31,19 +31,27 @@ for gr in v.specimens.keys():
             seg = imaging.read_image(seg_path)
 
             for t in ['myocardium', 'splanchnic']:
-                split_path = seg_path.split('/')
-                out_path = '/'.join(split_path[:-1]) + f'/filtered/' + split_path[-1].replace('.nii.gz', f'_{t}.nii.gz')
-                if not os.path.exists('/'.join(split_path[:-1]) + f'/filtered/'):
-                    os.makedirs('/'.join(split_path[:-1]) + f'/filtered/')
+                try:
+                    split_path = seg_path.split('/')
+                    out_path = '/'.join(split_path[:-1]) + f'/filtered/' + split_path[-1].replace('.nii.gz', f'_{t}.nii.gz')
+                    if not os.path.exists('/'.join(split_path[:-1]) + f'/filtered/'):
+                        os.makedirs('/'.join(split_path[:-1]) + f'/filtered/')
 
-                features = ds.get_features(s, l, t, verbose=1)
+                    if os.path.exists(out_path):
+                        bar.update()
+                        continue
 
-                cell_ids = features['cell_id']
-                filtered_seg = np.zeros_like(seg, dtype=np.uint32)
-                for i, cell_id in enumerate(cell_ids):
-                    filtered_seg[seg == cell_id] = cell_id
+                    features = ds.get_features(s, l, t, verbose=1)
 
-                imaging.save_nii(filtered_seg, out_path, verbose=1)
-                bar.update()
+                    cell_ids = features['cell_id']
+                    filtered_seg = np.zeros_like(seg, dtype=np.uint32)
+                    for i, cell_id in enumerate(cell_ids):
+                        filtered_seg[seg == cell_id] = cell_id
+
+                    imaging.save_nii(filtered_seg, out_path, verbose=1)
+                except Exception as e:
+                    print(f'Error in {s} {l} {t}: {e}')
+                finally:
+                    bar.update()
 
 bar.end()
