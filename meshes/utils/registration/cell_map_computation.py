@@ -204,6 +204,12 @@ class CellTissueMap:
             file_type='obj'
         )
 
+        face_values = pd.DataFrame({
+            'tissue_face_id': np.arange(len(face_values)),
+            'value': face_values
+        })
+        face_values.to_csv('/'.join(self.tissue_path.split('/')[:-1]) + f'/map/{self.specimen}/{type}_{feature_name}.csv', index=False)
+
         return self.tissue_mesh
 
     def normalize_features(self, values, feature_name, type='Membrane'):

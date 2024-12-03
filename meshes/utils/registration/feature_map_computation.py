@@ -274,12 +274,45 @@ class FeatureMap:
         )
         atlas_colors = cmap(norm(atlas_values))
 
+        for s, face_val in zip(self.specimens, face_values):
+            norm = BoundaryNorm(
+                boundaries=np.linspace(
+                    face_val.min(), face_val.max(),
+                    cmap.N
+                ), ncolors=cmap.N
+            )
+
+            # Check if .csv file exists
+            aux_path = out_path.split('/')
+            aux_path[-1] = f'{s}/{self.tissue}_{self.feature}.csv'
+            aux_path = '/'.join(aux_path)
+
+            if not os.path.exists(aux_path):
+                aux_df = pd.DataFrame({
+                    'tissue_face_id': np.arange(len(face_val)),
+                    'value': face_val
+                })
+                aux_df.to_csv(aux_path, index=False)
+
+            self.atlas.visual.vertex_colors = cmap(norm(face_val))
+            self.atlas.export(out_path.replace('.ply', f'_{s}.ply'))
+
+            aux_df = pd.DataFrame(face_val, columns=[self.feature])
+            aux_df.to_csv(out_path.replace('.ply', f'_{s}.csv'), index=False)
+
         bar.update()
         bar.end()
 
         self.atlas.visual.vertex_colors = atlas_colors
         self.atlas.export(out_path)
         self.export_obj(out_path)
+
+        atlas_values_df = pd.DataFrame({
+            'tissue_face_id': np.arange(len(atlas_values)),
+            'value': atlas_values
+        })
+        atlas_values_df.to_csv(out_path.replace('.ply', '.csv'), index=False)
+
         print(f'{c.OKGREEN}Atlas saved{c.ENDC}: {out_path}')
 
     def avergage_feature_maps(self, out_path):

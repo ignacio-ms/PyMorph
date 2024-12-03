@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="py310ml" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="cellpose" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="py310ml" project-jdk-type="Python SDK" />
 </project>

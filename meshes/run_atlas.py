@@ -125,12 +125,15 @@ if __name__ == '__main__':
                 traceback.print_exc()
 
         # Feature map computation
-        out_path = v.data_path + f'{group}/3DShape/Tissue/{tissue}/map/atlas_{feature}.ply'
+        out_path = v.data_path + f'{group}/3DShape/Tissue/{tissue}/map/{feature}/atlas_{feature}.ply'
         feature_map = FeatureMap(
             group, specimens, feature_maps,
             feature, tissue, level,
             verbose=verbose
         )
+
+        if not os.path.exists('/'.join(out_path.split('/')[:-1])):
+            os.makedirs('/'.join(out_path.split('/')[:-1]), exist_ok=True)
 
         feature_map.color_atlas(out_path)
         # feature_map.avergage_feature_maps(out_path)
