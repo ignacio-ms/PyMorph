@@ -90,7 +90,6 @@ if __name__ == '__main__':
             sys.exit(2)
 
         feature_maps = []
-        specimens = ['0503_E2', '0516_E3']
         for s in specimens:
             gr = find_group(s)
             print(f'{c.OKGREEN}Specimen{c.ENDC}: {s} ({gr})')

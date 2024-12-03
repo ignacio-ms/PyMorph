@@ -181,8 +181,8 @@ class FishAnalyzer:
         labels_green, _ = self.model.predict_instances(img_green_norm)
 
         if name is not None:
-            save_tiff_imagej_compatible(f'{self.folder}/results/{name}_red.tif', labels_red, axes='YXC')
-            save_tiff_imagej_compatible(f'{self.folder}/results/{name}_green.tif', labels_green, axes='YXC')
+            save_tiff_imagej_compatible(f'{self.folder}/results/{name}_red.tif', labels_red, axes='XY')
+            save_tiff_imagej_compatible(f'{self.folder}/results/{name}_green.tif', labels_green, axes='XY')
 
         return labels_red, labels_green
 
