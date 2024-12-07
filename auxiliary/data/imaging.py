@@ -8,10 +8,12 @@ from scipy.ndimage import zoom
 from tifffile import imread
 import tifffile as tiff
 import h5py
+# import SimpleITK as sitk
 
 from csbdeep.io import save_tiff_imagej_compatible
 
 from auxiliary.utils.colors import bcolors as c
+# from filtering import cardiac_region as cr
 
 
 def read_nii(path, axes='XYZ', verbose=0):
@@ -96,6 +98,36 @@ def load_metadata(path):
             'y_res': y_res,
             'z_res': z_res
         }, None
+
+
+# def resample_img(img, mask, raw_img_path):
+#     """
+#     Resample the image and mask. The resampling is done based on the XYZ resolutions.
+#     :param img: Image.
+#     :param mask: Mask.
+#     :param raw_img_path: Raw image path.
+#     :param verbose: Verbosity level. (default: 0)
+#     :return: Resampled image and mask.
+#     """
+#     metadata, _ = cr.load_metadata(raw_img_path)
+#     spacing = [
+#         float(metadata['x_res']),
+#         float(metadata['y_res']),
+#         float(metadata['z_res'])
+#     ]
+#
+#     resampler = sitk.ResampleImageFilter()
+#     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+#     resampler.SetSize([
+#         int(round(img.GetSize()[0] * spacing[0])),
+#         int(round(img.GetSize()[1] * spacing[1])),
+#         int(round(img.GetSize()[2] * spacing[2]))
+#     ])
+#
+#     img = resampler.Execute(img)
+#     mask = resampler.Execute(mask)
+#
+#     return img, mask
 
 
 def read_tiff(path, axes='XYZ', verbose=0):

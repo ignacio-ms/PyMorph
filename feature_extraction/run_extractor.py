@@ -52,22 +52,8 @@ def run(ds, s, type, tissue=None, norm=True, verbose=0):
         seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 2, verbose=verbose)
 
     if norm:
-        print(f'{c.OKBLUE}Reconstructing image...{c.ENDC}')
+        print(f'{c.OKBLUE}Normalizing image...{c.ENDC}')
         raw_img = csb_normalize(raw_img, 1, 99.8, axis=(0, 1))
-
-        # Isotropic resampling all axes
-        resampling_factor_xy = metadata['x_res']
-        resampling_factor_z = metadata['z_res']
-
-        print(f'\tResampling factor: {resampling_factor_xy:.3f} (XY), {resampling_factor_z:.3f} (Z)')
-
-        raw_img = zoom(raw_img, (
-            resampling_factor_xy, resampling_factor_xy, resampling_factor_z
-        ), order=0)
-
-        seg_img = zoom(seg_img, (
-            resampling_factor_xy, resampling_factor_xy, resampling_factor_z
-        ), order=0)
 
     # seg_img = filter_by_volume(seg_img, verbose=verbose)
 
@@ -202,7 +188,8 @@ if __name__ == '__main__':
 
                     features.to_csv(out_path, index=False)
                 except Exception as e:
-                    print(f'{c.FAIL}Error{c.ENDC}: {e}')
+                    # print(f'{c.FAIL}Error{c.ENDC}: {e}')
+                    continue
 
     except getopt.GetoptError:
         print_usage()

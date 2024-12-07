@@ -22,8 +22,7 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.utils.timer import LoadingBar
-
-from filtering import cardiac_region as cr
+from auxiliary.data import imaging as cr
 
 
 def filter_by_volume(seg_img, percentile=98, verbose=0):
@@ -305,14 +304,17 @@ def extract(seg_img, raw_img, lines, raw_img_path, metadata, f_type='Nuclei', ve
 
         sitk_img, sitk_mask = resample_img(sitk_img, sitk_mask, raw_img_path)
 
-        result = {}
-        if f_type == 'Membrane' or f_type == 'Nuclei':
-            result.update(shape_features(sitk_img, sitk_mask))
-        if f_type == 'Nuclei':
-            result.update(first_order_features(sitk_img, sitk_mask))
+        try:
+            shape_feats = shape_features(sitk_img, sitk_mask)
 
-        result['cell_in_props'] = cell
-        results.append(result)  # :)
+            if f_type == 'Nuclei':
+                first_order_feats = first_order_features(sitk_img, sitk_mask)
+                shape_feats.update(first_order_feats)
+
+            shape_feats['cell_in_props'] = cell
+            results.append(shape_feats)
+        except Exception:
+            print(f'{c.WARNING}Error computing features for cell {cell}{c.ENDC}')
 
         if verbose:
             bar.update()
@@ -321,18 +323,6 @@ def extract(seg_img, raw_img, lines, raw_img_path, metadata, f_type='Nuclei', ve
 
     df_radiomics = pd.DataFrame(results)
     df = pd.merge(df, df_radiomics, on='cell_in_props', how='left')
-
-    # Map the centroids to the original image
-    xy_factor = 1 / metadata['x_res']
-    z_factor = 1 / metadata['z_res']
-    df['centroids_iso'] = df['centroids'].copy()
-    df['centroids'] = df['centroids'].apply(
-        lambda x: (
-            x[0] * xy_factor,
-            x[1] * xy_factor,
-            x[2] * z_factor
-        )
-    )
 
     return df
 
