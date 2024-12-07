@@ -142,14 +142,19 @@ def marching_cubes(img, metadata):
 
 def run(img_path, path_out, img_path_raw, lines_path, tissue, level, verbose=0):
     img = imaging.read_image(img_path, axes='XYZ', verbose=1)
-    lines = imaging.read_image(lines_path, axes='XYZ', verbose=1)
+
+    if img_path_raw is None:
+        img_path_raw = img_path
+
     metadata, _ = imaging.load_metadata(img_path_raw)
 
-    img = filter_by_tissue(
-        img, lines, tissue,
-        dilate=2 if level == 'Membrane' else 3, dilate_size=3,
-        verbose=1
-    )
+    if lines_path is not None and tissue is not None:
+        lines = imaging.read_image(lines_path, axes='XYZ', verbose=1)
+        img = filter_by_tissue(
+            img, lines, tissue,
+            dilate=2 if level == 'Membrane' else 3, dilate_size=3,
+            verbose=1
+        )
 
     mesh_data = marching_cubes(img, metadata)
 

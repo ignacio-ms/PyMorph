@@ -93,12 +93,12 @@ if __name__ == '__main__':
     ds = HtDataset()
 
     # If segmentation_path and raw_path are provided, process them directly
-    if segmentation_path is not None and raw_path is not None:
+    if segmentation_path is not None:
         if path_out is None:
             print(f"{c.FAIL}Output path is required when using segmentation and raw paths directly.{c.ENDC}")
             sys.exit(2)
         print(f"{c.OKBLUE}Processing provided segmentation and raw paths{c.ENDC}")
-        lines_path = None  # Adjust as needed if lines_path is relevant
+        lines_path = None
         run(segmentation_path, path_out, raw_path, lines_path, tissue, level, verbose=verbose)
         sys.exit(0)
 

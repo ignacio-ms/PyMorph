@@ -115,7 +115,7 @@ class MeshFeatureExtractor:
         else:
             raise ValueError(f'Invalid method: {method}')
 
-        return activation(sphericity)
+        return sphericity
 
     def cell_columnarity(self, sphericity, perpendicularity):
         return (1 - sphericity) * perpendicularity

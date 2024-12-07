@@ -274,6 +274,7 @@ class FeatureMap:
         )
         atlas_colors = cmap(norm(atlas_values))
 
+        # Save auxiliary files for quality assessment
         for s, face_val in zip(self.specimens, face_values):
             norm = BoundaryNorm(
                 boundaries=np.linspace(
@@ -284,10 +285,14 @@ class FeatureMap:
 
             # Check if .csv file exists
             aux_path = out_path.split('/')
-            aux_path[-1] = f'{s}/{self.tissue}_{self.feature}.csv'
+            aux_path[-1] = f'{s}/{self.level}_{self.feature}.csv'
+            del aux_path[-2]
             aux_path = '/'.join(aux_path)
 
-            if not os.path.exists(aux_path):
+            if not os.path.isfile(aux_path):
+                if not os.path.exists('/'.join(aux_path.split('/')[:-1])):
+                    os.makedirs('/'.join(aux_path.split('/')[:-1]))
+
                 aux_df = pd.DataFrame({
                     'tissue_face_id': np.arange(len(face_val)),
                     'value': face_val
@@ -296,9 +301,6 @@ class FeatureMap:
 
             self.atlas.visual.vertex_colors = cmap(norm(face_val))
             self.atlas.export(out_path.replace('.ply', f'_{s}.ply'))
-
-            aux_df = pd.DataFrame(face_val, columns=[self.feature])
-            aux_df.to_csv(out_path.replace('.ply', f'_{s}.csv'), index=False)
 
         bar.update()
         bar.end()

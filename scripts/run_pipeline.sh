@@ -1,41 +1,35 @@
 #!/bin/bash
 
 source /home/imarcoss/mambaforge/etc/profile.d/conda.sh
-
-#conda activate plant-seg
-#python membrane_segmentation/run_plantseg.py -v 1
-#conda deactivate
-
-#conda activate cellpose
-#python nuclei_segmentation/run_cellpose.py -m 'nuclei' -v 1
-#conda deactivate
-
 conda activate py310ml
-#python feature_extraction/run_extractor.py -l 'myocardium' -t 'Nuclei' -v 1
-#python feature_extraction/run_extractor.py -l 'splanchnic' -t 'Nuclei' -v 1
 
-#python cell_division/run_cell_division.py -t 'myocardium' -v 1
-#python cell_division/run_cell_division.py -t 'splanchnic' -v 1
+specimens=(
+    "0208_E2"
+    "0209_E1"
+    "0516_E3"
+    "0806_E3" "0806_E4" "0806_E6"
+    "0518_E3"
+    "0308_E2" "0401_E1" "0401_E2" "0517_E2" "0806_E1" "0806_E2"
+    "0308_E4" "0516_E5" "0517_E4"
+    "0402_E1" "0402_E2" "0516_E4" "0517_E1" "0518_E2"
+    "0404_E1" "0518_E1"
+    "0520_E4"
+)
 
-#python feature_extraction/run_extractor.py -l 'myocardium' -t 'Membrane' -v 1
-#python feature_extraction/run_extractor.py -l 'splanchnic' -t 'Membrane' -v 1
+for specimen in "${specimens[@]}"
+do
+  python feature_extraction/run_extractor.py -s $specimen -l 'myocardium' -t 'Membrane' -v 1
+  python feature_extraction/run_extractor.py -s $specimen -l 'myocardium' -t 'Nuclei' -v 1
 
-#python meshes/run_mesh.py -t 'myocardium' -l 'Nuclei' -v 1 -a 1
-#python meshes/run_mesh.py -t 'splanchnic' -l 'Nuclei' -v 1 -a 1
-#
-#python meshes/run_mesh.py -t 'myocardium' -l 'Membrane' -v 1 -a 1
-#python meshes/run_mesh.py -t 'splanchnic' -l 'Membrane' -v 1 -a 1
+  python meshes/run_mesh_reconstruction.py -s $specimen  -t 'myocardium' -l 'Membrane' -v 1
+  python meshes/run_mesh_reconstruction.py -s $specimen  -t 'myocardium' -l 'Nuclei' -v 1
 
-python filtering/run_filter_tissue.py -t 'myocardium' -l 'Membrane' -v 1
-python filtering/run_filter_tissue.py -t 'splanchnic' -l 'Membrane' -v 1
+  python meshes/run_extractor_complex.py -s $specimen  -l 'Membrane' -t 'myocardium' -v 1 -m 1
+  python meshes/run_extractor_complex.py -s $specimen  -l 'Nuclei' -t 'myocardium' -v 1 -m 1
 
-# NOT RUN
-#python filtering/run_filter_tissue.py -t 'myocardium' -l 'Nuclei' -v 1
-#python filtering/run_filter_tissue.py -t 'splanchnic' -l 'Nuclei' -v 1
+  # To implement
+#  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
+#  python filtering/run_filter_tissue.py -s $specimen -t 'splanchnic' -l 'Membrane' -v 1
 
-python meshes/run_extractor_complex.py -l 'Membrane' -t 'myocardium' -v 1 -m 1
-python meshes/run_extractor_complex.py -l 'Membrane' -t 'splanchnic' -v 1 -m 1
-
-# NOT RUN
-#python meshes/run_extractor_complex.py -l 'Nuclei' -t 'myocardium' -v 1 -m 1
-#python meshes/run_extractor_complex.py -l 'Nuclei' -t 'splanchnic' -v 1 -m 1
+  #python cell_division/run_cell_division.py -s $specimen -t 'myocardium' -v 1
+done

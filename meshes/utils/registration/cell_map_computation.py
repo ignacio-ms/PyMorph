@@ -75,10 +75,13 @@ class CellTissueMap:
         cell_centroids = {}
 
         for cell_id in self.cell_ids:
-            cell_centroids[cell_id], _ = get_centroid(
-                self.cell_mesh, cell_id,
-                self.face_cell_ids, self.vertex_cell_ids
-            )
+            try:
+                cell_centroids[cell_id], _ = get_centroid(
+                    self.cell_mesh, cell_id,
+                    self.face_cell_ids, self.vertex_cell_ids
+                )
+            except Exception as e:
+                print(f'{c.WARNING}Error in cell{c.ENDC}: {cell_id} - {e}')
         self.cell_centroids = cell_centroids
 
     def map_cells(self, type='Membrane'):
@@ -199,10 +202,10 @@ class CellTissueMap:
         self.tissue_mesh.export(
             f'{"/".join(self.tissue_path.split("/")[:-1])}/map/{self.specimen}/{type}_{feature_name}.ply'
         )
-        self.tissue_mesh.export(
-            f'{"/".join(self.tissue_path.split("/")[:-1])}/map/{self.specimen}/{type}_{feature_name}.obj',
-            file_type='obj'
-        )
+        # self.tissue_mesh.export(
+        #     f'{"/".join(self.tissue_path.split("/")[:-1])}/map/{self.specimen}/{type}_{feature_name}.obj',
+        #     file_type='obj'
+        # )
 
         face_values = pd.DataFrame({
             'tissue_face_id': np.arange(len(face_values)),

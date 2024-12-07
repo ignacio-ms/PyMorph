@@ -37,7 +37,7 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     if verbose:
         print(f'{c.OKBLUE}Filtering by volume...{c.ENDC}')
 
-    props = ps.metrics.regionprops_3D(morphology.label(seg_img))
+    props = ps.metrics.regionprops_3D(seg_img)
     centroids = [[round(i) for i in p.centroid] for p in props]
     centroids_labels = [seg_img[ce[0], ce[1], ce[2]] for ce in centroids]
 
@@ -54,7 +54,7 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
 
         new_rows.append({
             "volumes": p.volume,
-            "original_labels": centroids_labels[i],
+            "cell_id": centroids_labels[i],
         })
 
     df = pd.DataFrame(new_rows)
@@ -62,8 +62,8 @@ def filter_by_volume(seg_img, percentile=98, verbose=0):
     lower_bound = np.percentile(df.volumes, 100 - percentile)
     upper_bound = np.percentile(df.volumes, percentile)
 
-    remove += df[df.volumes > upper_bound].original_labels.tolist()
-    remove += df[df.volumes < lower_bound].original_labels.tolist()
+    remove += df[df.volumes > upper_bound].cell_id.tolist()
+    remove += df[df.volumes < lower_bound].cell_id.tolist()
 
     remove = set(map(int, remove))
 
@@ -177,7 +177,7 @@ def standard_features(lines, props, centroids, centroids_labels, type, verbose=0
                 "cell_in_props": i,
                 "volumes": p.volume,
                 "sphericities": p.sphericity,
-                "original_labels": centroids_labels[i],
+                "cell_id": centroids_labels[i],
                 "centroids": centroids[i],
                 "lines": most_commons[i],
                 "axis_major_length": p.axis_major_length,
@@ -189,7 +189,7 @@ def standard_features(lines, props, centroids, centroids_labels, type, verbose=0
                 "cell_in_props": i,
                 "volumes": p.volume,
                 "sphericities": p.sphericity,
-                "original_labels": centroids_labels[i],
+                "cell_id": centroids_labels[i],
                 "centroids": centroids[i],
             })
 
@@ -258,7 +258,7 @@ def first_order_features(img, mask):
     return result
 
 
-def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
+def extract(seg_img, raw_img, lines, raw_img_path, metadata, f_type='Nuclei', verbose=0):
     """
     Extract features from the segmented image.
     :param seg_img: Segmented image.
@@ -275,7 +275,7 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
     if verbose:
         print(f'{c.OKBLUE}Extracting features...{c.ENDC}')
 
-    props = ps.metrics.regionprops_3D(morphology.label(seg_img))
+    props = ps.metrics.regionprops_3D(seg_img) # morphology.label(seg_img)
     centroids = [[round(i) for i in p.centroid] for p in props]
     centroids_labels = [seg_img[ce[0], ce[1], ce[2]] for ce in centroids]
 
@@ -321,6 +321,19 @@ def extract(seg_img, raw_img, lines, raw_img_path, f_type='Nuclei', verbose=0):
 
     df_radiomics = pd.DataFrame(results)
     df = pd.merge(df, df_radiomics, on='cell_in_props', how='left')
+
+    # Map the centroids to the original image
+    xy_factor = 1 / metadata['x_res']
+    z_factor = 1 / metadata['z_res']
+    df['centroids_iso'] = df['centroids'].copy()
+    df['centroids'] = df['centroids'].apply(
+        lambda x: (
+            x[0] * xy_factor,
+            x[1] * xy_factor,
+            x[2] * z_factor
+        )
+    )
+
     return df
 
 

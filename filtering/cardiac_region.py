@@ -5,6 +5,8 @@ import sys
 import cv2
 import numpy as np
 
+from skimage.morphology import erosion, dilation, ball
+
 # Custom packages
 try:
     current_dir = os.path.dirname(__file__)
@@ -195,10 +197,19 @@ def filter_by_tissue(img, lines, tissue_name='myocardium', dilate=0, dilate_size
 
             ds = dilate_size if dilate_size % 2 else dilate_size + 1
             kernel = np.ones((ds, ds), np.uint8)
+
             if lines.ndim == 2:
+                # Opening
+                lines = cv2.erode(lines, kernel, iterations=1)
+                lines = cv2.dilate(lines, kernel, iterations=1)
+
                 lines = cv2.dilate(lines, kernel, iterations=dilate)
             else:
                 for z in range(lines.shape[-1]):
+                    # Opening
+                    lines[..., z] = cv2.erode(lines[..., z], kernel, iterations=1)
+                    lines[..., z] = cv2.dilate(lines[..., z], kernel, iterations=1)
+
                     lines[..., z] = cv2.dilate(lines[..., z], kernel, iterations=dilate)
 
         bar = LoadingBar(lines.shape[-1])

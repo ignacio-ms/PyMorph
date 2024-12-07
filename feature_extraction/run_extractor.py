@@ -8,6 +8,7 @@ import getopt
 import cv2
 import numpy as np
 from scipy.ndimage import zoom
+from csbdeep.utils import normalize as csb_normalize
 
 # Custom packages
 try:
@@ -29,7 +30,7 @@ from feature_extraction.feature_extractor import extract, filter_by_volume
 
 
 @timed
-def run(ds, s, type, tissue=None, norm=0, verbose=0):
+def run(ds, s, type, tissue=None, norm=True, verbose=0):
     """
     Run feature extraction.
     :param ds: HtDataset object.
@@ -44,22 +45,35 @@ def run(ds, s, type, tissue=None, norm=0, verbose=0):
 
     lines = imaging.read_image(path_lines, verbose=verbose)
     raw_img = imaging.read_image(path_raw, verbose=verbose)
-
-    if norm:
-        raw_img = np.swapaxes(np.swapaxes([
-            cv2.normalize(raw_img[..., z], None, 0, 255, cv2.NORM_MINMAX)
-            for z in range(raw_img.shape[2])
-        ], 0, 1), 1, 2).astype(np.uint8)
-
-    seg_img = imaging.read_image(path_seg, verbose=verbose)
+    metadata, _ = imaging.load_metadata(path_raw)
+    seg_img = imaging.read_image(path_seg, verbose=verbose).astype(np.uint32)
 
     if tissue:
-        seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 1, verbose=verbose)
+        seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 2, verbose=verbose)
 
-    seg_img = filter_by_volume(seg_img, verbose=verbose)
+    if norm:
+        print(f'{c.OKBLUE}Reconstructing image...{c.ENDC}')
+        raw_img = csb_normalize(raw_img, 1, 99.8, axis=(0, 1))
+
+        # Isotropic resampling all axes
+        resampling_factor_xy = metadata['x_res']
+        resampling_factor_z = metadata['z_res']
+
+        print(f'\tResampling factor: {resampling_factor_xy:.3f} (XY), {resampling_factor_z:.3f} (Z)')
+
+        raw_img = zoom(raw_img, (
+            resampling_factor_xy, resampling_factor_xy, resampling_factor_z
+        ), order=0)
+
+        seg_img = zoom(seg_img, (
+            resampling_factor_xy, resampling_factor_xy, resampling_factor_z
+        ), order=0)
+
+    # seg_img = filter_by_volume(seg_img, verbose=verbose)
 
     return extract(
         seg_img, raw_img, lines, path_raw,
+        metadata=metadata,
         f_type=type,
         verbose=verbose
     )
@@ -82,7 +96,7 @@ def print_usage():
 if __name__ == '__main__':
     argv = sys.argv[1:]
 
-    data_path, spec, group, type, tissue, norm, verbose = None, None, None, None, None, 0, 0
+    data_path, spec, group, type, tissue, norm, verbose = None, None, None, None, None, True, 0
 
     try:
         opts, args = getopt.getopt(argv, 'hd:s:g:t:l:n:v:', [
@@ -184,10 +198,8 @@ if __name__ == '__main__':
 
                 try:
                     out_path = todo_out_paths[todo_specimens.index(s)]
-                    features = run(ds, s, type, tissue=tissue, norm=norm, verbose=verbose)
+                    features = run(ds, s, type, tissue=tissue, norm=True, verbose=verbose)
 
-                    if norm:
-                        out_path = re.sub(r'cell_properties', f'cell_properties_norm', out_path)
                     features.to_csv(out_path, index=False)
                 except Exception as e:
                     print(f'{c.FAIL}Error{c.ENDC}: {e}')

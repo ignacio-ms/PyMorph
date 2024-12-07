@@ -86,7 +86,7 @@ def load_metadata(path):
                 y_res = 1.0 / resolution[1].value[0] if resolution[1].value[0] != 0 else None
                 z_res = 1.0
             else:
-                x_res, y_res, z_res = None, None, None
+                x_res, y_res, z_res = 1.0, 1.0, 1.0
 
         return {
             'x_size': x_size,

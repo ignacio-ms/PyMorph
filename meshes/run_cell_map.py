@@ -38,14 +38,15 @@ if __name__ == '__main__':
     spec = None
     group = None
     tissue = 'myocardium'
+    level = 'Membrane'
     verbose = 1
 
     try:
-        opts, args = getopt.getopt(argv, 'hp:s:g:t:v:', [
-            'help', 'path=', 'spec=', 'group=', 'tissue=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hp:s:g:t:l:v:', [
+            'help', 'path=', 'spec=', 'group=', 'tissue=', 'level=', 'verbose='
         ])
 
-        if len(opts) > 5:
+        if len(opts) > 6:
             print_usage()
 
         for opt, arg in opts:
@@ -59,6 +60,8 @@ if __name__ == '__main__':
                 group = arg_check(opt, arg, '-g', '--group', str, print_usage)
             elif opt in ('-t', '--tissue'):
                 tissue = arg_check(opt, arg, '-t', '--tissue', str, print_usage)
+            elif opt in ('-l', '--level'):
+                level = arg_check(opt, arg, '-l', '--level', str, print_usage)
             elif opt in ('-v', '--verbose'):
                 verbose = arg_check(opt, arg, '-v', '--verbose', int, print_usage)
             else:
@@ -82,36 +85,29 @@ if __name__ == '__main__':
             for group_name, group_specimens in dataset.specimens.items():
                 specimens.extend(group_specimens)
 
+        if level not in ['Membrane', 'Nuclei']:
+            print(f'{c.FAIL}Invalid level{c.ENDC}: {level} (Membrane | Nuclei)')
+            sys.exit(2)
+
         bar = LoadingBar(len(specimens))
         for s in specimens:
             gr = find_group(s)
-            print(f'{c.OKGREEN}Specimen{c.ENDC}: {s} ({gr})')
+            print(f'{c.OKGREEN}Specimen{c.ENDC}: {s} ({gr}) - {tissue} - {level}')
             try:
                 cell_map = CellTissueMap(s, tissue=tissue, verbose=verbose)
 
-                print(f'{c.OKBLUE}Type{c.ENDC}: Membrane')
-                cell_map.map_cells(type='Membrane')
-                cell_map.get_neighborhood(radius=50)
+                cell_map.map_cells(type=level)
+                cell_map.get_neighborhood(radius=50 if level == 'Membrane' else 40)
 
-                for feature in cell_map.cell_features.columns:
-                    if feature in ['cell_in_props', 'centroids', 'lines']:
-                        continue
-                    print(f'{c.OKBLUE}\tFeature{c.ENDC}: {feature}')
-                    try:
-                        _ = cell_map.color_mesh(feature, type='Membrane')
-                    except Exception as e:
-                        print(f'{c.FAIL}Error{c.ENDC}: {feature}')
-                        print(e)
-
-                print(f'{c.OKBLUE}Type{c.ENDC}: Nuclei')
-                cell_map.map_cells(type='Nuclei')
-                cell_map.get_neighborhood(radius=50)
-
-                for feature in cell_map.cell_features.columns:
-                    if feature in ['cell_in_props', 'centroids', 'lines']:
-                        continue
-                    print(f'{c.OKBLUE}\tFeature{c.ENDC}: {feature}')
-                    _ = cell_map.color_mesh(feature, type='Nuclei')
+                # for feature in cell_map.cell_features.columns:
+                #     if feature in ['cell_in_props', 'centroids', 'lines']:
+                #         continue
+                #     print(f'{c.OKBLUE}\tFeature{c.ENDC}: {feature}')
+                #     try:
+                #         _ = cell_map.color_mesh(feature, type='Membrane')
+                #     except Exception as e:
+                #         print(f'{c.FAIL}Error{c.ENDC}: {feature}')
+                #         print(e)
 
             except Exception as e:
                 print(f'{c.FAIL}Error{c.ENDC}: {e}')
