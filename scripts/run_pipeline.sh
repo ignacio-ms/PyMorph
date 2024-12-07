@@ -26,7 +26,7 @@ specimens=(
     "0308_E4" "0403_E2" "0404_E2" "0516_E5" "0517_E4"
     "0402_E2" "0516_E4" "0517_E1" "0518_E2"
     "0119_E1" "0404_E1" "0515_E2" "0516_E1" "0518_E1" "0520_E1" "0520_E5"
-    "0515_E1" 
+    "0515_E1"
 )
 
 
@@ -43,7 +43,7 @@ do
 
   # To implement
 #  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
-#  python filtering/run_filter_tissue.py -s $specimen -t 'splanchnic' -l 'Membrane' -v 1
+#  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Nuclei' -v 1
 
   #python cell_division/run_cell_division.py -s $specimen -t 'myocardium' -v 1
 done

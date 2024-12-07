@@ -10,6 +10,8 @@ from trimesh.collision import CollisionManager
 from collections import defaultdict
 from plyfile import PlyData, PlyElement
 
+from scipy.spatial import KDTree
+
 from auxiliary.utils.colors import bcolors as c
 
 
@@ -93,26 +95,45 @@ def create_individual_cell_meshes(merged_mesh, cell_faces_dict, verbose=0):
     return individual_cells
 
 
-def perform_intersection_checks(tissue_mesh, individual_cells):
-    """Identify intersecting and non-intersecting cells."""
+def calculate_centroid(mesh):
+    """Calculate the centroid of a mesh."""
+    return mesh.vertices.mean(axis=0)
+
+
+def perform_intersection_checks_with_distance(tissue_mesh, individual_cells, distance_threshold):
+    """Identify cells that intersect or are within a certain distance of the tissue mesh."""
     collision_manager = CollisionManager()
     collision_manager.add_object('tissue', tissue_mesh)
 
     intersecting_cell_ids = []
+    close_cell_ids = []
     non_intersecting_cell_ids = []
+
+    # Create a KDTree for the tissue mesh
+    tissue_tree = KDTree(tissue_mesh.vertices)
 
     for cell_id, cell_mesh in individual_cells:
         try:
+            # Check for collision
             is_collision = collision_manager.in_collision_single(cell_mesh)
             if is_collision:
                 intersecting_cell_ids.append(cell_id)
+                continue
+
+            # Check for centroid distance
+            cell_centroid = calculate_centroid(cell_mesh)
+            distance, _ = tissue_tree.query(cell_centroid)
+            if distance <= distance_threshold:
+                close_cell_ids.append(cell_id)
             else:
                 non_intersecting_cell_ids.append(cell_id)
         except Exception as e:
-            print(f"Error during collision check for Cell ID {cell_id}: {e}")
+            print(f"Error during collision or distance check for Cell ID {cell_id}: {e}")
             non_intersecting_cell_ids.append(cell_id)
 
-    return intersecting_cell_ids, non_intersecting_cell_ids
+    # Combine intersecting and close cells
+    valid_cell_ids = set(intersecting_cell_ids + close_cell_ids)
+    return valid_cell_ids, non_intersecting_cell_ids
 
 
 def update_csv(csv_path, non_intersecting_cell_ids, verbose=0):
@@ -129,10 +150,10 @@ def update_csv(csv_path, non_intersecting_cell_ids, verbose=0):
     df_filtered = df[~df['cell_id'].isin(non_intersecting_cell_ids)]
     final_count = len(df_filtered)
 
-    df_filtered.to_csv(csv_path, index=False)
+    df_filtered.to_csv(csv_path.replace('.csv', '_filtered.csv'), index=False)
     if verbose:
         print(f"Removed {initial_count - final_count} cells from the CSV.")
-        print(f"Filtered CSV saved to {csv_path}")
+        print(f"Filtered CSV saved to {csv_path.replace('.csv', '_filtered.csv')}")
 
 
 def merge_individual_cells(individual_cells, intersecting_cell_ids):
@@ -258,31 +279,51 @@ def merge_and_save_mesh(individual_cells, intersecting_cell_ids, path_out):
             vertex_data, face_data = create_structured_arrays(merged_mesh_data)
 
     ply_elements = create_ply_elements(vertex_data, face_data)
-    save_ply(path_out, ply_elements, binary=False)
+    # save_ply(path_out, ply_elements, binary=False)
 
     return merged_mesh
 
 
-def visualize_results(tissue_mesh, merged_intersecting_mesh):
-    """Visualize the tissue mesh and merged intersecting cell meshes."""
-    if merged_intersecting_mesh:
-        # Assign distinct colors
-        tissue_mesh.visual.face_colors = [0, 255, 0, 100]  # Semi-transparent green
-        merged_intersecting_mesh.visual.face_colors = [255, 0, 0, 100]  # Semi-transparent red
+def visualize_results(tissue_mesh, individual_cells, valid_cell_ids, distance_threshold):
+    """
+    Visualize the tissue mesh, intersecting cells, and cells within the distance threshold.
+    Parameters:
+        tissue_mesh: The tissue mesh geometry.
+        individual_cells: List of individual cell meshes with their IDs.
+        valid_cell_ids: Set of cell IDs that are either intersecting or within the distance threshold.
+        distance_threshold: The distance threshold for selecting nearby cells.
+    """
+    scene = trimesh.Scene()
 
-        # Create a Trimesh scene
-        scene = trimesh.Scene()
-        scene.add_geometry(tissue_mesh, node_name='Tissue')
-        scene.add_geometry(merged_intersecting_mesh, node_name='Intersecting_Cells')
+    # Add the tissue mesh with a distinct color
+    tissue_mesh.visual.face_colors = [0, 255, 0, 100]  # Semi-transparent green
+    scene.add_geometry(tissue_mesh, node_name='Tissue')
 
-        # Display the scene
-        scene.show()
-    else:
-        print("No intersecting cells to visualize.")
+    for cell_id, cell_mesh in individual_cells:
+        # Calculate the centroid distance for visualization
+        cell_centroid = calculate_centroid(cell_mesh)
+
+        # Reshape the centroid to (1, 3) for `on_surface`
+        cell_centroid_reshaped = cell_centroid.reshape(1, 3)
+        centroid_distance = tissue_mesh.nearest.on_surface(cell_centroid_reshaped)[1][0]  # Extract scalar distance
+
+        if cell_id in valid_cell_ids:
+            # Intersecting or within distance threshold
+            if centroid_distance <= distance_threshold:
+                cell_mesh.visual.face_colors = [0, 0, 255, 150]  # Semi-transparent blue for near cells
+            else:
+                cell_mesh.visual.face_colors = [255, 0, 0, 150]  # Semi-transparent red for intersecting cells
+            scene.add_geometry(cell_mesh, node_name=f'Cell_{cell_id}_valid')
+        else:
+            # Non-intersecting and outside the threshold
+            cell_mesh.visual.face_colors = [200, 200, 200, 50]  # Grey and less opaque
+            scene.add_geometry(cell_mesh, node_name=f'Cell_{cell_id}_invalid')
+
+    print("Displaying the visualization of tissue and cells with distance threshold...")
+    scene.show()
 
 
-def run(mesh_path, tissue_path, features_path, verbose=0):
-    features = load_csv(features_path)
+def run(mesh_path, tissue_path, features_path, distance_threshold=50.0, verbose=0):
     tissue_mesh = load_mesh(tissue_path)
     merged_mesh = load_mesh(mesh_path)
 
@@ -294,12 +335,14 @@ def run(mesh_path, tissue_path, features_path, verbose=0):
         print(f"Found {c.BOLD}{len(individual_cells)}{c.ENDC} individual cell meshes.")
         print(f"{c.OKBLUE}Performing intersection checks{c.ENDC}...")
 
-    intersecting_cell_ids, non_intersecting_cell_ids = perform_intersection_checks(tissue_mesh, individual_cells)
+    intersecting_cell_ids, non_intersecting_cell_ids = perform_intersection_checks_with_distance(
+        tissue_mesh, individual_cells, distance_threshold=distance_threshold
+    )
 
     if verbose:
         print(f"{c.OKBLUE}Updating CSV{c.ENDC}...")
 
-    update_csv(features_path, non_intersecting_cell_ids, verbose)
+    # update_csv(features_path, non_intersecting_cell_ids, verbose)
 
     if verbose:
         print(f"{c.OKBLUE}Merging intersecting cells{c.ENDC}...")
@@ -317,5 +360,5 @@ def run(mesh_path, tissue_path, features_path, verbose=0):
         print(f'\tIntersecting Cells: {intersecting_cells} ({percentage:.2f}%)')
         print(f'\tNon-intersecting Cells: {non_intersecting_cells}')
 
-
+    return tissue_mesh, individual_cells, intersecting_cell_ids
 
