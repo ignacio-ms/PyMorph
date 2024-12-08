@@ -321,7 +321,7 @@ class HtDataset:
 
         return todo_specimens
 
-    def get_features(self, spec, type='Membrane', tissue='myocardium', verbose=0, only_path=False, norm=False):
+    def get_features(self, spec, type='Membrane', tissue='myocardium', verbose=0, only_path=False, filtered=False):
         """
         Get features for a specific specimen.
         :param spec: Specimen to get features.
@@ -332,6 +332,8 @@ class HtDataset:
         for group in self.specimens.keys():
             try:
                 f_raw_dir = os.path.join(self.data_path, group, 'Features')
+                if filtered:
+                    f_raw_dir = os.path.join(self.data_path, group, 'Features', 'Filtered')
                 walk = os.walk(f_raw_dir).__next__()
             except StopIteration:
                 if verbose:
@@ -340,7 +342,7 @@ class HtDataset:
 
             for file in walk[2]:
                 if re.search(spec, file) and re.search(type, file) and re.search(tissue, file):
-                    if norm and re.search('norm', file):
+                    if filtered and re.search('filtered', file):
                         if verbose:
                             print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
 

@@ -8,6 +8,7 @@ from scipy.ndimage import zoom
 from skimage import morphology
 
 from joblib import Parallel, delayed
+import multiprocessing
 
 from plyfile import PlyData, PlyElement  # Importing plyfile for PLY export
 
@@ -60,6 +61,15 @@ def process_cell(cell_data, metadata):
     )
     mesh = mesh.simplify_quadratic_decimation(250)
 
+    # Fixes (Watertigh, normals, etc.)
+    trimesh.repair.fix_inversion(mesh)
+    trimesh.repair.fix_winding(mesh)
+    trimesh.repair.fix_normals(mesh)
+    trimesh.repair.fill_holes(mesh)
+
+    if not mesh.is_watertight:
+        return None
+
     # Access vertex normals (computes them if not already computed)
     normals = mesh.vertex_normals
 
@@ -78,7 +88,8 @@ def process_cell(cell_data, metadata):
 
 def marching_cubes(img, metadata):
     props = ps.metrics.regionprops_3D(morphology.label(img))
-    num_jobs = -1  # Use all available CPUs
+    # Use all available CPUs minus two
+    num_jobs = max(1, multiprocessing.cpu_count() - 2)
 
     centroids = [[round(i) for i in p.centroid] for p in props]
     centroids_labels = [img[ce[0], ce[1], ce[2]] for ce in centroids]

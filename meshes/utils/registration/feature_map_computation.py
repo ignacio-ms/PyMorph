@@ -64,7 +64,7 @@ class FeatureMap:
 
         ds = HtDataset()
         self.features = [
-            ds.get_features(specimen, level, tissue)
+            ds.get_features(specimen, level, tissue, filtered=True)
             for specimen in specimens
         ]
 

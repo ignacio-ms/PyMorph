@@ -189,7 +189,7 @@ if __name__ == '__main__':
 
         try:
             nuclei_ds = NucleiDataset(spec, tissue=tissue, verbose=verbose)
-            features_path = ds.get_features(spec, 'Nuclei', tissue, only_path=True)
+            features_path = ds.get_features(spec, 'Nuclei', tissue, only_path=True, filtered=True)
             features = pd.read_csv(features_path)
 
             if 'cell_id' not in features.columns:

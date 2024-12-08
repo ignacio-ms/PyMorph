@@ -90,6 +90,7 @@ if __name__ == '__main__':
             sys.exit(2)
 
         feature_maps = []
+        specimens = [s for s in specimens if s in v.specimens_to_analyze]
         for s in specimens:
             gr = find_group(s)
             print(f'{c.OKGREEN}Specimen{c.ENDC}: {s} ({gr})')
@@ -136,7 +137,6 @@ if __name__ == '__main__':
             os.makedirs('/'.join(out_path.split('/')[:-1]), exist_ok=True)
 
         feature_map.color_atlas(out_path)
-        # feature_map.avergage_feature_maps(out_path)
 
     except getopt.GetoptError:
         print_usage()

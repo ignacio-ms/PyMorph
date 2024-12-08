@@ -26,9 +26,9 @@ def load_csv(csv_path):
 def load_mesh(mesh_path):
     """Load a mesh from a file and repair if not watertight."""
     mesh = trimesh.load(mesh_path)
-    if not mesh.is_watertight:
-        print(f"Mesh at {mesh_path} is not watertight. Attempting to repair.")
-        mesh = mesh.fill_holes()
+    # if not mesh.is_watertight:
+    #     print(f"Mesh at {mesh_path} is not watertight. Attempting to repair.")
+    #     mesh = mesh.fill_holes()
     return mesh
 
 
@@ -79,7 +79,7 @@ def create_individual_cell_meshes(merged_mesh, cell_faces_dict, verbose=0):
         # Check for non-manifold edges or degenerate faces
         if not cell_mesh.is_watertight:
             print(f"Warning: Cell ID {cell_id} mesh is not watertight. Attempting to repair.")
-            cell_mesh = cell_mesh.fill_holes()
+            cell_mesh.fill_holes()
             if cell_mesh.is_empty or not cell_mesh.is_watertight:
                 print(f"Error: Failed to repair Cell ID {cell_id}. Skipping.")
                 issues = True
@@ -150,10 +150,19 @@ def update_csv(csv_path, non_intersecting_cell_ids, verbose=0):
     df_filtered = df[~df['cell_id'].isin(non_intersecting_cell_ids)]
     final_count = len(df_filtered)
 
-    df_filtered.to_csv(csv_path.replace('.csv', '_filtered.csv'), index=False)
+    aux_path = csv_path.split('/')
+    aux_path[-1] = 'Filtered/' + aux_path[-1].replace('.csv', '_filtered.csv')
+    csv_path_filtered = '/'.join(aux_path)
+
+    to_check = '/'.join(csv_path_filtered.split('/')[:-1])
+    if not os.path.exists(to_check):
+        os.makedirs(to_check)
+        print(f"Created directory {to_check}")
+
+    df_filtered.to_csv(csv_path_filtered, index=False)
     if verbose:
         print(f"Removed {initial_count - final_count} cells from the CSV.")
-        print(f"Filtered CSV saved to {csv_path.replace('.csv', '_filtered.csv')}")
+        print(f"Filtered CSV saved to {csv_path_filtered}")
 
 
 def merge_individual_cells(individual_cells, intersecting_cell_ids):
@@ -279,7 +288,7 @@ def merge_and_save_mesh(individual_cells, intersecting_cell_ids, path_out):
             vertex_data, face_data = create_structured_arrays(merged_mesh_data)
 
     ply_elements = create_ply_elements(vertex_data, face_data)
-    # save_ply(path_out, ply_elements, binary=False)
+    save_ply(path_out, ply_elements, binary=False)
 
     return merged_mesh
 
@@ -323,7 +332,7 @@ def visualize_results(tissue_mesh, individual_cells, valid_cell_ids, distance_th
     scene.show()
 
 
-def run(mesh_path, tissue_path, features_path, distance_threshold=50.0, verbose=0):
+def run(mesh_path, tissue_path, features_path, distance_threshold=30.0, verbose=0):
     tissue_mesh = load_mesh(tissue_path)
     merged_mesh = load_mesh(mesh_path)
 
@@ -342,7 +351,7 @@ def run(mesh_path, tissue_path, features_path, distance_threshold=50.0, verbose=
     if verbose:
         print(f"{c.OKBLUE}Updating CSV{c.ENDC}...")
 
-    # update_csv(features_path, non_intersecting_cell_ids, verbose)
+    update_csv(features_path, non_intersecting_cell_ids, verbose)
 
     if verbose:
         print(f"{c.OKBLUE}Merging intersecting cells{c.ENDC}...")

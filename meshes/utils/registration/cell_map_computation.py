@@ -53,7 +53,7 @@ class CellTissueMap:
             cell_mesh_path = self.ds.get_mesh_cell(self.specimen, type, self.tissue, verbose=self.verbose, filtered=True)
             self.cell_mesh = trimesh.load(cell_mesh_path)
 
-            self.cell_features = self.ds.get_features(self.specimen, type, self.tissue, verbose=self.verbose)
+            self.cell_features = self.ds.get_features(self.specimen, type, self.tissue, verbose=self.verbose, filtered=True)
         except FileNotFoundError:
             print(f'{c.FAIL}Error - {self.specimen}:{c.ENDC} Cells or features not found')
 
