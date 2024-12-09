@@ -107,7 +107,7 @@ if __name__ == '__main__':
                     if cell_map.mapping is None:
                         print(f'{c.WARNING}Waring{c.ENDC}: Mapping not found - computing')
                         cell_map.map_cells(type=level)
-                        cell_map.get_neighborhood(radius=50)
+                        cell_map.get_neighborhood(radius=50 if level == 'Membrane' else 40, type=level)
                     else:
                         print(f'{c.OKGREEN}Mapping{c.ENDC}: Found - skipping')
                         # cell_map.init_vars(type=level)
@@ -136,7 +136,7 @@ if __name__ == '__main__':
         if not os.path.exists('/'.join(out_path.split('/')[:-1])):
             os.makedirs('/'.join(out_path.split('/')[:-1]), exist_ok=True)
 
-        feature_map.color_atlas(out_path)
+        feature_map.color_atlas(out_path, type=level)
 
     except getopt.GetoptError:
         print_usage()

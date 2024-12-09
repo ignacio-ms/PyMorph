@@ -116,11 +116,8 @@ class CellTissueMap:
         print(f'{c.OKGREEN}Cell map saved to:{c.ENDC} {self.mapping_path}')
         self.mapping = mapping
 
-    def get_neighborhood(self, radius=34.0):
+    def get_neighborhood(self, radius=34.0, type='Membrane'):
         assert self.mapping is not None, 'Cell map not found'
-        if self.mapping.columns.isin(['tissue_face_id', 'tissue_neighbors']).all():
-            print(f'{c.WARNING}Warning{c.ENDC}: Neighborhood already computed - skipping')
-            return
 
         face_neighbors = {}
 
@@ -135,7 +132,7 @@ class CellTissueMap:
         assert len(face_neighbors) == len(self.tissue_mesh.faces), 'Invalid neighborhood'
         new_cols = pd.DataFrame({
             'tissue_face_id': np.array(list(face_neighbors.keys()), dtype=int),
-            'tissue_neighbors': face_neighbors.values()
+            f'tissue_neighbors_{type}': face_neighbors.values()
         })
 
         # Ensure tissue_face_id has same type in both dataframes
@@ -155,7 +152,7 @@ class CellTissueMap:
 
         self.init_vars(type)
         assert self.mapping is not None, 'Cell map not found'
-        assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', 'tissue_neighbors']).all(), 'Invalid mapping file'
+        assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', f'tissue_neighbors_{type}']).all(), 'Invalid mapping file'
         assert feature_name in self.cell_features.columns, f'Feature not found: {feature_name}'
 
         feature_map = self.cell_features.set_index('cell_id')[feature_name].to_dict()
@@ -168,12 +165,12 @@ class CellTissueMap:
         # Neighbor averaging
         aux_face_values = face_values.copy()
         for i, row in self.mapping.iterrows():
-            if row['tissue_neighbors'] is not None:
+            if row[f'tissue_neighbors_{type}'] is not None:
                 try:
-                    neigh = np.array(row['tissue_neighbors'])
+                    neigh = np.array(row[f'tissue_neighbors_{type}'])
                     aux_face_values[i] = np.mean([face_values[int(n)] for n in neigh])
                 except Exception as e:
-                    neigh = row['tissue_neighbors'].replace('[', '').replace(']', '').split()
+                    neigh = row[f'tissue_neighbors_{type}'].replace('[', '').replace(']', '').split()
                     aux_face_values[i] = np.mean([face_values[int(n)] for n in neigh])
 
         face_values = aux_face_values

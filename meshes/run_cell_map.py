@@ -97,7 +97,7 @@ if __name__ == '__main__':
                 cell_map = CellTissueMap(s, tissue=tissue, verbose=verbose)
 
                 cell_map.map_cells(type=level)
-                cell_map.get_neighborhood(radius=50 if level == 'Membrane' else 40)
+                cell_map.get_neighborhood(radius=50 if level == 'Membrane' else 40, type=level)
 
                 # for feature in cell_map.cell_features.columns:
                 #     if feature in ['cell_in_props', 'centroids', 'lines']:

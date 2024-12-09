@@ -33,11 +33,11 @@ for gr in v.specimens.keys():
             for t in ['myocardium', 'splanchnic']:
                 try:
                     split_path = seg_path.split('/')
-                    out_path = '/'.join(split_path[:-1]) + f'/filtered/' + split_path[-1].replace('.nii.gz', f'_{t}.nii.gz')
-                    if not os.path.exists('/'.join(split_path[:-1]) + f'/filtered/'):
-                        os.makedirs('/'.join(split_path[:-1]) + f'/filtered/')
+                    out_path = '/'.join(split_path[:-1]) + f'/Filtered/' + split_path[-1].replace('.nii.gz', f'_{t}.nii.gz')
+                    if not os.path.exists('/'.join(split_path[:-1]) + f'/Filtered/'):
+                        os.makedirs('/'.join(split_path[:-1]) + f'/Filtered/')
 
-                    if os.path.exists(out_path):
+                    if os.path.isfile(out_path):
                         bar.update()
                         continue
 

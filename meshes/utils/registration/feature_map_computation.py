@@ -214,7 +214,7 @@ class FeatureMap:
 
         return atlas_values
 
-    def color_atlas(self, out_path, cmap=None):
+    def color_atlas(self, out_path, cmap=None, type='Membrane'):
         if isinstance(cmap, str):
             cmap = plt.get_cmap(cmap)
 
@@ -233,12 +233,12 @@ class FeatureMap:
 
                 aux_face_val = face_val_s.copy()
                 for i, row in cell_map.iterrows():
-                    if row['tissue_neighbors'] is not None:
+                    if row[f'tissue_neighbors_{type}'] is not None:
                         try:
-                            neigh = np.array(row['tissue_neighbors'])
+                            neigh = np.array(row[f'tissue_neighbors_{type}'])
                             aux_face_val[i] = np.mean([face_val_s[int(n)] for n in neigh])
                         except Exception as e:
-                            neigh = row['tissue_neighbors'].replace('[', '').replace(']', '').split()
+                            neigh = row[f'tissue_neighbors_{type}'].replace('[', '').replace(']', '').split()
                             aux_face_val[i] = np.mean([face_val_s[int(n)] for n in neigh])
 
                 face_values.append(
