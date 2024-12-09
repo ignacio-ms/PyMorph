@@ -128,7 +128,7 @@ def fit_plane(points):
 
 
 def approximate_ellipsoid(points, method='mvee', scaling_factor=2.0, tol=1e-5):
-    from cvxopt import matrix, solvers
+    # from cvxopt import matrix, solvers
 
     if method == 'mvee':
         N, d = points.shape

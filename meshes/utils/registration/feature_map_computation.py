@@ -214,7 +214,7 @@ class FeatureMap:
 
         return atlas_values
 
-    def color_atlas(self, out_path, cmap=None, type='Membrane'):
+    def color_atlas(self, out_path, cmap=None, type='Membrane', out_path_aux=None):
         if isinstance(cmap, str):
             cmap = plt.get_cmap(cmap)
 
@@ -307,6 +307,20 @@ class FeatureMap:
 
         self.atlas.visual.vertex_colors = atlas_colors
         self.atlas.export(out_path)
+
+        if out_path_aux is not None:
+            split_path = out_path_aux.split('/')
+
+            aux_folder_level = '/'.join(split_path[:-2])
+            if not os.path.exists(aux_folder_level):
+                os.makedirs(aux_folder_level)
+
+            aux_folder_feature = '/'.join(split_path[:-1])
+            if not os.path.exists(aux_folder_feature):
+                os.makedirs(aux_folder_feature)
+
+            self.atlas.export(out_path_aux)
+
         self.export_obj(out_path)
 
         atlas_values_df = pd.DataFrame({
