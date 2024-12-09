@@ -91,13 +91,14 @@ if __name__ == '__main__':
 
         feature_maps = []
         specimens = [s for s in specimens if s in v.specimens_to_analyze]
+
         for s in specimens:
             gr = find_group(s)
             print(f'{c.OKGREEN}Specimen{c.ENDC}: {s} ({gr})')
             try:
+                print(f'\t{c.OKBLUE}Type{c.ENDC}: {level}')
                 cell_map = CellTissueMap(s, tissue=tissue, verbose=verbose)
 
-                print(f'{c.OKBLUE}Type{c.ENDC}: {level}')
                 check_color_mesh = dataset.get_feature_map(
                     s, level, tissue, feature,
                     verbose=verbose
@@ -105,22 +106,22 @@ if __name__ == '__main__':
 
                 if check_color_mesh is None:
                     if cell_map.mapping is None:
-                        print(f'{c.WARNING}Waring{c.ENDC}: Mapping not found - computing')
+                        print(f'\t{c.WARNING}Waring{c.ENDC}: Mapping not found - computing')
                         cell_map.map_cells(type=level)
                         cell_map.get_neighborhood(radius=50 if level == 'Membrane' else 40, type=level)
                     else:
-                        print(f'{c.OKGREEN}Mapping{c.ENDC}: Found - skipping')
+                        print(f'\t{c.OKGREEN}Mapping{c.ENDC}: Found - skipping')
                         # cell_map.init_vars(type=level)
                     color_mesh = cell_map.color_mesh(feature, type=level)
 
                 else:
-                    print(f'{c.OKGREEN}Color mesh{c.ENDC}: Found - skipping')
+                    print(f'\t{c.OKGREEN}Color mesh{c.ENDC}: Found - skipping')
                     color_mesh = trimesh.load(check_color_mesh)
 
                 feature_maps.append(color_mesh)
 
             except Exception as e:
-                print(f'{c.FAIL}Error{c.ENDC}: {e}')
+                print(f'\t{c.FAIL}Error{c.ENDC}: {e}')
 
                 import traceback
                 traceback.print_exc()

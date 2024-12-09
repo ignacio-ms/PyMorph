@@ -162,7 +162,7 @@ def subdivide_mesh(mesh, target_face_count):
     current_face_count = len(mesh.faces)
 
     while current_face_count < target_face_count:
-        ms.apply_filter('meshing_surface_subdivision_loop', iterations=2)
+        ms.apply_filter('meshing_surface_subdivision_loop', iterations=1)
         current_face_count = ms.current_mesh().face_number()
 
     ms.save_current_mesh('subdivided_mesh.ply')

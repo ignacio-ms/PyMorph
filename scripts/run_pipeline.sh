@@ -4,17 +4,50 @@ source /home/imarcoss/mambaforge/etc/profile.d/conda.sh
 conda activate py310ml
 
 specimens=(
-    "0504_E1" "0521_E4" "0806_E5"
-    "0516_E2" "0503_E1" "0209_E1" "0520_E2" "0208_E3"
-    "0209_E2" "0503_E2" "0516_E3"
-    "0521_E1" "0523_E1" "0806_E3" "0806_E4" "0806_E6"
-    "0401_E3" "0518_E3" "0521_E3"
-    "0308_E2" "0401_E1" "0401_E2" "0502_E1" "0517_E2" "0806_E1" "0806_E2"
-    "0308_E4" "0403_E2" "0404_E2" "0516_E5" "0517_E4"
-    "0402_E2" "0516_E4" "0517_E1" "0518_E2"
-    "0119_E1" "0404_E1" "0515_E2" "0516_E1" "0518_E1" "0520_E1" "0520_E5"
-#    "0515_E1"
+"0806_E5"
+"0521_E1"
+"0119_E1"
+"0516_E2"
+"0401_E3"
+"0402_E2"
+"0209_E2"
+"0308_E2"
+"0308_E4"
+"0504_E1"
+"0523_E1"
+"0404_E1"
+"0503_E1"
+"0518_E3"
+"0516_E4"
+"0503_E2"
+"0401_E1"
+"0403_E2"
+"0521_E4"
+"0806_E3"
+"0515_E2"
+"0209_E1"
+"0521_E3"
+"0517_E1"
+"0516_E3"
+"0401_E2"
+"0404_E2"
+"0806_E4"
+"0516_E1"
+"0520_E2"
+"0518_E2"
+"0502_E1"
+"0516_E5"
+"0806_E6"
+"0518_E1"
+"0208_E3"
+"0517_E2"
+"0517_E4"
+"0520_E1"
+"0806_E1"
+"0520_E5"
+"0806_E2"
 )
+
 
 for specimen in "${specimens[@]}"
 do
@@ -30,8 +63,8 @@ do
 #  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
 #  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Nuclei' -v 1
 
-#  python cell_division/run_cell_division.py -s $specimen -t 'myocardium' -v 1
+  python cell_division/run_cell_division.py -s $specimen -t 'myocardium' -v 1
 
-  python meshes/run_cell_map.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
-  python meshes/run_cell_map.py -s $specimen -t 'myocardium' -l 'Nuclei' -v 1
+#  python meshes/run_cell_map.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
+#  python meshes/run_cell_map.py -s $specimen -t 'myocardium' -l 'Nuclei' -v 1
 done

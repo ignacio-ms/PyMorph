@@ -167,7 +167,7 @@ class HtDataset:
             for img in walk[2]:
                 if re.search(spec, img) and not img.endswith('.h5'):
                     if verbose:
-                        print(f'\t{c.OKGREEN}Found{c.ENDC}: {img}')
+                        print(f'\n\t{c.OKGREEN}Found{c.ENDC}: {img}')
 
                     path = os.path.join(f_raw_dir, img)
                     out_path = path.replace('RawImages', 'Segmentation')
@@ -352,7 +352,7 @@ class HtDataset:
                         return pd.read_csv(path)
                     else:
                         if verbose:
-                            print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                            print(f'\n\t{c.OKGREEN}Found{c.ENDC}: {file}')
 
                         path = os.path.join(f_raw_dir, file)
                         if only_path:

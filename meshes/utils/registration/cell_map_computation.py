@@ -152,7 +152,6 @@ class CellTissueMap:
 
         self.init_vars(type)
         assert self.mapping is not None, 'Cell map not found'
-        assert self.mapping.columns.isin(['tissue_face_id', f'cell_id_{type}', f'tissue_neighbors_{type}']).all(), 'Invalid mapping file'
         assert feature_name in self.cell_features.columns, f'Feature not found: {feature_name}'
 
         feature_map = self.cell_features.set_index('cell_id')[feature_name].to_dict()
