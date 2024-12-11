@@ -21,11 +21,12 @@ from auxiliary.utils.timer import LoadingBar
 
 from meshes.utils.registration.feature_map_computation import FeatureMap
 from meshes.utils.registration.cell_map_computation import CellTissueMap
+from meshes.utils.visualize_analysis import save_mesh_views, create_feature_grid
 
 
 def print_usage():
     print(
-        'usage: run_cell_map.py -p <path> -i <image> -s <specimen> -gr <group> -v <verbose>'
+        'usage: run_atlas.py -p <path> -i <image> -s <specimen> -gr <group> -v <verbose>'
         f'\n\n{c.BOLD}Arguments{c.ENDC}:'
         f'\n{c.BOLD}<path>{c.ENDC}: Path to data directory.'
         f'\n{c.BOLD}<specimen>{c.ENDC}: Specimen to run prediction on.'

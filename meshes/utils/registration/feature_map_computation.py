@@ -218,7 +218,7 @@ class FeatureMap:
         if isinstance(cmap, str):
             cmap = plt.get_cmap(cmap)
 
-        bar = LoadingBar(len(self.specimens) + 1)
+        bar = LoadingBar(len(self.specimens))
 
         face_values = []
         for feat, cell_map, vertex_map, feature_map in zip(
@@ -255,6 +255,17 @@ class FeatureMap:
 
         # Aggregate the face values across all feature maps
         atlas_values = np.mean(face_values, axis=0)
+        values_df = pd.DataFrame({
+            'tissue_face_id': np.arange(len(atlas_values)),
+            'value': atlas_values
+        })
+
+        # Check if .csv file exists
+        aux_path = out_path.replace('.ply', '.csv')
+        if not os.path.isfile(aux_path):
+            if not os.path.exists('/'.join(aux_path.split('/')[:-1])):
+                os.makedirs('/'.join(aux_path.split('/')[:-1]))
+            values_df.to_csv(aux_path, index=False)
 
         if cmap is None:
             colors = [
@@ -283,22 +294,6 @@ class FeatureMap:
                 ), ncolors=cmap.N
             )
 
-            # Check if .csv file exists
-            aux_path = out_path.split('/')
-            aux_path[-1] = f'{s}/{self.level}_{self.feature}.csv'
-            del aux_path[-2]
-            aux_path = '/'.join(aux_path)
-
-            if not os.path.isfile(aux_path):
-                if not os.path.exists('/'.join(aux_path.split('/')[:-1])):
-                    os.makedirs('/'.join(aux_path.split('/')[:-1]))
-
-                aux_df = pd.DataFrame({
-                    'tissue_face_id': np.arange(len(face_val)),
-                    'value': face_val
-                })
-                aux_df.to_csv(aux_path, index=False)
-
             self.atlas.visual.vertex_colors = cmap(norm(face_val))
             self.atlas.export(out_path.replace('.ply', f'_{s}.ply'))
 
@@ -320,6 +315,7 @@ class FeatureMap:
                 os.makedirs(aux_folder_feature)
 
             self.atlas.export(out_path_aux)
+            values_df.to_csv(out_path_aux.replace('.ply', '.csv'), index=False)
 
         self.export_obj(out_path)
 
