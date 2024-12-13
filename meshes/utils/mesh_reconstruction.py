@@ -48,7 +48,7 @@ def process_cell(cell_data, metadata):
     if len(vert) == 0 or len(trian) == 0:
         return None
 
-    vert -= vert.mean(axis=0)
+    # vert -= vert.mean(axis=0)
     vert += centroid
     vert *= np.array([metadata['x_res'], metadata['y_res'], metadata['z_res']])
 

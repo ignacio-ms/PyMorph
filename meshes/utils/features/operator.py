@@ -130,47 +130,50 @@ def fit_plane(points):
 def approximate_ellipsoid(points, method='mvee', scaling_factor=2.0, tol=1e-5):
     # from cvxopt import matrix, solvers
 
-    if method == 'mvee':
-        N, d = points.shape
-        Q = np.column_stack((points, np.ones(N))).T  # Shape: (d+1, N)
+    try:
+        if method == 'mvee':
+            N, d = points.shape
+            Q = np.column_stack((points, np.ones(N))).T  # Shape: (d+1, N)
 
-        err = tol + 1.0
-        u = np.ones(N) / N  # Initialize uniform weights
+            err = tol + 1.0
+            u = np.ones(N) / N  # Initialize uniform weights
 
-        while err > tol:
-            X = Q @ np.diag(u) @ Q.T  # Shape: (d+1, d+1)
-            M = np.diag(Q.T @ np.linalg.inv(X) @ Q)  # Shape: (N,)
-            j = np.argmax(M)
-            maximum = M[j]
-            step_size = (maximum - d - 1) / ((d + 1) * (maximum - 1))
-            new_u = (1 - step_size) * u
-            new_u[j] += step_size
-            err = step_size
-            u = new_u
+            while err > tol:
+                X = Q @ np.diag(u) @ Q.T  # Shape: (d+1, d+1)
+                M = np.diag(Q.T @ np.linalg.inv(X) @ Q)  # Shape: (N,)
+                j = np.argmax(M)
+                maximum = M[j]
+                step_size = (maximum - d - 1) / ((d + 1) * (maximum - 1))
+                new_u = (1 - step_size) * u
+                new_u[j] += step_size
+                err = step_size
+                u = new_u
 
-        center = u @ points  # Shape: (3,)
-        cov = (points - center).T @ ((points - center) * u[:, np.newaxis])  # Shape: (3,3)
-        U, s, rotation = np.linalg.svd(cov)
+            center = u @ points  # Shape: (3,)
+            cov = (points - center).T @ ((points - center) * u[:, np.newaxis])  # Shape: (3,3)
+            U, s, rotation = np.linalg.svd(cov)
 
-        lengths = np.sqrt(s)
-        axes = rotation
-        return center, axes, lengths
+            lengths = np.sqrt(s)
+            axes = rotation
+            return center, axes, lengths
 
-    elif method == 'pca':
-        # Center the points
-        centered_vertices = points - np.mean(points, axis=0)
+        elif method == 'pca':
+            # Center the points
+            centered_vertices = points - np.mean(points, axis=0)
 
-        # Perform PCA
-        pca = PCA(n_components=3).fit(centered_vertices)
+            # Perform PCA
+            pca = PCA(n_components=3).fit(centered_vertices)
 
-        axes = pca.components_
-        # Scale the axes lengths by the desired scaling factor
-        lengths = scaling_factor * np.sqrt(pca.explained_variance_)
+            axes = pca.components_
+            # Scale the axes lengths by the desired scaling factor
+            lengths = scaling_factor * np.sqrt(pca.explained_variance_)
 
-        center = np.mean(points, axis=0)
+            center = np.mean(points, axis=0)
 
-        return center, axes, lengths
-
+            return center, axes, lengths
+    except Exception as e:
+        print(f'Error: {e}')
+        return None, None, None
     return None
 
 
