@@ -25,7 +25,7 @@ from auxiliary.utils.timer import LoadingBar
 from auxiliary.data import imaging as cr
 
 
-def filter_by_volume(seg_img, percentile=98, verbose=0):
+def filter_by_volume(seg_img, percentile=99, verbose=0):
     """
     Filter cells by volume using the percentile.
     :param seg_img: Segmentation image.

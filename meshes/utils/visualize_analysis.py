@@ -3,12 +3,14 @@ import os
 import sys
 
 import numpy as np
+import pandas as pd
 import pyrender
 import trimesh
 import trimesh.viewer
 from PIL import Image
 from matplotlib import pyplot as plt
-
+from matplotlib import cm
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm, LogNorm
 
 # Custom packages
 try:
@@ -164,26 +166,70 @@ def save_mesh_views(input_folder):
 
 def create_feature_grid(input_folder, output_folder, feature_name):
     """
-    Creates a grid plot for the feature with images arranged in rows (views) and columns (groups).
+    Creates a grid plot for the feature with group-specific colorbars for non-normalized features.
+    Dynamically assesses cmap, norm, f_min, and f_max for each group.
     :param input_folder: Folder containing the images for the feature.
     :param output_folder: Folder to save the grid plot.
     :param feature_name: Name of the feature (used as the title of the grid).
     """
-    views = ["ventral", "dorsal", "caudal"]
+    # Determine if features are normalized based on the input folder path
+    is_normalized = "FeaturesNormalized" in input_folder
+
+    # Define colormap
+    colors = [
+        (0, 0, 1),  # Pure blue
+        (0, 0.5, 1),  # Cyan-like
+        (0, 1, 0),  # Green
+        (1, 1, 0),  # Yellow
+        (1, 0, 0),  # Red
+    ]
+    cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
+
+    # Prepare groups and view names
     groups = sorted(
         [name for name in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, name))]
     )
+    views = ["ventral", "dorsal", "caudal"]
 
     # Number of views (rows) and groups (columns)
     n_rows = len(views)
     n_cols = len(groups)
 
-    # Create the grid plot
+    # Prepare the grid plot
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 4))
     fig.suptitle(feature_name, fontsize=20, y=1.02)
 
-    for row, view in enumerate(views):
-        for col, group in enumerate(groups):
+    # Track colorbars for each group
+    group_colorbars = {}
+
+    for col, group in enumerate(groups):
+        # Determine f_min and f_max for the current group from its CSV
+        csv_path_split = input_folder.split('/')
+        csv_path_split = csv_path_split[:-1]
+        csv_path = '/'.join(csv_path_split) + f'/{group}.csv'
+
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            df = df[df['value'].notna()]
+            f_min, f_max = np.percentile(df['value'], 0.1), np.percentile(df['value'], 99.9)
+
+            if f_max > 10:
+                f_max = np.percentile(df['value'], 95)
+                f_min = np.percentile(df['value'], 5)
+                print(f"Feature values (clipped) for {group}: {f_min} - {f_max}")
+
+            # Define normalization for the current group
+            norm = BoundaryNorm(
+                boundaries=np.linspace(f_min, f_max, cmap.N),
+                ncolors=cmap.N
+            )
+
+            group_colorbars[group] = (norm, f_min, f_max)
+        else:
+            print(f"Warning: CSV file not found for {group} - Skipping")
+            continue
+
+        for row, view in enumerate(views):
             img_path = os.path.join(input_folder, group, f"{group}_{view}.png")
             if os.path.exists(img_path):
                 img = Image.open(img_path)
@@ -202,23 +248,42 @@ def create_feature_grid(input_folder, output_folder, feature_name):
 
             # Add column title (group name)
             if row == 0:
-                axes[row, col].set_title(group.split('_')[0], fontsize=16)
+                axes[row, col].set_title(group.split('_')[0], fontsize=18)
 
-        # Add row label (view name)
-        axes[row, 0].text(
-            -0.5,
-            0.5,
-            view.capitalize() + " View",
-            fontsize=16,
-            ha="right",
-            va="center",
-            rotation=90,
-            transform=axes[row, 0].transAxes,
-        )
+            # Add row label (view name)
+            if col == 0:
+                axes[row, col].text(
+                    -0.5,
+                    0.5,
+                    view.capitalize() + " View",
+                    fontsize=20,
+                    ha="right",
+                    va="center",
+                    rotation=90,
+                    transform=axes[row, col].transAxes,
+                )
+
+    # Add a colorbar for each group below its column
+    for col, group in enumerate(groups):
+        if group in group_colorbars:
+            norm, f_min, f_max = group_colorbars[group]
+            cbar_ax = fig.add_axes([
+                axes[-1, col].get_position().x0,  # Align with the column's x-position
+                axes[-1, col].get_position().y0 - 0.1,  # Slightly below the last row
+                axes[-1, col].get_position().width,  # Match the width of the column
+                0.02,  # Height of the colorbar
+            ])
+            cb = plt.colorbar(
+                cm.ScalarMappable(norm=norm, cmap=cmap),
+                cax=cbar_ax,
+                orientation="horizontal"
+            )
+            cb.set_label(f"{f_min:.2f} - {f_max:.2f}", fontsize=12)
+            cb.ax.tick_params(labelsize=8)
 
     # Adjust layout
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.9)
+    # plt.tight_layout()
+    plt.subplots_adjust(top=0.9, bottom=0.2)  # Increased bottom space for colorbars
 
     # Save the grid plot
     output_path = os.path.join(output_folder, f"{feature_name}_grid.png")

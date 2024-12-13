@@ -275,7 +275,7 @@ class FeatureMap:
                 (1, 1, 0),  # Yellow
                 (1, 0, 0),  # Red
             ]
-            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=256)
+            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
 
         norm = BoundaryNorm(
             boundaries=np.linspace(

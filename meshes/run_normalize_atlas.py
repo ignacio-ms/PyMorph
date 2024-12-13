@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import trimesh
-from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm, LogNorm
 
 # Custom packages
 try:
@@ -93,10 +93,17 @@ if __name__ == '__main__':
                 traceback.print_exc()
 
         all_values = np.array(all_values, dtype=np.float64)
-        f_min = all_values.min()
-        f_max = all_values.max()
+        all_values = all_values[~np.isnan(all_values)]
 
-        print(f'{c.OKGREEN}Feature values{c.ENDC}: {f_min} - {f_max}')
+        print(f'{c.OKGREEN}Feature values{c.ENDC}: {all_values.min()} - {all_values.max()}')
+
+        f_max = np.percentile(all_values, 99.9)
+        f_min = np.percentile(all_values, 0.1)
+
+        if f_max > 10:
+            f_max = np.percentile(all_values, 95)
+            f_min = np.percentile(all_values, 5)
+            print(f'{c.OKGREEN}Feature values{c.ENDC} (clipped): {f_min} - {f_max}')
 
         colors = [
             (0, 0, 1),  # Pure blue
@@ -105,8 +112,10 @@ if __name__ == '__main__':
             (1, 1, 0),  # Yellow
             (1, 0, 0),  # Red
         ]
-        cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=256)
+        cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
 
+        # Normalize feature values according to ranges
+        print(f'{c.OKBLUE}Linear normalization{c.ENDC}')
         norm = BoundaryNorm(
             boundaries=np.linspace(
                 f_min, f_max,
@@ -118,9 +127,11 @@ if __name__ == '__main__':
         for i, group in enumerate(groups):
             atlas = atlas_meshes[i]
 
-            feature_values[i]['value'] = feature_values[i]['value'].map(lambda x: (x - f_min) / (f_max - f_min))
-            vertex_colors = cmap(norm(feature_values[i]['value']))
+            values = feature_values[i]['value']
+            # nan values as the mean of the neighbors feature values
+            # values[np.isnan(values)] = np.mean(values[~np.isnan(values)])
 
+            vertex_colors = cmap(norm(values))
             atlas.visual.vertex_colors = vertex_colors
 
             path = data_path + f'ATLAS/{tissue}/FeaturesNormalized/{level}/{feature}/{group}_atlas_{feature}_normalized.ply'
@@ -133,8 +144,8 @@ if __name__ == '__main__':
 
             atlas.export(path)
             df = pd.DataFrame({
-                'vertex_id': np.arange(len(feature_values[i]['value'])),
-                'value': feature_values[i]['value']
+                'vertex_id': np.arange(len(values)),
+                'value': values
             })
             df.to_csv(path.replace('.ply', '.csv'), index=False)
 

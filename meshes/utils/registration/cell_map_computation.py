@@ -142,7 +142,7 @@ class CellTissueMap:
         self.mapping.to_csv(self.mapping_path, index=False)
         print(f'{c.OKGREEN}Neighborhood saved to:{c.ENDC} {self.mapping_path}')
 
-    def color_mesh(self, feature_name, type='Membrane', cmap=None, normalize=False):
+    def color_mesh(self, feature_name, type='Membrane', cmap=None):
         if not hasattr(self, 'mapping'):
             if os.path.exists(self.mapping_path):
                 self.mapping = pd.read_csv(self.mapping_path)
@@ -156,10 +156,6 @@ class CellTissueMap:
 
         feature_map = self.cell_features.set_index('cell_id')[feature_name].to_dict()
         face_values = self.mapping[f'cell_id_{type}'].map(feature_map)
-
-        # Normalize feature values within all embryos
-        if normalize:
-            face_values = self.normalize_features(face_values, feature_name, type)
 
         # Neighbor averaging
         aux_face_values = face_values.copy()
@@ -182,7 +178,7 @@ class CellTissueMap:
                 (1, 1, 0),  # Yellow
                 (1, 0, 0),  # Red
             ]
-            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=256)
+            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
 
         norm = BoundaryNorm(
             boundaries=np.linspace(
