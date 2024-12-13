@@ -236,18 +236,16 @@ class FeatureMap:
                     if row[f'tissue_neighbors_{type}'] is not None:
                         try:
                             neigh = np.array(row[f'tissue_neighbors_{type}'])
-                            neighbors = np.array(neigh)
-                            neighbor_values = [face_values[int(n)] for n in neighbors if
-                                               not np.isnan(face_values[int(n)])]
-                            if neighbor_values:
-                                aux_face_val[i] = np.mean(neighbor_values)
+
+                            neighbour_vals = [face_val_s[int(n)] for n in neigh if not np.isnan(face_val_s[int(n)])]
+                            if neighbour_vals:
+                                aux_face_val[i] = np.mean(neighbour_vals)
                         except Exception as e:
-                            neigh = np.array(row[f'tissue_neighbors_{type}'])
-                            neighbors = np.array(neigh)
-                            neighbor_values = [face_values[int(n)] for n in neighbors if
-                                               not np.isnan(face_values[int(n)])]
-                            if neighbor_values:
-                                aux_face_val[i] = np.mean(neighbor_values)
+                            neigh = row[f'tissue_neighbors_{type}'].replace('[', '').replace(']', '').split()
+                            neigh = np.array(neigh)
+                            neighbour_vals = [face_val_s[int(n)] for n in neigh if not np.isnan(face_val_s[int(n)])]
+                            if neighbour_vals:
+                                aux_face_val[i] = np.mean(neighbour_vals)
 
                 face_values.append(
                     self.assign_features_to_atlas(

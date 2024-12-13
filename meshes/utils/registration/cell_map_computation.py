@@ -168,7 +168,7 @@ class CellTissueMap:
                     if neighbor_values:
                         aux_face_values[i] = np.mean(neighbor_values)
                 except Exception as e:
-                    neigh = np.array(row[f'tissue_neighbors_{type}'])
+                    neigh = row[f'tissue_neighbors_{type}'].replace('[', '').replace(']', '').split()
                     neighbors = np.array(neigh)
                     neighbor_values = [face_values[int(n)] for n in neighbors if not np.isnan(face_values[int(n)])]
                     if neighbor_values:
