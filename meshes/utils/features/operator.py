@@ -1,30 +1,8 @@
-from auxiliary import values as v
-
-import trimesh
 import numpy as np
-from auxiliary.data.dataset_ht import find_group
-
-import matplotlib.pyplot as plt
-from PIL import Image as PILImage
-import io
-from IPython.display import Image as IPyImage
-
-from scipy.spatial import cKDTree
 from sklearn.decomposition import PCA
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
-
-import keyboard
-import time
-import scipy
-
-import gdist
-import rtree
-import shapely
-import pyglet
-from pyglet.gl import *
-import pyrender
 
 
 def get_centroid(mesh, cell_id, face_cell_ids, vertex_cell_ids):

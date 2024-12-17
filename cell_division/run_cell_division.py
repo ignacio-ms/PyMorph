@@ -121,6 +121,7 @@ def get_group(ds, specimen):
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
+    data_path = v.data_path
     tissue = 'myocardium'
     specimen = None
     group = None
@@ -128,8 +129,8 @@ if __name__ == '__main__':
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, 'ht:s:g:e:a:v:', [
-            'help', 'tissue=', 'specimen=', 'group=', 'all=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hd:t:s:g:e:a:v:', [
+            'help', 'data_path=', 'tissue=', 'specimen=', 'group=', 'all=', 'verbose='
         ])
 
         if len(opts) == 0:
@@ -138,6 +139,8 @@ if __name__ == '__main__':
         for opt, arg in opts:
             if opt in ('-h', '--help'):
                 print_usage()
+            elif opt in ('-d', '--data_path'):
+                data_path = arg_check(opt, arg, '-d', '--data_path', str, print_usage)
             elif opt in ('-t', '--tissue'):
                 tissue = arg_check(opt, arg, '-t', '--tissue', str, print_usage)
             elif opt in ('-s', '--specimen'):
@@ -154,7 +157,7 @@ if __name__ == '__main__':
     except getopt.GetoptError:
         print_usage()
 
-    ds = HtDataset()
+    ds = HtDataset(data_path=data_path)
 
     # Determine specimens to process
     if specimen is not None:

@@ -15,6 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from auxiliary.utils.bash import arg_check
 from auxiliary.utils.colors import bcolors as c
 from auxiliary.data.dataset_ht import HtDataset
+from auxiliary import values as v
 
 from meshes.utils.features.extractor import MeshFeatureExtractor
 
@@ -83,6 +84,7 @@ def get_group(ds, specimen):
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
+    data_path = v.data_path
     level = 'Membrane'
     tissue = 'myocardium'
     specimen = None
@@ -96,8 +98,8 @@ if __name__ == '__main__':
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, 'hl:t:s:g:e:r:p:o:m:a:v:', [
-            'help', 'level=', 'tissue=', 'specimen=', 'group=', 'mesh_path=', 'features_path=', 'tissue_path=', 'path_out=', 'multiprocessing=', 'all=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hd:l:t:s:g:e:r:p:o:m:a:v:', [
+            'help', 'data_path=', 'level=', 'tissue=', 'specimen=', 'group=', 'mesh_path=', 'features_path=', 'tissue_path=', 'path_out=', 'multiprocessing=', 'all=', 'verbose='
         ])
 
         if len(opts) == 0:
@@ -106,6 +108,8 @@ if __name__ == '__main__':
         for opt, arg in opts:
             if opt in ('-h', '--help'):
                 print_usage()
+            elif opt in ('-d', '--data_path'):
+                data_path = arg_check(opt, arg, '-d', '--data_path', str, print_usage)
             elif opt in ('-l', '--level'):
                 level = arg_check(opt, arg, '-l', '--level', str, print_usage)
             elif opt in ('-t', '--tissue'):
@@ -134,7 +138,7 @@ if __name__ == '__main__':
     except getopt.GetoptError:
         print_usage()
 
-    ds = HtDataset()
+    ds = HtDataset(data_path=data_path)
 
     # If segmentation_path and raw_path are provided, process them directly
     if mesh_path is not None and features_path is not None and tissue_path is not None:

@@ -21,8 +21,6 @@ from auxiliary.data.dataset_ht import find_specimen
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# Remove the get_color_from_id function if not needed
-
 
 def median_3d_array(img, disk_size=3):
     if len(img.shape) == 4:

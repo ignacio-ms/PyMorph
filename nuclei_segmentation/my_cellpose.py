@@ -9,7 +9,7 @@ from auxiliary.utils.timer import timed
 from auxiliary.data import imaging
 
 from filtering.cardiac_region import get_margins, crop_img, restore_img
-from feature_extraction.feature_extractor import filter_by_volume, filter_by_margin
+from feature_extraction.feature_extractor import filter_by_margin
 from nuclei_segmentation.processing import preprocessing, postprocessing
 
 # Configurations

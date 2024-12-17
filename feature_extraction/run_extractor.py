@@ -1,13 +1,10 @@
 # Standard packages
 import os
-import re
 import sys
 
 import getopt
 
-import cv2
 import numpy as np
-from scipy.ndimage import zoom
 from csbdeep.utils import normalize as csb_normalize
 
 # Custom packages
@@ -26,7 +23,7 @@ from auxiliary.data import imaging
 from auxiliary.data.dataset_ht import HtDataset, find_group
 
 from filtering import cardiac_region as cr
-from feature_extraction.feature_extractor import extract, filter_by_volume
+from feature_extraction.feature_extractor import extract, filter_connected_components_with_size
 
 
 @timed
@@ -55,7 +52,21 @@ def run(ds, s, type, tissue=None, norm=True, verbose=0):
         print(f'{c.OKBLUE}Normalizing image...{c.ENDC}')
         raw_img = csb_normalize(raw_img, 1, 99.8, axis=(0, 1))
 
-    # seg_img = filter_by_volume(seg_img, verbose=verbose)
+    seg_img = filter_connected_components_with_size(
+        seg_img, min_size=20, max_size=4000,
+        verbose=verbose
+    )
+
+    path_split = path_seg.split('/')
+    path_split[-1] = f'Filtered/{path_split[-1].replace(".nii.gz", "_filtered.nii.gz")}'
+    path_seg = '/'.join(path_split)
+    if not os.path.exists('/'.join(path_split[:-1])):
+        os.makedirs('/'.join(path_split[:-1]), exist_ok=True)
+
+    imaging.save_nii(
+        seg_img, path_seg,
+        verbose=verbose
+    )
 
     return extract(
         seg_img, raw_img, lines, path_raw,

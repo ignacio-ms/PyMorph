@@ -45,6 +45,7 @@ def get_group(ds, specimen):
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
+    data_path = v.data_path
     level = 'Membrane'
     tissue = 'myocardium'
     specimen = None
@@ -56,8 +57,8 @@ if __name__ == '__main__':
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, 'hl:t:s:g:e:r:o:a:v:', [
-            'help', 'level=', 'tissue=', 'specimen=', 'group=', 'segmentation_path=', 'raw_path=', 'path_out=', 'all=', 'verbose='
+        opts, args = getopt.getopt(argv, 'hd:l:t:s:g:e:r:o:a:v:', [
+            'help', 'data_path=', 'level=', 'tissue=', 'specimen=', 'group=', 'segmentation_path=', 'raw_path=', 'path_out=', 'all=', 'verbose='
         ])
 
         if len(opts) == 0:
@@ -66,6 +67,8 @@ if __name__ == '__main__':
         for opt, arg in opts:
             if opt in ('-h', '--help'):
                 print_usage()
+            elif opt in ('-d', '--data_path'):
+                data_path = arg_check(opt, arg, '-d', '--data_path', str, print_usage)
             elif opt in ('-l', '--level'):
                 level = arg_check(opt, arg, '-l', '--level', str, print_usage)
             elif opt in ('-t', '--tissue'):
@@ -90,7 +93,7 @@ if __name__ == '__main__':
     except getopt.GetoptError:
         print_usage()
 
-    ds = HtDataset()
+    ds = HtDataset(data_path=data_path)
 
     # If segmentation_path and raw_path are provided, process them directly
     if segmentation_path is not None:
@@ -129,7 +132,7 @@ if __name__ == '__main__':
         try:
             img_path, _ = ds.read_specimen(
                 spec, level, 'Segmentation',
-                verbose=verbose
+                verbose=verbose, filtered=True
             )
 
             img_path_raw, _ = ds.read_specimen(spec, level, type='RawImages', verbose=verbose)

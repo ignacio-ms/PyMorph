@@ -61,7 +61,7 @@ class CellVisualization:
         # Add tissue mesh
         self.add_mesh(
             mesh=tissue_mesh,
-            color=[0.8, 0.8, 0.8, .75],  # Light gray with transparency
+            color=[1.0, 0.0, 0.0, .75],  # Light gray with transparency
             name='Tissue Mesh',
             is_transparent=True
         )

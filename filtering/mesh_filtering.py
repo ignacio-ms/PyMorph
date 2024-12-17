@@ -161,6 +161,6 @@ def run(mesh_path, tissue_path, distance_threshold=30.0):
 
     # Save the filtered cell mesh
     filtered_mesh_path = mesh_path.replace('.ply', '_filtered.ply')
-    # filtered_mesh.export(filtered_mesh_path)
+    filtered_mesh.export(filtered_mesh_path)
     print(f"Filtered cell mesh saved to: {filtered_mesh_path}")
     return filtered_mesh, intersecting_cell_ids, non_intersecting_cell_ids

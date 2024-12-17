@@ -44,6 +44,7 @@ def get_group(ds, specimen):
 
 if __name__ == "__main__":
     argv = sys.argv[1:]
+    data_path = v.data_path
     level = 'Membrane'
     tissue = 'myocardium'
     specimen = None
@@ -55,8 +56,8 @@ if __name__ == "__main__":
     verbose = 0
 
     try:
-        opts, args = getopt.getopt(argv, "hl:t:s:g:m:t:f:a:v:", [
-            "help", "level=", "tissue=", "specimen=", "group=", "mesh_path=", "tissue_path=", "features_path=", "all=", "verbose="
+        opts, args = getopt.getopt(argv, "hdl:t:s:g:m:t:f:a:v:", [
+            "help", 'data_path=', "level=", "tissue=", "specimen=", "group=", "mesh_path=", "tissue_path=", "features_path=", "all=", "verbose="
         ])
 
         if len(opts) == 0:
@@ -67,6 +68,8 @@ if __name__ == "__main__":
             if opt in ("-h", "--help"):
                 print_usage()
                 sys.exit()
+            elif opt in ("-d", "--data_path"):
+                data_path = arg_check(opt, arg, "-d", "--data_path", str, print_usage)
             elif opt in ("-l", "--level"):
                 level = arg_check(opt, arg, '-l', '--level', str, print_usage)
             elif opt in ("-t", "--tissue"):
@@ -93,7 +96,7 @@ if __name__ == "__main__":
     except getopt.GetoptError:
         print_usage()
 
-    ds = HtDataset()
+    ds = HtDataset(data_path=data_path)
 
     # If mesh_path, tissue_path, and features_path are provided, process them directly
     if mesh_path is not None and tissue_path is not None and features_path is not None:

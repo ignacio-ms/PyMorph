@@ -1,7 +1,9 @@
 qtpy
 numpy>=1.20.0
-#numba>=0.43.1
+numba>=0.43.1
 scipy
+tensorflow>=2.8.4
+keras>=2.8.0
 #torch>=1.6
 opencv-python-headless
 pyqtgraph>=0.11.0rc0
@@ -19,13 +21,13 @@ nibabel
 h5py
 csbdeep
 SimpleITK
-#porespy
+porespy
 #pyradiomics
-#pypardiso
-#cupy-cuda11x
-#cucim-cu11
+pypardiso
+cupy-cuda11x
+cucim-cu11
 dask[complete]
-#scikit-learn
+scikit-learn
 imagecodecs
 matplotlib
 seaborn
@@ -36,6 +38,9 @@ tiler
 #edt
 #scikit-fmm
 #pyicu -> with conda
+plyfile
+PyMCubes
+joblib
 czifile
 trimesh
 pymeshlab

@@ -13,6 +13,10 @@ from radiomics import shape, firstorder
 
 from collections import Counter
 
+from skimage.measure import regionprops, label
+# import cupy as cp
+# from cucim.skimage.measure import label, regionprops
+
 # Custom Packages
 try:
     current_dir = os.path.dirname(__file__)
@@ -25,66 +29,63 @@ from auxiliary.utils.timer import LoadingBar
 from auxiliary.data import imaging as cr
 
 
-def filter_by_volume(seg_img, percentile=99, verbose=0):
-    """
-    Filter cells by volume using the percentile.
-    :param seg_img: Segmentation image.
-    :param percentile: Percentile to filter. (default: 98)
-    :param verbose: Verbosity level. (default: 0)
-    :return: Filtered segmentation image.
-    """
+@njit
+def compute_component_sizes(labeled_img, max_label):
+    sizes = np.zeros(max_label + 1, dtype=np.int32)
+    for i in range(labeled_img.size):
+        label = labeled_img.flat[i]
+        if label > 0:
+            sizes[label] += 1
+    return sizes
+
+
+@njit
+def filter_small_components(labeled_img, component_sizes, min_size, max_size):
+    for i in range(labeled_img.size):
+        label = labeled_img.flat[i]
+        if label > 0 and (component_sizes[label] <= min_size or
+                          (max_size is not None and component_sizes[label] >= max_size)):
+            labeled_img.flat[i] = 0
+    return labeled_img
+
+
+def filter_connected_components_with_size(seg_img, min_size=20, max_size=None, verbose=0):
+    filtered_img = np.zeros_like(seg_img)
+
+    # Iterate through unique labels directly
+    max_label = seg_img.max()
+
+    bar = LoadingBar(max_label)
+    for label_id in range(1, max_label + 1):
+
+        if np.any(seg_img == label_id):
+            # Extract mask for the current label
+            label_mask = (seg_img == label_id)
+
+            # Perform connected component analysis
+            labeled_components, num_features = label(label_mask, connectivity=1, return_num=True)
+
+            # Compute component sizes
+            component_sizes = compute_component_sizes(labeled_components, num_features)
+
+            # Filter components by size
+            filtered_components = filter_small_components(labeled_components, component_sizes, min_size, max_size)
+
+            # Retain the largest valid connected component
+            remaining_labels = np.unique(filtered_components)
+            remaining_labels = remaining_labels[remaining_labels != 0]
+
+            if remaining_labels.size > 0:
+                largest_component = max(remaining_labels, key=lambda l: component_sizes[l])
+                filtered_img[filtered_components == largest_component] = label_id
+
+        bar.update()
+
+    bar.end()
     if verbose:
-        print(f'{c.OKBLUE}Filtering by volume...{c.ENDC}')
+        print("Filtering completed. Retained components based on size thresholds.")
 
-    props = ps.metrics.regionprops_3D(seg_img)
-    centroids = [[round(i) for i in p.centroid] for p in props]
-    centroids_labels = [seg_img[ce[0], ce[1], ce[2]] for ce in centroids]
-
-    if verbose:
-        print(f'\tFound{c.BOLD} {len(centroids)} {c.ENDC} cells')
-
-    new_rows = []
-    remove = []
-
-    for i, p in enumerate(props):
-        if centroids_labels[i] == 0 or p.volume <= 20:
-            remove.append(centroids_labels[i])
-            continue
-
-        new_rows.append({
-            "volumes": p.volume,
-            "cell_id": centroids_labels[i],
-        })
-
-    df = pd.DataFrame(new_rows)
-
-    lower_bound = np.percentile(df.volumes, 100 - percentile)
-    upper_bound = np.percentile(df.volumes, percentile)
-
-    remove += df[df.volumes > upper_bound].cell_id.tolist()
-    remove += df[df.volumes < lower_bound].cell_id.tolist()
-
-    remove = set(map(int, remove))
-
-    if verbose:
-        print(f'\tRemoving {c.BOLD}{len(remove)}{c.ENDC} cells...')
-
-    @njit
-    def remove_cells_numba(seg_img, remove):
-        shape = seg_img.shape
-
-        flat = seg_img.flatten()
-        for i in range(len(flat)):
-            if flat[i] in remove:
-                flat[i] = 0
-
-        return flat.reshape(shape)
-
-    seg_img = remove_cells_numba(seg_img, remove)
-    if verbose:
-        print(f'\tRemoved {c.BOLD}{len(remove)}{c.ENDC} cells...')
-
-    return seg_img
+    return filtered_img
 
 
 def filter_by_margin(seg_img, margin=1, verbose=0):
