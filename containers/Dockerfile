@@ -30,7 +30,9 @@ WORKDIR /app
 
 RUN pip install --upgrade pip \
     && pip install numpy \
-    && pip install pyradiomics
+    && pip install pyradiomics \
+    && pip install pypardiso \
+    && pip install pyglet
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt

@@ -4,7 +4,6 @@ numba>=0.43.1
 scipy
 tensorflow>=2.8.4
 keras>=2.8.0
-#torch>=1.6
 opencv-python-headless
 pyqtgraph>=0.11.0rc0
 natsort
@@ -12,7 +11,6 @@ google-cloud-storage
 tqdm
 tifffile
 fastremap
-#cellpose
 roifile
 pyqt5
 scikit-image
@@ -22,8 +20,7 @@ h5py
 csbdeep
 SimpleITK
 porespy
-#pyradiomics
-pypardiso
+
 cupy-cuda11x
 cucim-cu11
 dask[complete]

@@ -28,9 +28,7 @@ from auxiliary.data.dataset_nuclei import NucleiDataset
 from auxiliary.utils.timer import LoadingBar
 from auxiliary.gpu.gpu_tf import (
     increase_gpu_memory,
-    set_gpu_allocator,
-    set_mixed_precision,
-    clear_session
+    set_gpu_allocator
 )
 
 
