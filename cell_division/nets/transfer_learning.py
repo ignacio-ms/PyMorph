@@ -33,9 +33,8 @@ from cell_division.layers.custom_layers import (
     LSEPooling,
     w_cel_loss,
     focal_loss,
-    extended_w_cel_loss,
-    ExtendedLSEPooling,
-    extended_w_cel_loss_soft
+    extended_w_cel_loss_multiclass,
+    ExtendedLSEPooling, extended_w_cel_loss,
 )
 
 
@@ -106,7 +105,7 @@ class CNN:
             metrics = [tf.keras.metrics.AUC(name='auc', multi_label=True)]
 
         if loss is None:
-            loss = extended_w_cel_loss(from_logits=False)
+            loss = extended_w_cel_loss_multiclass(from_logits=False)
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
@@ -205,7 +204,7 @@ class CNN:
             metrics = [tf.keras.metrics.AUC(name='auc', multi_label=True)]
 
         if loss is None:
-            loss = extended_w_cel_loss(from_logits=False)
+            loss = extended_w_cel_loss_multiclass(from_logits=True)
 
         if optimizer is None:
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
@@ -236,7 +235,13 @@ class CNN:
 
         callbacks = [
             EarlyStopping(monitor='auc', patience=20, restore_best_weights=True, verbose=1),
-            ReduceLROnPlateau(monitor='auc', patience=5, factor=0.1, verbose=1)
+            ReduceLROnPlateau(monitor='auc', patience=5, factor=0.1, verbose=1),
+            ModelCheckpoint(
+                f'../models/cellular_division_models/{self.base_model.name}_calibrated.h5',
+                save_best_only=True,
+                save_weights_only=False,
+                monitor='auc'
+            )
         ]
 
         # Train only the temperature parameter
@@ -296,19 +301,34 @@ class CNN:
         else:
             raise ValueError(f"Unsupported input shape {X.shape} for 3D prediction, expected (H, W, Z) or (H, W)")
 
-    def load(self, path):
-        self.model = tf.keras.models.load_model(
-            path,
-            custom_objects={
-                'LSEPooling': LSEPooling,
-                'ExtendedLSEPooling': ExtendedLSEPooling,
-                'weighted_cross_entropy_with_logits': w_cel_loss(),
-                'focal_loss': focal_loss(),
-                'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss(),
-                'ext_weighted_cross_entropy_with_logits_soft': extended_w_cel_loss_soft(),
-                'TemperatureScalingLayer': TemperatureScalingLayer,
-                'VectorScalingLayer': VectorScalingLayer,
-                'MatrixScalingLayer': MatrixScalingLayer,
-                'DirichletCalibrationLayer': DirichletCalibrationLayer
-            }
-        )
+    def load(self, path, calibrated=False):
+        if calibrated:
+            self.calibrated_model = tf.keras.models.load_model(
+                path,
+                custom_objects={
+                    'LSEPooling': LSEPooling,
+                    'ExtendedLSEPooling': ExtendedLSEPooling,
+                    'weighted_cross_entropy_with_logits': extended_w_cel_loss(),
+                    'focal_loss': focal_loss(),
+                    'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss_multiclass(),
+                    'TemperatureScalingLayer': TemperatureScalingLayer,
+                    'VectorScalingLayer': VectorScalingLayer,
+                    'MatrixScalingLayer': MatrixScalingLayer,
+                    'DirichletCalibrationLayer': DirichletCalibrationLayer
+                }
+            )
+        else:
+            self.model = tf.keras.models.load_model(
+                path,
+                custom_objects={
+                    'LSEPooling': LSEPooling,
+                    'ExtendedLSEPooling': ExtendedLSEPooling,
+                    'weighted_cross_entropy_with_logits': extended_w_cel_loss(),
+                    'focal_loss': focal_loss(),
+                    'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss_multiclass(),
+                    'TemperatureScalingLayer': TemperatureScalingLayer,
+                    'VectorScalingLayer': VectorScalingLayer,
+                    'MatrixScalingLayer': MatrixScalingLayer,
+                    'DirichletCalibrationLayer': DirichletCalibrationLayer
+                }
+            )

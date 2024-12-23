@@ -236,11 +236,14 @@ class FishAnalyzer:
         res = []
         i = 0
         for p, label, centroid in zip(props, centroids_labels, centroids):
+            if p.volume < 2:
+                continue
             res.append({
-                'id': label,
+                'id': i,
                 'centroid': centroid,
                 'area': p.volume
             })
+            i += 1
 
         return pd.DataFrame(res)
 
@@ -288,12 +291,19 @@ class FishAnalyzer:
     def save(self, results, img, name, green_seg):
         plt.figure(figsize=(15, 7))
 
+        aux_b_channel = np.zeros_like(img[..., 0])
+
+        img = np.stack([img[..., 0], img[..., 1], aux_b_channel], axis=-1)
+
+        img = np.swapaxes(img, 0, 1)
         plt.imshow(img, alpha=.6, cmap='gray')
         plt.axis('off')
 
         for _, pair in results.iterrows():
             source_centroid = pair['red_centroid']
             target_centroid = pair['green_centroid']
+            source_id = int(pair['red_id'])
+            target_id = int(pair['green_id'])
             dist = pair['distance_pixels']
 
             # color = [random.random() for _ in range(3)]
@@ -301,7 +311,7 @@ class FishAnalyzer:
 
             plt.text(
                 source_centroid[0] + 7, source_centroid[1] + 7,
-                s=f'{dist:.1f}', color=color, fontsize='xx-small'
+                s=f'R:{source_id} - G:{target_id}', color=color, fontsize='xx-small'
             )
             # plt.scatter(*source_centroid, color=color, alpha=1, marker='o', s=1, label='Red particle')
             # plt.scatter(*target_centroid, color=color, alpha=1, marker='x', s=1, label='Green particle')
@@ -369,6 +379,76 @@ class FishAnalyzer:
             print(f'{bc.OKGREEN}Instances predicted and saved.{bc.ENDC}')
 
     def predict_single(self, img_path, filter=True):
+        assert self.model is not None, 'Model not loaded.'
+
+        if img_path not in self.paths:
+            print(f'{bc.FAIL}Image not found{bc.ENDC}: {img_path}')
+            return
+        else:
+            print(f'{bc.OKGREEN}Processing image{bc.ENDC}: {img_path}')
+
+        img_name = img_path.split('/')[-1].split('.')[0]
+        img_idx = self.paths.index(f'{self.folder}/{img_name}.tif')
+
+        img = self.imgs[img_idx]
+        labels_red, labels_green = self.segment(img, img_name)
+
+        if filter:
+            filtered_red = self.filter_by_size(labels_red, self.thr_size)
+            filtered_green = self.filter_by_size(labels_green, self.thr_size)
+        else:
+            filtered_red, filtered_green = labels_red, labels_green
+
+        data_red = self.get_centroids(filtered_red)
+        data_green = self.get_centroids(filtered_green)
+
+        res = self.get_neighbours(data_red, data_green, self.thr_dist)
+
+        self.save(res, img, img_name, labels_green)
+        try:
+            self.results_df[img_idx] = res
+        except IndexError:
+            self.results_df.append(res)
+
+        print(f'{bc.OKGREEN}Results saved.{bc.ENDC}')
+
+    def predict_all_from_mask(self):
+        assert len(self.imgs) > 0, 'No images to process.'
+        assert self.model is not None, 'Model not loaded.'
+
+        if self.verbose:
+            print(f'{bc.OKBLUE}Predicting instances{bc.ENDC}...')
+            bar = LoadingBar(len(self.imgs))
+
+        for i, img in enumerate(self.imgs):
+            try:
+                img = np.swapaxes(img, 0, 2)
+
+                labels_red = img[..., 0]
+                labels_green = img[..., 1]
+
+                data_red = self.get_centroids(labels_red)
+                data_green = self.get_centroids(labels_green)
+
+                res = self.get_neighbours(data_red, data_green, self.thr_dist)
+
+                img_name = self.paths[i].split('/')[-1].split('.')[0]
+                self.save(res, img, img_name, labels_green)
+                self.results_df[i] = res
+            except Exception as e:
+                print(f'\n{bc.FAIL}Error processing image{bc.ENDC}: {self.paths[i]}')
+                print(f'{bc.BOLD}skipping{bc.ENDC}')
+                import traceback
+                traceback.print_exc()
+
+            if self.verbose:
+                bar.update()
+
+        if self.verbose:
+            bar.end()
+            print(f'{bc.OKGREEN}Instances predicted and saved.{bc.ENDC}')
+
+    def predict_single_from_mask(self, img_path, filter=True):
         assert self.model is not None, 'Model not loaded.'
 
         if img_path not in self.paths:
@@ -543,4 +623,3 @@ class FishAnalyzer:
             return fig, current_results.to_dict('records')
 
         app.run_server(debug=True)
-

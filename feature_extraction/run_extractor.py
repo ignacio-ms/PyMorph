@@ -27,7 +27,7 @@ from feature_extraction.feature_extractor import extract, filter_connected_compo
 
 
 @timed
-def run(ds, s, type, tissue=None, norm=True, verbose=0):
+def run(ds, s, type, tissue=None, norm=True, from_filtered=True, verbose=0):
     """
     Run feature extraction.
     :param ds: HtDataset object.
@@ -45,28 +45,33 @@ def run(ds, s, type, tissue=None, norm=True, verbose=0):
     metadata, _ = imaging.load_metadata(path_raw)
     seg_img = imaging.read_image(path_seg, verbose=verbose).astype(np.uint32)
 
-    if tissue:
-        seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 2, verbose=verbose)
-
     if norm:
         print(f'{c.OKBLUE}Normalizing image...{c.ENDC}')
         raw_img = csb_normalize(raw_img, 1, 99.8, axis=(0, 1))
 
-    seg_img = filter_connected_components_with_size(
-        seg_img, min_size=20, max_size=4000,
-        verbose=verbose
-    )
+    if from_filtered:
+        path_seg, _ = ds.read_specimen(s, type, 'Segmentation', filtered=True, verbose=verbose)
+        seg_img = imaging.read_image(path_seg, verbose=verbose).astype(np.uint32)
 
-    path_split = path_seg.split('/')
-    path_split[-1] = f'Filtered/{path_split[-1].replace(".nii.gz", f"_{tissue}.nii.gz")}'
-    path_seg = '/'.join(path_split)
-    if not os.path.exists('/'.join(path_split[:-1])):
-        os.makedirs('/'.join(path_split[:-1]), exist_ok=True)
+    else:
+        if tissue:
+            seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 2, verbose=verbose)
 
-    imaging.save_nii(
-        seg_img, path_seg,
-        verbose=verbose
-    )
+        seg_img = filter_connected_components_with_size(
+            seg_img, min_size=20, max_size=4000,
+            verbose=verbose
+        )
+
+        path_split = path_seg.split('/')
+        path_split[-1] = f'Filtered/{path_split[-1].replace(".nii.gz", f"_{tissue}.nii.gz")}'
+        path_seg = '/'.join(path_split)
+        if not os.path.exists('/'.join(path_split[:-1])):
+            os.makedirs('/'.join(path_split[:-1]), exist_ok=True)
+
+        imaging.save_nii(
+            seg_img, path_seg,
+            verbose=verbose
+        )
 
     return extract(
         seg_img, raw_img, lines, path_raw,

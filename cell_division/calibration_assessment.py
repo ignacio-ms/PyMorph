@@ -134,7 +134,7 @@ def plot_calibration_map(model, model_calibrated, X, y, title, sub_index=None, n
         plt.arrow(
             probs[i, 0], probs[i, 1],
             probs_calibrated[i, 0] - probs[i, 0], probs_calibrated[i, 1] - probs[i, 1],
-            head_width=.01, color=colors[y[i] - 1]
+            head_width=.01, color=colors[y[i]]
         )
 
     plt.grid(False)
@@ -142,6 +142,83 @@ def plot_calibration_map(model, model_calibrated, X, y, title, sub_index=None, n
         plt.plot([0, x], [x, 0], "k", alpha=0.2)
         plt.plot([0, 0 + (1 - x) / 2], [x, x + (1 - x) / 2], "k", alpha=0.2)
         plt.plot([x, x + (1 - x) / 2], [0, 0 + (1 - x) / 2], "k", alpha=0.2)
+
+    plt.title(title)
+    plt.xlabel('Probability of Prophase/Metaphase')
+    plt.ylabel('Probability of Anaphase/Telophase')
+    plt.legend(loc='upper right')
+    plt.tight_layout()
+
+
+def plot_learned_calibration_map_prob(model_calibrated, title, sub_index=None, nrows=1, ncols=2):
+    """
+    Plots how each point in probability space is 'moved' by
+    calibration layers that operate directly on probabilities.
+    """
+    if sub_index:
+        plt.subplot(nrows, ncols, sub_index)
+    else:
+        plt.figure(figsize=(5, 5))
+
+    colors = ['r', 'g', 'b']
+
+    # 1) Generate a grid over the ternary simplex
+    x0, x1 = np.meshgrid(
+        np.linspace(0, 1, 20),
+        np.linspace(0, 1, 20)
+    )
+    x2 = 1 - x0 - x1
+    p = np.c_[x0.ravel(), x1.ravel(), x2.ravel()]
+    # Keep only valid points (where x2 >= 0)
+    p = p[p[:, 2] >= 0]
+
+    # 2) Extract only the calibration layers that operate on softmax/probabilities
+    calibration_layers = []
+    input_found = False
+    for layer in model_calibrated.layers:
+        if layer.name in ['temperature_scaling', 'vector_scaling',
+                          'matrix_scaling', 'dirichlet_scaling']:
+            calibration_layers.append(layer)
+            input_found = True
+        elif input_found:
+            calibration_layers.append(layer)
+
+    # 3) Build a small calibration model that takes probabilities as input
+    prob_input = tf.keras.Input(shape=(3,), name='prob_input')
+    x = prob_input
+    for layer in calibration_layers:
+        x = layer(x)
+
+    calibration_model = tf.keras.Model(inputs=prob_input, outputs=x)
+
+    # 4) Predict the calibrated probabilities
+    predictions = calibration_model.predict(p)
+    # Normalize in case the calibration layer doesn't do strict renormalization
+    predictions /= predictions.sum(axis=1, keepdims=True)
+
+    # 5) Plot the ternary boundary
+    plt.plot([0, 1, 0, 0], [0, 0, 1, 0], 'k')
+    plt.plot([1], [0], 'ro', ms=10, label='Prophase/Metaphase')
+    plt.plot([0], [1], 'go', ms=10, label='Anaphase/Telophase')
+    plt.plot([0], [0], 'bo', ms=10, label='Interphase')
+
+    # 6) Draw the arrows from original points p -> calibrated predictions
+    for i in range(p.shape[0]):
+        plt.arrow(
+            p[i, 0],
+            p[i, 1],
+            predictions[i, 0] - p[i, 0],
+            predictions[i, 1] - p[i, 1],
+            head_width=.01,
+            color=colors[np.argmax(predictions[i])]
+        )
+
+    # 7) (Optional) Draw a faint triangular grid
+    plt.grid(False)
+    for x in np.arange(0, 1, .1):
+        plt.plot([0, x], [x, 0], "k", alpha=0.2)
+        plt.plot([0, 0 + (1 - x)/2], [x, x + (1 - x)/2], "k", alpha=0.2)
+        plt.plot([x, x + (1 - x)/2], [0, 0 + (1 - x)/2], "k", alpha=0.2)
 
     plt.title(title)
     plt.xlabel('Probability of Prophase/Metaphase')

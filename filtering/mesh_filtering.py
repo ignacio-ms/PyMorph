@@ -157,7 +157,7 @@ def run(mesh_path, tissue_path, distance_threshold=30.0):
     filtered_mesh = filter_cells(cell_mesh, face_cell_ids, intersecting_cell_ids)
 
     # Visualize the results
-    visualize_tissue_and_filtered_cells(tissue_mesh, filtered_mesh)
+    # visualize_tissue_and_filtered_cells(tissue_mesh, filtered_mesh)
 
     # Save the filtered cell mesh
     filtered_mesh_path = mesh_path.replace('.ply', '_filtered.ply')

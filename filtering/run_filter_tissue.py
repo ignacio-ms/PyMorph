@@ -3,6 +3,8 @@ import getopt
 import os
 import sys
 
+import pandas as pd
+
 # Custom packages
 try:
     current_dir = os.path.dirname(__file__)
@@ -131,7 +133,26 @@ if __name__ == "__main__":
             tissue_path = ds.get_mesh_tissue(spec, tissue, verbose)
             features_path = ds.get_features(spec, level, tissue, verbose, only_path=True)
 
-            run(mesh_path, tissue_path, features_path, verbose=verbose)
+            _, intersecting_cell_ids, non_intersecting_cell_ids = run(
+                mesh_path, tissue_path, distance_threshold=25.0
+            )
+
+            # Remove non-intersecting cells from the features
+            if features_path is not None:
+                features = pd.read_csv(features_path)
+                features = features[features['cell_id'].isin(intersecting_cell_ids)]
+
+                path_split = features_path.split('/')
+                path_split[-1] = f"Filtered/{path_split[-1]}"
+
+                if not os.path.exists('/'.join(path_split[:-1])):
+                    os.makedirs('/'.join(path_split[:-1]))
+
+                features.to_csv('/'.join(path_split), index=False)
+
+                if verbose:
+                    print(f"{c.OKGREEN}Filtered features saved{c.ENDC}: {'/'.join(path_split)}")
+
         except Exception as e:
             print(f"{c.FAIL}Error processing specimen{c.ENDC}: {spec}")
             print(e)

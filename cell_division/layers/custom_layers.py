@@ -86,6 +86,121 @@ def extended_w_cel_loss(from_logits=False):
     return ext_weighted_cross_entropy_with_logits if from_logits else ext_weighted_cross_entropy
 
 
+def extended_w_cel_loss_multiclass(from_logits=False):
+    """
+    Returns a Weighted Cross-Entropy Loss function tailored for multi-class classification.
+
+    Parameters
+    ----------
+    num_classes : int
+        Number of classes in your multi-class classification problem.
+    from_logits : bool
+        If True, applies softmax to logits before computing loss.
+        Otherwise, assumes y_pred is already probabilities.
+
+    Returns
+    -------
+    A callable that takes (y_true, y_pred) or (y_true, logits)
+    and returns a scalar loss value.
+    """
+
+    def ext_weighted_cross_entropy_multiclass(y_true, y_pred):
+        """
+        Weighted Cross-Entropy for multi-class classification when y_pred is already probabilities.
+
+        y_true: one-hot encoded labels, shape = (batch_size, num_classes).
+        y_pred: probabilities, shape = (batch_size, num_classes).
+        """
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)
+
+        # 1. Compute total count of each class across the batch
+        class_counts = tf.reduce_sum(y_true, axis=0)  # shape = (num_classes,)
+        total_count = tf.reduce_sum(class_counts)  # scalar
+
+        # 2. Compute per-class weights: higher weight for rarer classes
+        #    Avoid division by zero by adding a small epsilon
+        eps = 1e-6
+        weights = total_count / (class_counts + eps)  # shape = (num_classes,)
+
+        # 3. Compute per-sample cross-entropy
+        #    weighted_ce[i] = - sum_c [ w_c * y_true[i, c] * log(y_pred[i, c]) ]
+        weighted_ce = -tf.reduce_sum(y_true * tf.math.log(y_pred + eps) * weights, axis=1)
+
+        # 4. Return mean loss across the batch
+        return tf.reduce_mean(weighted_ce)
+
+    def ext_weighted_cross_entropy_multiclass_with_logits(y_true, logits):
+        """
+        Weighted Cross-Entropy for multi-class classification when logits are provided.
+
+        y_true: one-hot encoded labels, shape = (batch_size, num_classes).
+        logits: raw model outputs, shape = (batch_size, num_classes).
+        """
+        y_true = tf.cast(y_true, tf.float32)
+        logits = tf.cast(logits, tf.float32)
+
+        # 1. Convert logits -> probabilities with softmax
+        y_pred = tf.nn.softmax(logits, axis=-1)  # shape = (batch_size, num_classes)
+
+        # 2. Compute total count of each class across the batch
+        class_counts = tf.reduce_sum(y_true, axis=0)  # shape = (num_classes,)
+        total_count = tf.reduce_sum(class_counts)  # scalar
+
+        # 3. Compute per-class weights
+        eps = 1e-6
+        weights = total_count / (class_counts + eps)  # shape = (num_classes,)
+
+        # 4. Weighted cross-entropy
+        weighted_ce = -tf.reduce_sum(y_true * tf.math.log(y_pred + eps) * weights, axis=1)
+
+        # 5. Return mean loss across the batch
+        return tf.reduce_mean(weighted_ce)
+
+    # Return the correct function based on from_logits
+    return (
+        ext_weighted_cross_entropy_multiclass_with_logits
+        if from_logits
+        else ext_weighted_cross_entropy_multiclass
+    )
+
+
+
+# def extended_w_cel_loss(from_logits=False):
+#     def ext_weighted_cross_entropy(y_true, y_pred):
+#         y_true = tf.cast(y_true, tf.float16)
+#         y_pred = tf.cast(y_pred, tf.float16)
+#
+#         # Calculate beta_p and beta_n for each class
+#         total_count = tf.reduce_sum(y_true, axis=0) + tf.reduce_sum(1 - y_true, axis=0)
+#         beta_p = total_count / (tf.reduce_sum(y_true, axis=0) + 1e-6)
+#         beta_n = total_count / (tf.reduce_sum(1 - y_true, axis=0) + 1e-6)
+#
+#         # Calculate per-class loss
+#         loss = beta_p * y_true * tf.math.log(y_pred + 1e-6) + \
+#                beta_n * (1 - y_true) * tf.math.log(1 - y_pred + 1e-6)
+#         return -tf.reduce_mean(tf.reduce_sum(loss, axis=-1))  # Summing over classes
+#
+#     def ext_weighted_cross_entropy_with_logits(y_true, logits):
+#         y_true = tf.cast(y_true, tf.float16)
+#         logits = tf.cast(logits, tf.float16)
+#
+#         # Compute probabilities from logits using softmax for multi-class classification
+#         y_pred = tf.nn.softmax(logits, axis=-1)
+#
+#         # Calculate beta_p and beta_n for each class
+#         total_count = tf.reduce_sum(y_true, axis=0) + tf.reduce_sum(1 - y_true, axis=0)
+#         beta_p = total_count / (tf.reduce_sum(y_true, axis=0) + 1e-6)
+#         beta_n = total_count / (tf.reduce_sum(1 - y_true, axis=0) + 1e-6)
+#
+#         # Calculate per-class loss
+#         loss = beta_p * y_true * tf.math.log(y_pred + 1e-6) + \
+#                beta_n * (1 - y_true) * tf.math.log(1 - y_pred + 1e-6)
+#         return -tf.reduce_mean(tf.reduce_sum(loss, axis=-1))  # Summing over classes
+#
+#     return ext_weighted_cross_entropy_with_logits if from_logits else ext_weighted_cross_entropy
+
+
 def extended_w_cel_loss_soft():
     def ext_weighted_cross_entropy_with_logits_soft(y_true, y_pred):
         """

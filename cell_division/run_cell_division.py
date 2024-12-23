@@ -63,11 +63,11 @@ def load_model():
     model.build_top(activation='softmax', b_type='CAM', pooling=ExtendedLSEPooling)
     model.compile(
         lr=.001,
-        loss=extended_w_cel_loss()
+        loss=extended_w_cel_loss(from_logits=True),
     )
 
-    model_dir = os.path.join(current_dir, os.pardir, 'models', 'cellular_division_models', 'vgg16_nuclei_under.h5')
-    model.load(model_dir)
+    model_dir = './models/vgg16_nuclei_under.h5'
+    model.load(model_dir, calibrated=False)
     return model
 
 
