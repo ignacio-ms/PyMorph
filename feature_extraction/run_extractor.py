@@ -6,6 +6,7 @@ import getopt
 
 import numpy as np
 from csbdeep.utils import normalize as csb_normalize
+from skimage.exposure import rescale_intensity
 
 # Custom packages
 try:
@@ -47,11 +48,37 @@ def run(ds, s, type, tissue=None, norm=True, from_filtered=True, verbose=0):
 
     if norm:
         print(f'{c.OKBLUE}Normalizing image...{c.ENDC}')
-        raw_img = csb_normalize(raw_img, 1, 99.8, axis=(0, 1))
+        # raw_img = csb_normalize(raw_img, 1, 99.8, axis=(0, 1))
+
+        for z in range(raw_img.shape[2]):
+            min_v, max_v = np.min(raw_img[..., z]), np.max(raw_img[..., z])
+
+            raw_img[..., z] = rescale_intensity(
+                raw_img[..., z], in_range=(min_v, max_v), out_range=(0, 1)
+            )
 
     if from_filtered:
-        path_seg, _ = ds.read_specimen(s, type, 'Segmentation', filtered=True, verbose=verbose)
-        seg_img = imaging.read_image(path_seg, verbose=verbose).astype(np.uint32)
+        try:
+            path_seg, _ = ds.read_specimen(s, type, 'Segmentation', filtered=True, verbose=verbose)
+            seg_img = imaging.read_image(path_seg, verbose=verbose).astype(np.uint32)
+        except Exception as e:
+            print(f'{c.WARNING}Warning{c.ENDC}: No filtered segmentation found. Filtering without connected components analysis.')
+            path_seg, _ = ds.read_specimen(s, type, 'Segmentation', filtered=False, verbose=verbose)
+            seg_img = imaging.read_image(path_seg, verbose=verbose).astype(np.uint32)
+
+            if tissue:
+                seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 2, verbose=verbose)
+
+            path_split = path_seg.split('/')
+            path_split[-1] = f'Filtered/{path_split[-1].replace(".nii.gz", f"_{tissue}.nii.gz")}'
+            path_seg = '/'.join(path_split)
+            if not os.path.exists('/'.join(path_split[:-1])):
+                os.makedirs('/'.join(path_split[:-1]), exist_ok=True)
+
+            imaging.save_nii(
+                seg_img, path_seg,
+                verbose=verbose
+            )
 
     else:
         if tissue:

@@ -84,8 +84,7 @@ if __name__ == '__main__':
                 sys.exit(2)
 
         else:
-            print(f'{c.FAIL}No group or specimen provided{c.ENDC}')
-            sys.exit(2)
+            specimens = v.specimens_to_analyze
 
         if feature is None:
             print(f'{c.FAIL}No feature provided{c.ENDC}')
@@ -106,7 +105,7 @@ if __name__ == '__main__':
                 else:
                     print(f'{c.OKGREEN}Mapping{c.ENDC}: Found - skipping')
                     # cell_map.init_vars(type=level)
-                _ = cell_map.color_mesh(feature, type=level, cmap='inferno_r')
+                _ = cell_map.color_mesh(feature, type=level)
 
             except Exception as e:
                 print(f'{c.FAIL}Error{c.ENDC}: {e}')

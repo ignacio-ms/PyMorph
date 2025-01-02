@@ -13,13 +13,12 @@ done
 
 # 26 specimens
 specimens=(
-  "0523_E1" "0806_E3" "0806_E4"
-  "0806_E1" "0517_E1"
-  "0504_E1" "0806_E6" "0518_E3"
-  "0503_E1" "0209_E1"
+  "0209_E1"
   "0503_E2"
   "0521_E1"
   "0401_E3"
+  "0504_E1" "0806_E6" "0518_E3"
+  "0503_E1"
 )
 
 # Loop over the specimens based on the array job index
@@ -33,5 +32,5 @@ echo "Processing specimen $specimen"
 #singularity cache clean -f
 #singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ --nv /data_lab_MT/Ignacio/cluster_global.sif python3 /app/filtering/run_filter_tissue.py -d /data/ -s $specimen -l 'Nuclei' -t 'myocardium' -v $verbose
 #singularity cache clean -f
-singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ --nv /data_lab_MT/Ignacio/cluster_global.sif python3 /app/cell_division/run_cell_division.py -d /data/ -s $specimen -t 'myocardium' -v $verbose
+singularity exec -e -B /data_lab_MT/Ignacio/ht_morphogenesis:/app/ -B $data_path:/data/ /data_lab_MT/Ignacio/cluster_global.sif python3 /app/cell_division/run_cell_division.py -d /data/ -s $specimen -t 'myocardium' -v $verbose
 singularity cache clean -f

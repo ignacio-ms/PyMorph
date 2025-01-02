@@ -283,9 +283,12 @@ class FeatureMap:
             ]
             cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
 
+        vmin = np.percentile(atlas_values, 1)
+        vmax = np.percentile(atlas_values, 99)
+
         norm = BoundaryNorm(
             boundaries=np.linspace(
-                atlas_values.min(), atlas_values.max(),
+                vmin, vmax,
                 cmap.N
             ), ncolors=cmap.N
         )
@@ -293,9 +296,12 @@ class FeatureMap:
 
         # Save auxiliary files for quality assessment
         for s, face_val in zip(self.specimens, face_values):
+            vmin = np.percentile(face_val, 1)
+            vmax = np.percentile(face_val, 99)
+
             norm = BoundaryNorm(
                 boundaries=np.linspace(
-                    face_val.min(), face_val.max(),
+                    vmin, vmax,
                     cmap.N
                 ), ncolors=cmap.N
             )

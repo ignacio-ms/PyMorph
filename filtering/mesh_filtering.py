@@ -1,6 +1,7 @@
 import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
+from plyfile import PlyData, PlyElement
 
 
 def load_mesh(mesh_path):
@@ -75,25 +76,58 @@ def associate_cells_with_tissue(cell_centroids, tissue_mesh, distance_threshold)
 
 
 def filter_cells(cell_mesh, face_cell_ids, intersecting_cell_ids):
-    """
-    Filter the cell mesh to retain only the cells that intersect with the tissue mesh.
-
-    Parameters:
-    - cell_mesh (trimesh.Trimesh): The merged cell mesh.
-    - face_cell_ids (np.ndarray): Array mapping each face to a cell ID.
-    - intersecting_cell_ids (list): List of intersecting cell IDs.
-
-    Returns:
-    - filtered_mesh (trimesh.Trimesh): Filtered mesh containing only intersecting cells.
-    """
-    # Create a mask for faces belonging to intersecting cells
     valid_faces_mask = np.isin(face_cell_ids, intersecting_cell_ids)
+    valid_face_indices = np.where(valid_faces_mask)[0]
 
-    # Apply the mask to get valid face indices
-    valid_faces_indices = np.where(valid_faces_mask)[0]
+    # 2) Identify the original vertices used by these faces
+    used_vertices = np.unique(cell_mesh.faces[valid_face_indices].flatten())
 
-    # Submesh to extract valid cells
-    filtered_mesh = cell_mesh.submesh([valid_faces_indices], append=True)
+    # 3) Reindex these vertices from [original IDs] -> [0..len(used_vertices)-1]
+    #    A simple way is to build a "look-up" array that says, for each old vertex index,
+    #    what is its new index in the submesh?
+    old_to_new = np.full(len(cell_mesh.vertices), fill_value=-1, dtype=np.int64)
+    old_to_new[used_vertices] = np.arange(len(used_vertices))
+
+    # 4) Create the new faces, using the new vertex indices
+    new_faces = old_to_new[cell_mesh.faces[valid_face_indices]]
+
+    # 5) Gather the new vertices
+    new_vertices = cell_mesh.vertices[used_vertices]
+
+    # 6) Build the actual submesh
+    filtered_mesh = trimesh.Trimesh(
+        vertices=new_vertices,
+        faces=new_faces,
+        process=False  # Avoid reprocessing if you want to keep the structure stable
+    )
+
+    # -----------------------
+    #  A) Preserve face_cell_ids
+    # -----------------------
+    new_face_cell_ids = face_cell_ids[valid_face_indices]
+
+    # Make sure to create the same structure in metadata
+    filtered_mesh.metadata['_ply_raw'] = {}
+    filtered_mesh.metadata['_ply_raw']['face'] = {'data': {}}
+    filtered_mesh.metadata['_ply_raw']['face']['data']['cell_id'] = new_face_cell_ids
+
+    # -----------------------
+    #  B) Preserve vertex_cell_ids (if they exist)
+    # -----------------------
+    if (
+        '_ply_raw' in cell_mesh.metadata
+        and 'vertex' in cell_mesh.metadata['_ply_raw']
+        and 'data' in cell_mesh.metadata['_ply_raw']['vertex']
+        and 'cell_id' in cell_mesh.metadata['_ply_raw']['vertex']['data']
+    ):
+        old_vertex_cell_ids = cell_mesh.metadata['_ply_raw']['vertex']['data']['cell_id']
+        # Now pick the IDs for the used vertices
+        new_vertex_cell_ids = old_vertex_cell_ids[used_vertices]
+
+        # Store them in the new mesh metadata
+        filtered_mesh.metadata['_ply_raw']['vertex'] = {'data': {}}
+        filtered_mesh.metadata['_ply_raw']['vertex']['data']['cell_id'] = new_vertex_cell_ids
+
     return filtered_mesh
 
 
@@ -117,6 +151,85 @@ def visualize_tissue_and_filtered_cells(tissue_mesh, filtered_cell_mesh):
 
     print("Displaying the visualization...")
     scene.show()
+
+
+def save_filtered_mesh_to_ply(filtered_mesh, output_path):
+    """
+    Save a filtered mesh as a PLY file, preserving face/vertex cell IDs
+    in the same structure used at creation time.
+    """
+
+    # ---------------------------------------------------------
+    # 1) Gather geometry from the filtered Trimesh
+    # ---------------------------------------------------------
+    vertices = filtered_mesh.vertices
+    faces = filtered_mesh.faces
+
+    # If we have face cell IDs in metadata
+    face_cell_ids = None
+    if (
+        '_ply_raw' in filtered_mesh.metadata
+        and 'face' in filtered_mesh.metadata['_ply_raw']
+        and 'data' in filtered_mesh.metadata['_ply_raw']['face']
+        and 'cell_id' in filtered_mesh.metadata['_ply_raw']['face']['data']
+    ):
+        face_cell_ids = filtered_mesh.metadata['_ply_raw']['face']['data']['cell_id']
+    else:
+        # fallback to a default
+        print("Warning: No face cell IDs found in metadata. Using zeros.")
+        face_cell_ids = np.zeros(len(faces), dtype=np.int32)
+
+    # If we have vertex cell IDs in metadata
+    vertex_cell_ids = None
+    if (
+        '_ply_raw' in filtered_mesh.metadata
+        and 'vertex' in filtered_mesh.metadata['_ply_raw']
+        and 'data' in filtered_mesh.metadata['_ply_raw']['vertex']
+        and 'cell_id' in filtered_mesh.metadata['_ply_raw']['vertex']['data']
+    ):
+        vertex_cell_ids = filtered_mesh.metadata['_ply_raw']['vertex']['data']['cell_id']
+    else:
+        print("Warning: No vertex cell IDs found in metadata. Using zeros.")
+        vertex_cell_ids = np.zeros(len(vertices), dtype=np.int32)
+
+    if filtered_mesh.vertex_normals is None or len(filtered_mesh.vertex_normals) == 0:
+        filtered_mesh.rezero()
+    normals = filtered_mesh.vertex_normals
+    if normals is None or len(normals) != len(vertices):
+        # fallback if normals are not available
+        normals = np.zeros_like(vertices)
+
+    # ---------------------------------------------------------
+    # 2) Create the structured arrays for vertices and faces
+    #    matching your original mesh creation approach
+    # ---------------------------------------------------------
+    vertex_dtype = [
+        ('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
+        ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
+        ('cell_id', 'i4')
+    ]
+    vertex_data = np.empty(len(vertices), dtype=vertex_dtype)
+    vertex_data['x'] = vertices[:, 0]
+    vertex_data['y'] = vertices[:, 1]
+    vertex_data['z'] = vertices[:, 2]
+    vertex_data['nx'] = normals[:, 0]
+    vertex_data['ny'] = normals[:, 1]
+    vertex_data['nz'] = normals[:, 2]
+    vertex_data['cell_id'] = np.squeeze(vertex_cell_ids)
+
+    face_dtype = [('vertex_indices', 'i4', (3,)), ('cell_id', 'i4')]
+    face_data = np.empty(len(faces), dtype=face_dtype)
+    face_data['vertex_indices'] = faces
+    face_data['cell_id'] = np.squeeze(face_cell_ids)
+
+    vertex_element = PlyElement.describe(vertex_data, 'vertex')
+    face_element = PlyElement.describe(face_data, 'face')
+
+    # ---------------------------------------------------------
+    # 3) Write out the PLY
+    # ---------------------------------------------------------
+    PlyData([vertex_element, face_element], text=True).write(output_path)
+    print(f"Filtered mesh saved with cell_id metadata to: {output_path}")
 
 
 def run(mesh_path, tissue_path, distance_threshold=30.0):
@@ -161,6 +274,8 @@ def run(mesh_path, tissue_path, distance_threshold=30.0):
 
     # Save the filtered cell mesh
     filtered_mesh_path = mesh_path.replace('.ply', '_filtered.ply')
-    filtered_mesh.export(filtered_mesh_path)
+
+    # filtered_mesh.export(filtered_mesh_path)
+    save_filtered_mesh_to_ply(filtered_mesh, filtered_mesh_path)
     print(f"Filtered cell mesh saved to: {filtered_mesh_path}")
     return filtered_mesh, intersecting_cell_ids, non_intersecting_cell_ids

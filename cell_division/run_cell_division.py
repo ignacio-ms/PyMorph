@@ -1,10 +1,6 @@
 import os
 import sys
-import multiprocessing
 import getopt
-
-import trimesh
-from joblib import Parallel, delayed
 
 import numpy as np
 import pandas as pd
@@ -66,7 +62,8 @@ def load_model():
         loss=extended_w_cel_loss(from_logits=True),
     )
 
-    model_dir = './models/vgg16_nuclei_under.h5'
+    # model_dir = './models/vgg16_nuclei_under.h5'
+    model_dir = '/app/cell_division/models/vgg16_nuclei_under.h5'
     model.load(model_dir, calibrated=False)
     return model
 
@@ -89,7 +86,7 @@ def process_cell(i, nuclei_ds): # gpu_id
     except Exception as e:
         print(f'{c.WARNING}Warning{c.ENDC}: Error in cell {cell_id}: {e}')
         return {
-            'cell_id': cell_id,
+            'cell_id': np.nan,
             'cell_division': np.nan
         }
 
@@ -189,7 +186,7 @@ if __name__ == '__main__':
         print(f'{c.BOLD}Specimen{c.ENDC}: {spec}')
 
         try:
-            nuclei_ds = NucleiDataset(spec, tissue=tissue, verbose=verbose)
+            nuclei_ds = NucleiDataset(spec, tissue=tissue, verbose=verbose, data_path=data_path)
             features_path = ds.get_features(spec, 'Nuclei', tissue, only_path=True, filtered=True)
             features = pd.read_csv(features_path)
 
@@ -211,6 +208,9 @@ if __name__ == '__main__':
                 new_rows.append(process_cell(i, nuclei_ds))
                 bar.update()
             bar.end()
+
+            # Remove nan cell_ids
+            new_rows = [row for row in new_rows if not np.isnan(row['cell_id'])]
 
             # Save results to DataFrame and CSV
             columns2overwrite = ['cell_division']

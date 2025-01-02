@@ -85,6 +85,8 @@ if __name__ == '__main__':
             for group_name, group_specimens in dataset.specimens.items():
                 specimens.extend(group_specimens)
 
+            specimens = [s for s in specimens if s in v.specimens_to_analyze]
+
         if level not in ['Membrane', 'Nuclei']:
             print(f'{c.FAIL}Invalid level{c.ENDC}: {level} (Membrane | Nuclei)')
             sys.exit(2)

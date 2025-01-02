@@ -28,7 +28,7 @@ from filtering import cardiac_region as cr
 
 
 class NucleiDataset(tf.keras.utils.Sequence):
-    def __init__(self, specimen, tissue='myocardium', resize=(50, 50), verbose=0):
+    def __init__(self, specimen, tissue='myocardium', resize=(50, 50), verbose=0, data_path=None):
         def parse_centroids(centroid):
             centroid = centroid.replace('[', '').replace(']', '').split(',')
             x, y, z = int(centroid[0]), int(centroid[1]), int(centroid[2])
@@ -43,7 +43,10 @@ class NucleiDataset(tf.keras.utils.Sequence):
         self.batch_size = 32
         self.resize = (50, 50)
 
-        ds = HtDataset()
+        if data_path is None:
+            data_path = v.data_path
+
+        ds = HtDataset(data_path=data_path)
         self.features = ds.get_features(specimen, 'Nuclei', tissue, verbose=verbose)
 
         if 'cell_id' not in self.features.columns:

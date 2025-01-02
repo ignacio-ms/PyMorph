@@ -160,8 +160,8 @@ class HtDataset:
                     f_raw_dir = os.path.join(self.data_path, group, type, level)
                 walk = os.walk(f_raw_dir).__next__()
             except StopIteration:
-                if verbose:
-                    print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
+                # if verbose:
+                #     print(f'\t{c.FAIL}No directory{c.ENDC}: {f_raw_dir}')
                 continue
 
             for img in walk[2]:
@@ -342,7 +342,7 @@ class HtDataset:
 
             for file in walk[2]:
                 if re.search(spec, file) and re.search(type, file) and re.search(tissue, file):
-                    if filtered and re.search('filtered', file):
+                    if filtered and not re.search('filtered', file):
                         if verbose:
                             print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
 
@@ -384,11 +384,11 @@ class HtDataset:
                         if verbose:
                             print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
                         return os.path.join(f_raw_dir, file)
-                    else:
-                        if re.search(spec, file) and not re.search('filtered', file):
-                            if verbose:
-                                print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
-                            return os.path.join(f_raw_dir, file)
+                    # else:
+                    #     if re.search(spec, file) and not re.search('filtered', file):
+                    #         if verbose:
+                    #             print(f'\t{c.OKGREEN}Found{c.ENDC}: {file}')
+                    #         return os.path.join(f_raw_dir, file)
                 else:
                     if re.search(spec, file) and not re.search('filtered', file):
                         if verbose:

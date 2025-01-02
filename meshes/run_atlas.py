@@ -100,13 +100,14 @@ if __name__ == '__main__':
                 print(f'\t{c.OKBLUE}Type{c.ENDC}: {level}')
                 cell_map = CellTissueMap(s, tissue=tissue, verbose=verbose)
 
-                check_color_mesh = dataset.get_feature_map(
-                    s, level, tissue, feature,
-                    verbose=verbose
-                )
+                # check_color_mesh = dataset.get_feature_map(
+                #     s, level, tissue, feature,
+                #     verbose=verbose
+                # )
+                check_color_mesh = None
 
                 if check_color_mesh is None:
-                    if cell_map.mapping is None:
+                    if cell_map.mapping is None or not f'cell_id_{level}' in cell_map.mapping.columns:
                         print(f'\t{c.WARNING}Waring{c.ENDC}: Mapping not found - computing')
                         cell_map.map_cells(type=level)
                         cell_map.get_neighborhood(radius=50 if level == 'Membrane' else 40, type=level)

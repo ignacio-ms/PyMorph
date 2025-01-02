@@ -107,6 +107,10 @@ class CellTissueMap:
         })
 
         if self.mapping is not None:
+            if f'cell_id_{type}' in self.mapping.columns:
+                # Remove previous cell_id column
+                self.mapping.drop(columns=[f'cell_id_{type}'], inplace=True)
+
             mapping = pd.merge(
                 self.mapping, mapping,
                 on='tissue_face_id', how='left'
@@ -137,6 +141,9 @@ class CellTissueMap:
 
         # Ensure tissue_face_id has same type in both dataframes
         self.mapping['tissue_face_id'] = self.mapping['tissue_face_id'].astype(int)
+
+        if f'tissue_neighbors_{type}' in self.mapping.columns:
+            self.mapping.drop(columns=[f'tissue_neighbors_{type}'], inplace=True)
 
         self.mapping = pd.merge(self.mapping, new_cols, on='tissue_face_id', how='left')
         self.mapping.to_csv(self.mapping_path, index=False)
@@ -184,11 +191,15 @@ class CellTissueMap:
                 (1, 1, 0),  # Yellow
                 (1, 0, 0),  # Red
             ]
-            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
+            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024 if feature_name != 'cell_division' else 2)
+
+        # Set min/max from percentile
+        vmin = np.percentile(face_values, 1)
+        vmax = np.percentile(face_values, 99)
 
         norm = BoundaryNorm(
             boundaries=np.linspace(
-                face_values.min(), face_values.max(),
+                vmin, vmax,
                 cmap.N
             ), ncolors=cmap.N
         )

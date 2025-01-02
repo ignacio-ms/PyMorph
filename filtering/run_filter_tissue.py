@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
             mesh_path = ds.get_mesh_cell(spec, level, tissue, verbose, filtered=False)
             tissue_path = ds.get_mesh_tissue(spec, tissue, verbose)
-            features_path = ds.get_features(spec, level, tissue, verbose, only_path=True)
+            features_path = ds.get_features(spec, level, tissue, verbose, only_path=True, filtered=False)
 
             _, intersecting_cell_ids, non_intersecting_cell_ids = run(
                 mesh_path, tissue_path, distance_threshold=25.0
@@ -144,14 +144,15 @@ if __name__ == "__main__":
 
                 path_split = features_path.split('/')
                 path_split[-1] = f"Filtered/{path_split[-1]}"
+                path_split = '/'.join(path_split)
 
-                if not os.path.exists('/'.join(path_split[:-1])):
-                    os.makedirs('/'.join(path_split[:-1]))
+                if not os.path.exists('/'.join(path_split.split('/')[:-1])):
+                    os.makedirs('/'.join(path_split.split('/')[:-1]))
 
-                features.to_csv('/'.join(path_split), index=False)
+                features.to_csv(path_split, index=False)
 
                 if verbose:
-                    print(f"{c.OKGREEN}Filtered features saved{c.ENDC}: {'/'.join(path_split)}")
+                    print(f"{c.OKGREEN}Filtered features saved to{c.ENDC}: {path_split}")
 
         except Exception as e:
             print(f"{c.FAIL}Error processing specimen{c.ENDC}: {spec}")
