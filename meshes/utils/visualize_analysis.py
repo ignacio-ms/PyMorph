@@ -1,5 +1,6 @@
 import getopt
 import os
+import re
 import sys
 
 import numpy as np
@@ -293,6 +294,174 @@ def create_feature_grid(input_folder, output_folder, feature_name):
     print(f"Grid saved at {output_path}")
 
 
+def save_mesh_views_for_group(group_folder, feature_name):
+    """
+    For each embryo subfolder in 'group_folder', render ventral, dorsal, and caudal views,
+    saving them in a subfolder named 'rendered_views' inside each embryo folder.
+    """
+    # Define the view directions and rotations (angle_x, angle_y, angle_z)
+    views = {
+        "ventral": {
+            "direction": np.array([0, 0, -1]),
+            "rotation": (0, 3 * np.pi / 2, np.pi)
+        },
+        "dorsal": {
+            "direction": np.array([0, -1, -1]),
+            "rotation": (3*np.pi / 2, np.pi / 2, 3*np.pi / 2)
+        },
+        "caudal": {
+            "direction": np.array([0, -1, 0]),
+            "rotation": (0, np.pi / 2, np.pi)
+        },
+    }
+
+    # List all subfolders in group_folder (each subfolder = an embryo)
+    embryo_names = [
+        f for f in os.listdir(group_folder)
+        if os.path.isdir(os.path.join(group_folder, f))
+    ]
+
+    embryo_names = [e for e in embryo_names if e in v.specimens_to_analyze]
+
+    for embryo_name in embryo_names:
+        embryo_path = os.path.join(group_folder, embryo_name)
+
+        # Look for a .ply file in the embryo folder:
+        ply_files = [f for f in os.listdir(embryo_path) if f.endswith(".ply") and re.search(feature_name, f)]
+        if not ply_files:
+            print(f"No .ply found in {embryo_path}, skipping.")
+            continue
+
+        # For simplicity, assume there's only one .ply or we pick the first:
+        ply_file = ply_files[0]
+        mesh_path = os.path.join(embryo_path, ply_file)
+        mesh = trimesh.load(mesh_path)
+
+        # Create an output subfolder for images inside embryo folder
+        output_views_folder = os.path.join(embryo_path, "rendered_views")
+        os.makedirs(output_views_folder, exist_ok=True)
+
+        # Render each view
+        for view_name, params in views.items():
+            # Make a copy of the original mesh
+            rotated_mesh = mesh.copy()
+            angles = params.get("rotation", (0, 0, 0))
+            rotated_mesh = rotate_mesh(rotated_mesh, angles)
+
+            # Convert to a pyrender mesh
+            try:
+                mesh_pyrender = pyrender.Mesh.from_trimesh(rotated_mesh, smooth=False)
+            except ValueError as e:
+                print(f"Error converting {mesh_path} to pyrender mesh: {e}")
+                continue
+
+            # Create a scene
+            scene = pyrender.Scene()
+            scene.add(mesh_pyrender)
+
+            # Add a camera
+            camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
+            camera_pose = compute_camera_pose(rotated_mesh, params["direction"])
+            scene.add(camera, pose=camera_pose)
+
+            # Lights
+            light = pyrender.DirectionalLight(color=np.ones(3), intensity=3.0)
+            scene.add(light, pose=camera_pose)
+            ambient_light = pyrender.PointLight(color=np.ones(3), intensity=1.0)
+            scene.add(ambient_light, pose=np.eye(4))
+
+            # Render offscreen
+            renderer = pyrender.OffscreenRenderer(viewport_width=1024, viewport_height=768)
+            color, _ = renderer.render(scene)
+
+            if not np.any(color):
+                print(f"Warning: {view_name} view of {mesh_path} is empty. Adjust camera.")
+                renderer.delete()
+                continue
+
+            img = Image.fromarray(color)
+            if view_name == "dorsal":
+                img = img.rotate(180, expand=True)
+
+            # Save image: embryoName_view.png
+            output_path = os.path.join(output_views_folder, f"{embryo_name}_{view_name}.png")
+            img.save(output_path)
+
+            renderer.delete()
+
+    print(f"Finished rendering views for group folder: {group_folder}")
+
+
+def create_grid_for_group(group_folder, feature_name):
+    """
+    Creates a grid of ventral/dorsal/caudal views for each embryo in this group.
+    Saves the result as a single .png.
+    """
+    views = ["ventral", "dorsal", "caudal"]
+    embryo_names = [
+        f for f in os.listdir(group_folder)
+        if os.path.isdir(os.path.join(group_folder, f))
+    ]
+    embryo_names.sort()  # So the columns are in a consistent order
+
+    n_rows = len(views)
+    n_cols = len(embryo_names)
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols*4, n_rows*4))
+    fig.suptitle(f"{os.path.basename(group_folder)} - {feature_name}", fontsize=16)
+
+    for col, embryo_name in enumerate(embryo_names):
+        # The images should be in 'rendered_views' subfolder
+        rendered_views_folder = os.path.join(group_folder, embryo_name, "rendered_views")
+
+        for row, view in enumerate(views):
+            ax = axes[row, col] if n_rows > 1 and n_cols > 1 else axes
+            img_filename = f"{embryo_name}_{view}.png"
+            img_path = os.path.join(rendered_views_folder, img_filename)
+
+            if os.path.exists(img_path):
+                img = Image.open(img_path)
+                ax.imshow(img)
+            else:
+                ax.text(0.5, 0.5, "Missing Image", color="red",
+                        fontsize=12, ha="center", va="center")
+            ax.axis("off")
+
+            # Row label (view)
+            if col == 0:
+                ax.set_ylabel(view.capitalize(), fontsize=14)
+
+            # Column label (embryo name)
+            if row == 0:
+                ax.set_title(embryo_name, fontsize=14)
+
+    plt.tight_layout()
+
+    # Save grid
+    output_path = os.path.join(group_folder, f"{os.path.basename(group_folder)}_{feature_name}_grid.png")
+    plt.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"Grid for group {os.path.basename(group_folder)} saved at {output_path}")
+
+
+def run_all_groups(groups_root_folder, feature_name):
+    """
+    Suppose 'groups_root_folder' contains subfolders: Gr1, Gr2, etc.
+    Each group folder has multiple embryo subfolders.
+    """
+    group_names = list(v.specimens.keys())
+    group_names.sort()
+
+    for group_name in group_names:
+        if group_name == 'Gr10' or group_name == 'Gr11':
+            continue
+
+        group_folder = os.path.join(groups_root_folder, group_name + '/3DShape/Tissue/myocardium/map/')
+
+        save_mesh_views_for_group(group_folder, feature_name)
+        create_grid_for_group(group_folder, feature_name)
+
+
 def run(input_folder, output_folder, feature_name):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -304,6 +473,13 @@ def run(input_folder, output_folder, feature_name):
 def print_usage():
     print('TODO...')
     sys.exit(2)
+
+
+# if __name__ == '__main__':
+#     feature_name = 'cell_division'
+#     input_folder = v.data_path
+#
+#     run_all_groups(input_folder, feature_name)
 
 
 if __name__ == "__main__":

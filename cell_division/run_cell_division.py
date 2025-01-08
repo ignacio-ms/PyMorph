@@ -84,7 +84,7 @@ def process_cell(i, nuclei_ds): # gpu_id
             'cell_division': pred
         }
     except Exception as e:
-        print(f'{c.WARNING}Warning{c.ENDC}: Error in cell {cell_id}: {e}')
+        print(f'{c.WARNING}Warning{c.ENDC}: Error in cell - skipping')
         return {
             'cell_id': np.nan,
             'cell_division': np.nan
@@ -220,6 +220,7 @@ if __name__ == '__main__':
             new_features = pd.DataFrame(new_rows, columns=['cell_id', 'cell_division'])
             merged_features = pd.merge(features, new_features, on='cell_id', how='left')
             merged_features.to_csv(features_path, index=False)
+            print(f'{c.OKGREEN}Saved{c.ENDC}: {features_path}')
 
         except Exception as e:
             print(f'{c.FAIL}Error{c.ENDC}: {e}')

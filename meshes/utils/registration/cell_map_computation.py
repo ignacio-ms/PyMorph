@@ -164,6 +164,9 @@ class CellTissueMap:
         feature_map = self.cell_features.set_index('cell_id')[feature_name].to_dict()
         face_values = self.mapping[f'cell_id_{type}'].map(feature_map)
 
+        if feature_name == 'cell_division':
+            face_values = [0 if v > 1 else 1 for v in face_values]
+
         # Neighbor averaging
         aux_face_values = face_values.copy()
         for i, row in self.mapping.iterrows():
@@ -191,11 +194,18 @@ class CellTissueMap:
                 (1, 1, 0),  # Yellow
                 (1, 0, 0),  # Red
             ]
-            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024 if feature_name != 'cell_division' else 2)
+
+            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024 if feature_name != 'cell_division' else 10)
 
         # Set min/max from percentile
         vmin = np.percentile(face_values, 1)
         vmax = np.percentile(face_values, 99)
+
+        if feature_name == 'cell_division':
+            vmin = np.min(face_values)
+            vmax = np.max(face_values)
+            print(f'{c.OKGREEN}Min{c.ENDC}: {vmin}')
+            print(f'{c.OKGREEN}Max{c.ENDC}: {vmax}')
 
         norm = BoundaryNorm(
             boundaries=np.linspace(

@@ -13,12 +13,7 @@ done
 
 # 26 specimens
 specimens=(
-  "0209_E1"
-  "0503_E2"
-  "0521_E1"
-  "0401_E3"
-  "0504_E1" "0806_E6" "0518_E3"
-  "0503_E1"
+  "0520_E5"
 )
 
 # Loop over the specimens based on the array job index

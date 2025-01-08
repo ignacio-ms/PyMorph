@@ -170,18 +170,18 @@ class FeatureMap:
 
     def assign_features_to_atlas(self, atlas, source, face_values, vertex_map, edge_to_face):
         """Map scalar values to atlas vertices in parallel."""
-        atlas_values = np.zeros(len(atlas.vertices))
+        atlas_values = np.full(len(atlas.vertices), np.nan)
 
         def process_vertex(args):
             atlas_vertex, (triangle_vertices_src, _) = args
             if atlas_vertex >= len(atlas.vertices):
-                return atlas_vertex, 0
+                return atlas_vertex, np.nan
 
             # Locate the face index from the source mesh
             face_idx = self.find_face_with_edge(edge_to_face, *triangle_vertices_src)
 
             if face_idx is None or face_idx >= len(face_values):
-                return atlas_vertex, 0
+                return atlas_vertex, np.nan
 
             # Assign face value directly (no interpolation needed)
             face_value = face_values[face_idx]
@@ -201,16 +201,19 @@ class FeatureMap:
             atlas_values[atlas_vertex] = value
 
         # Handle unmapped atlas vertices by averaging values from neighbors
-        unassigned_vertices = np.where(atlas_values == 0)[0]
+        unassigned_vertices = np.where(np.isnan(atlas_values))[0]
         for vertex in unassigned_vertices:
             neighbours = atlas.vertex_neighbors[vertex]
             neighbour_values = [
                 atlas_values[n] for n in neighbours
-                if n < len(atlas_values) and atlas_values[n] != 0
+                if n < len(atlas_values) and not np.isnan(atlas_values[n])
             ]
 
             if len(neighbour_values) > 0:
                 atlas_values[vertex] = np.mean(neighbour_values)
+
+            else:
+                atlas_values[vertex] = 0
 
         return atlas_values
 
@@ -229,9 +232,12 @@ class FeatureMap:
                 edge_to_face = self.precompute_edge_to_face_mapping(feature_map)
 
                 features = feat.set_index('cell_id')[self.feature].to_dict()
+                if self.feature == 'cell_division':
+                    features = {k: 0 if v > 1 else 1 for k, v in features.items()}
+
                 face_val_s = cell_map[f'cell_id_{self.level}'].map(features)
 
-                aux_face_val = face_val_s.copy()
+                aux_face_val = face_val_s.copy().astype(float)
                 for i, row in cell_map.iterrows():
                     if row[f'tissue_neighbors_{type}'] is not None:
                         try:
@@ -259,6 +265,10 @@ class FeatureMap:
 
             bar.update()
 
+        # Map features if cell_div
+        # if self.feature == 'cell_division':
+        #     face_values = [np.array([0 if v > 1 else 1 for v in f]) for f in face_values]
+
         # Aggregate the face values across all feature maps
         atlas_values = np.mean(face_values, axis=0)
         values_df = pd.DataFrame({
@@ -281,10 +291,15 @@ class FeatureMap:
                 (1, 1, 0),  # Yellow
                 (1, 0, 0),  # Red
             ]
-            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024)
+            cmap = LinearSegmentedColormap.from_list('custom_jet', colors, N=1024 if self.feature != 'cell_division' else 10)
 
         vmin = np.percentile(atlas_values, 1)
         vmax = np.percentile(atlas_values, 99)
+
+        if self.feature == 'cell_division':
+            vmin = np.min(atlas_values)
+            vmax = np.max(atlas_values)
+            print(f'{c.OKGREEN}Cell division{c.ENDC}: {vmin} - {vmax}')
 
         norm = BoundaryNorm(
             boundaries=np.linspace(
@@ -298,6 +313,10 @@ class FeatureMap:
         for s, face_val in zip(self.specimens, face_values):
             vmin = np.percentile(face_val, 1)
             vmax = np.percentile(face_val, 99)
+
+            if self.feature == 'cell_division':
+                vmin = np.min(face_val)
+                vmax = np.max(face_val)
 
             norm = BoundaryNorm(
                 boundaries=np.linspace(
