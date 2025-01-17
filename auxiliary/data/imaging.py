@@ -86,7 +86,7 @@ def load_metadata(path):
             if resolution[0] is not None and resolution[1] is not None:
                 x_res = 1.0 / resolution[0].value[0] if resolution[0].value[0] != 0 else None
                 y_res = 1.0 / resolution[1].value[0] if resolution[1].value[0] != 0 else None
-                z_res = 1.0
+                z_res = 2.9997854 # Replace by 1.0
             else:
                 x_res, y_res, z_res = 1.0, 1.0, 1.0
 
@@ -98,6 +98,102 @@ def load_metadata(path):
             'y_res': y_res,
             'z_res': z_res
         }, None
+
+
+def resize_xyz_05(img_path):
+    """
+    Resize x and y dimensions by 0.5.
+    Metadata res x and y should be updated. (res_x / 2)
+    :param img_path: Path to image.
+    :return: Resized image.
+    """
+    img = read_image(img_path)
+    metadata, affine = load_metadata(img_path)
+
+    print(metadata)
+    print(affine)
+
+    original_x, original_y, original_z = img.shape
+    new_x, new_y, new_z = original_x // 2, original_y // 2, original_z // 2
+
+    zoom_factors = (0.5, 0.5, 0.5)
+    resized_img = zoom(img, zoom_factors, order=1)
+
+    # Update metadata
+    metadata['x_size'], metadata['y_size'], metadata['z_size'] = new_x, new_y, new_z
+    metadata['x_res'] *= 2
+    metadata['y_res'] *= 2
+    metadata['z_res'] *= 2
+
+    affine = update_affine(
+        affine,
+        (metadata['x_res'] / 2, metadata['y_res'] / 2, metadata['z_res'] / 2),
+        (metadata['x_res'], metadata['y_res'], metadata['z_res'])
+    )
+
+    img_path = img_path.replace('.tif', '_0.5.nii.gz')
+    save_nii(
+        resized_img.astype(np.uint8), img_path,
+        affine=affine, metadata=metadata, verbose=1
+    )
+
+    print(f'{c.OKGREEN}Resized image{c.ENDC}: {img_path}')
+    print(f'{c.BOLD}Metadata{c.ENDC}: {metadata}')
+    print(f'{c.BOLD}Affine{c.ENDC}: {affine}')
+    print(f'{c.OKBLUE}Saving resized image{c.ENDC}: {img_path}')
+
+
+def copy_metadata(source, destination):
+    metadata, affine = load_metadata(source)
+    destination_img = read_image(destination)
+
+    save_nii(
+        destination_img, destination,
+        affine=affine, metadata=metadata, verbose=1
+    )
+    print(f'{c.OKGREEN}Copied metadata{c.ENDC}: {destination}')
+
+
+def resize_xy_05(img_path):
+    """
+    Resize x and y dimensions by 0.5.
+    Metadata res x and y should be updated. (res_x / 2)
+    :param img_path: Path to image.
+    :return: Resized image.
+    """
+    img = read_image(img_path)
+    metadata, affine = load_metadata(img_path)
+
+    print(metadata)
+    print(affine)
+
+    original_x, original_y, original_z = img.shape
+    new_x, new_y, new_z = original_x // 2, original_y // 2, original_z
+
+    zoom_factors = (0.5, 0.5, 1.0)
+    resized_img = zoom(img, zoom_factors, order=1)
+
+    # Update metadata
+    metadata['x_size'], metadata['y_size'], metadata['z_size'] = new_x, new_y, new_z
+    metadata['x_res'] *= 2
+    metadata['y_res'] *= 2
+
+    affine = update_affine(
+        affine,
+        (metadata['x_res'] / 2, metadata['y_res'] / 2, metadata['z_res']),
+        (metadata['x_res'], metadata['y_res'], metadata['z_res'])
+    )
+
+    img_path = img_path.replace('.tif', '_0.5.nii.gz')
+    save_nii(
+        resized_img.astype(np.uint16), img_path,
+        affine=affine, metadata=metadata, verbose=1
+    )
+
+    print(f'{c.OKGREEN}Resized image{c.ENDC}: {img_path}')
+    print(f'{c.BOLD}Metadata{c.ENDC}: {metadata}')
+    print(f'{c.BOLD}Affine{c.ENDC}: {affine}')
+    print(f'{c.OKBLUE}Saving resized image{c.ENDC}: {img_path}')
 
 
 # def resample_img(img, mask, raw_img_path):

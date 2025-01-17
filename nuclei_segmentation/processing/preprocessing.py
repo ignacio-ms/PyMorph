@@ -156,7 +156,7 @@ class Preprocessing:
     @staticmethod
     def norm_adaptative(img):
         return np.array([
-            exposure.equalize_adapthist(img[z], clip_limit=0.03)
+            exposure.equalize_adapthist(img[z], clip_limit=0.005)
             for z in range(img.shape[0])
         ])
 
@@ -208,7 +208,7 @@ class Preprocessing:
     def bilateral(img, **kwargs):
         default_kwargs = {
             'win_size': 3,
-            'sigma_color': 0.1,
+            'sigma_color': .1,
             'sigma_spatial': 10
         }
 
@@ -279,7 +279,7 @@ class Preprocessing:
             assert img is not None
         except Exception:
             img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
-        img = img.astype(np.uint8)
+        img = img.astype(np.uint16)
         metadata, _ = imaging.load_metadata(img_path)
 
         for step in self.pipeline:
@@ -299,6 +299,11 @@ class Preprocessing:
                 img, img_path.replace('.nii.gz', f'_{test_name}_filtered.nii.gz'),
                 verbose=verbose, axes='ZYX'
             )
+
+        imaging.save_nii(
+            img, img_path.replace('.nii.gz', f'_{test_name}_filtered.nii.gz'),
+            verbose=verbose, axes='ZYX'
+        )
 
         return img.astype(np.float16)
 

@@ -28,7 +28,7 @@ from feature_extraction.feature_extractor import extract, filter_connected_compo
 
 
 @timed
-def run(ds, s, type, tissue=None, norm=True, from_filtered=True, verbose=0):
+def run(ds, s, type, tissue=None, norm=True, from_filtered=False, verbose=0):
     """
     Run feature extraction.
     :param ds: HtDataset object.
@@ -85,7 +85,7 @@ def run(ds, s, type, tissue=None, norm=True, from_filtered=True, verbose=0):
             seg_img = cr.filter_by_tissue(seg_img, lines, tissue, 2, verbose=verbose)
 
         seg_img = filter_connected_components_with_size(
-            seg_img, min_size=20, max_size=4000,
+            seg_img, min_size=20, max_size=4500,
             verbose=verbose
         )
 

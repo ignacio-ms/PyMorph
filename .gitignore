@@ -1,6 +1,5 @@
 *.tif
 *.nii.gz
-daniela/
 *.h5
 *.ckpt
 .env
@@ -9,3 +8,5 @@ daniela/
 *.tar
 *.vtk
 *.png
+scripts/
+models/

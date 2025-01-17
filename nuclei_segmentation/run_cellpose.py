@@ -3,7 +3,6 @@ import os
 import sys
 import getopt
 
-
 # Custom packages
 try:
     current_dir = os.path.dirname(__file__)
