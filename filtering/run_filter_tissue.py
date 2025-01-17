@@ -12,13 +12,13 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary.utils.bash import arg_check
-from auxiliary.utils.colors import bcolors as c
-from auxiliary import values as v
+from utils.misc.bash import arg_check
+from utils.misc.colors import bcolors as c
+from utils import values as v
 from filtering.mesh_filtering import run
-from auxiliary.data.dataset_ht import HtDataset
-from auxiliary.utils.timer import LoadingBar
-from auxiliary.data import imaging
+from utils.data.dataset_ht import HtDataset
+from utils.misc.timer import LoadingBar
+from utils.data import imaging
 
 
 def print_usage():

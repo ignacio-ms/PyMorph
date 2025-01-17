@@ -21,17 +21,17 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary import values as v
-from auxiliary.data.dataset_ht import HtDataset
-from auxiliary.gpu.gpu_tf import (
+from utils import values as v
+from utils.data.dataset_ht import HtDataset
+from utils.gpu.gpu_tf import (
     increase_gpu_memory,
     set_gpu_allocator,
     clear_session
 )
-from auxiliary.data import imaging
-from auxiliary.utils.colors import bcolors as c
-from auxiliary.utils.timer import LoadingBar
-from auxiliary.utils.bash import arg_check
+from utils.data import imaging
+from utils.misc.colors import bcolors as c
+from utils.misc.timer import LoadingBar
+from utils.misc.bash import arg_check
 
 
 def load_img(

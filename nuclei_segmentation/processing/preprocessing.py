@@ -5,8 +5,8 @@ from skimage import exposure, morphology
 from skimage.restoration import denoise_bilateral
 import cv2
 
-from auxiliary.data import imaging
-from auxiliary.utils.colors import bcolors as c
+from utils.data import imaging
+from utils.misc.colors import bcolors as c
 
 
 def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1):

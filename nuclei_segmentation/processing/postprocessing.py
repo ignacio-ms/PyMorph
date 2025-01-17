@@ -6,9 +6,9 @@ from scipy import ndimage as ndi
 from skimage.morphology import erosion, dilation, ball
 from skimage.feature import peak_local_max
 
-from auxiliary.data import imaging
-from auxiliary.data.dataset_ht import find_specimen, HtDataset
-from auxiliary.utils.colors import bcolors as c
+from utils.data import imaging
+from utils.data.dataset_ht import find_specimen, HtDataset
+from utils.misc.colors import bcolors as c
 
 
 class PostProcessing:

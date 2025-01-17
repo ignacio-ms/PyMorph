@@ -9,9 +9,9 @@ import rtree
 
 from scipy.spatial import cKDTree
 
-from auxiliary import values as v
-from auxiliary.data.dataset_ht import find_group, HtDataset
-from auxiliary.utils.colors import bcolors as bc
+from utils import values as v
+from utils.data.dataset_ht import find_group, HtDataset
+from utils.misc.colors import bcolors as bc
 
 
 folder = v.data_path + 'ATLAS/myocardium/'

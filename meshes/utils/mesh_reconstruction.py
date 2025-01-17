@@ -12,11 +12,11 @@ import multiprocessing
 
 from plyfile import PlyData, PlyElement  # Importing plyfile for PLY export
 
-from auxiliary.utils.colors import bcolors as c
-from auxiliary.data import imaging
+from utils.misc.colors import bcolors as c
+from utils.data import imaging
 
 from filtering.cardiac_region import filter_by_tissue
-from auxiliary.data.dataset_ht import find_specimen
+from utils.data.dataset_ht import find_specimen
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)

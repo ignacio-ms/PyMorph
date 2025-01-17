@@ -13,9 +13,9 @@ from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
 from scipy.spatial import cKDTree
 from scipy.sparse.csgraph import dijkstra
 
-from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import find_specimen, HtDataset, find_group
-from auxiliary import values as v
+from utils.misc.colors import bcolors as c
+from utils.data.dataset_ht import find_specimen, HtDataset, find_group
+from utils import values as v
 
 from meshes.utils.features.operator import (
     build_face_adjacency_csr_matrix,

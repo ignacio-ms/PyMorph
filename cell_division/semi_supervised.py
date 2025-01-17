@@ -15,13 +15,13 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary import values as v
-from auxiliary.utils.colors import bcolors as c
-from auxiliary.data import imaging
+from utils import values as v
+from utils.misc.colors import bcolors as c
+from utils.data import imaging
 
 # GPU config
-from auxiliary.utils.timer import LoadingBar
-from auxiliary.gpu.gpu_tf import (
+from utils.misc.timer import LoadingBar
+from utils.gpu.gpu_tf import (
     increase_gpu_memory,
     set_gpu_allocator
 )

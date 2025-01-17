@@ -14,13 +14,13 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary.data.imaging import (
+from utils.data.imaging import (
     read_nii, read_tiff,
     save_prediction, load_metadata
 )
-from auxiliary.utils.timer import LoadingBar
-from auxiliary.utils.colors import bcolors as c
-import auxiliary.values as v
+from utils.misc.timer import LoadingBar
+from utils.misc.colors import bcolors as c
+import utils.values as v
 
 
 def get_margins(line_path, img_path, tissue=None, ma=10, resolution=1024, verbose=0):

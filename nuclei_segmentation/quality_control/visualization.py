@@ -17,7 +17,7 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from auxiliary.data import imaging
+from utils.data import imaging
 
 
 def relabel_seg_img(img_seg, mapping_dict, ignore_missing_value=True):

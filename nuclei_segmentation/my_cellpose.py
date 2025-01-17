@@ -3,10 +3,10 @@ from scipy import ndimage
 from cellpose import models, core
 from cellpose.io import logger_setup
 
-from auxiliary.utils.colors import bcolors as c
-from auxiliary.data.dataset_ht import find_specimen
-from auxiliary.utils.timer import timed
-from auxiliary.data import imaging
+from utils.misc.colors import bcolors as c
+from utils.data.dataset_ht import find_specimen
+from utils.misc.timer import timed
+from utils.data import imaging
 
 from filtering.cardiac_region import get_margins, crop_img, restore_img
 from feature_extraction.feature_extractor import filter_by_margin

@@ -10,3 +10,4 @@
 *.png
 scripts/
 models/
+/scripts/
