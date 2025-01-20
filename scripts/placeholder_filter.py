@@ -9,10 +9,10 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from utils import values as v
-from utils.misc.timer import LoadingBar
-from utils.data.dataset_ht import HtDataset, find_group
-from utils.data import imaging
+from util import values as v
+from util.misc.timer import LoadingBar
+from util.data.dataset_ht import HtDataset, find_group
+from util.data import imaging
 
 
 ds = HtDataset()

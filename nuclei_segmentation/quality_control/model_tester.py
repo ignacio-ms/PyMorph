@@ -1,7 +1,7 @@
 from nuclei_segmentation import my_cellpose as cp
 from nuclei_segmentation.processing import postprocessing, preprocessing
 
-from utils.data import imaging
+from util.data import imaging
 
 
 class ModelTester:

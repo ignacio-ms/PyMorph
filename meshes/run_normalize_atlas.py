@@ -16,9 +16,9 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from utils import values as v
-from utils.misc.bash import arg_check
-from utils.misc.colors import bcolors as c
+from util import values as v
+from util.misc.bash import arg_check
+from util.misc.colors import bcolors as c
 from meshes.utils.visualize_analysis import save_mesh_views, create_feature_grid
 
 

@@ -12,10 +12,10 @@ from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
 from scipy.spatial import cKDTree
 from scipy.sparse.csgraph import dijkstra
 
-from utils.misc.colors import bcolors as c
-from utils.data.dataset_ht import find_specimen, HtDataset, find_group
-from utils import values as v
-from utils.misc.timer import LoadingBar
+from util.misc.colors import bcolors as c
+from util.data.dataset_ht import find_specimen, HtDataset, find_group
+from util import values as v
+from util.misc.timer import LoadingBar
 
 from meshes.utils.features.operator import (
     build_face_adjacency_csr_matrix,

@@ -22,7 +22,7 @@ from tensorflow.keras.callbacks import (
 
 import matplotlib.pyplot as plt
 
-from utils.data.dataset_nuclei import NucleiDataset
+from util.data.dataset_nuclei import NucleiDataset
 from cell_division.layers.calibration_layers import (
     VectorScalingLayer,
     TemperatureScalingLayer,

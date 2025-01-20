@@ -16,13 +16,13 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 from cell_division.layers.custom_layers import ExtendedLSEPooling, extended_w_cel_loss
 from cell_division.nets.transfer_learning import CNN
 
-from utils import values as v
-from utils.misc.bash import arg_check
-from utils.misc.colors import bcolors as c
-from utils.data.dataset_ht import HtDataset
-from utils.data.dataset_nuclei import NucleiDataset
-from utils.misc.timer import LoadingBar
-from utils.gpu.gpu_tf import (
+from util import values as v
+from util.misc.bash import arg_check
+from util.misc.colors import bcolors as c
+from util.data.dataset_ht import HtDataset
+from util.data.dataset_nuclei import NucleiDataset
+from util.misc.timer import LoadingBar
+from util.gpu.gpu_tf import (
     increase_gpu_memory,
     set_gpu_allocator
 )

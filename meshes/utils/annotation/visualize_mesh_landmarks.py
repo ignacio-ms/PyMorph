@@ -4,7 +4,7 @@ import pyrender
 
 import json
 
-from utils import values as v
+from util import values as v
 
 import open3d as o3d
 import open3d.visualization.gui as gui

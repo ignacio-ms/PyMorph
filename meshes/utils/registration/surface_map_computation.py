@@ -9,9 +9,9 @@ import pymeshlab
 from scipy.spatial import cKDTree
 import open3d as o3d
 
-from utils.misc.colors import bcolors as c
-from utils.data.dataset_ht import find_specimen, HtDataset, find_group
-from utils import values as v
+from util.misc.colors import bcolors as c
+from util.data.dataset_ht import find_specimen, HtDataset, find_group
+from util import values as v
 
 import os
 

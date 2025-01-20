@@ -24,9 +24,9 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from utils.misc.colors import bcolors as c
-from utils.misc.timer import LoadingBar
-from utils.data import imaging as cr
+from util.misc.colors import bcolors as c
+from util.misc.timer import LoadingBar
+from util.data import imaging as cr
 
 
 @njit

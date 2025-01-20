@@ -15,13 +15,13 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from utils import values as v
-from utils.misc.bash import arg_check
-from utils.misc.colors import bcolors as c
-from utils.misc.timer import timed
-from utils.data import imaging
+from util import values as v
+from util.misc.bash import arg_check
+from util.misc.colors import bcolors as c
+from util.misc.timer import timed
+from util.data import imaging
 
-from utils.data.dataset_ht import HtDataset, find_group
+from util.data.dataset_ht import HtDataset, find_group
 
 from filtering import cardiac_region as cr
 from feature_extraction.feature_extractor import extract, filter_connected_components_with_size

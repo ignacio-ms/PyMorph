@@ -16,8 +16,8 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-from utils.data import imaging
-from utils import values as v
+from util.data import imaging
+from util import values as v
 
 
 def dice_coef(pred, gt, thr_overlap=.3):
