@@ -72,7 +72,7 @@ def get_neighborhood_points(mesh, face_idx, graph=None, radius=10.0):
     while True:
         # Compute shortest paths from the starting face
         distances = dijkstra(
-            csgraph=graph, directed=False,
+            csgraph=graph.copy(), directed=False,
             indices=face_idx, return_predecessors=True,
             min_only=True,
             # limit=radius

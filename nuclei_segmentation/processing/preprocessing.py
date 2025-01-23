@@ -129,7 +129,8 @@ class Preprocessing:
         if pipeline is None:
             pipeline = [
                 'isotropy',
-                'norm_percentile',
+                # 'norm_percentile',
+                'norm_minmax',
                 'bilateral',
             ]
 
@@ -163,8 +164,8 @@ class Preprocessing:
     @staticmethod
     def norm_percentile(img, **kwargs):
         default_kwargs = {
-            'low': 5,
-            'high': 95
+            'low': 1,
+            'high': 99
         }
 
         default_kwargs.update(kwargs)
@@ -301,7 +302,8 @@ class Preprocessing:
             )
 
         imaging.save_nii(
-            img, img_path.replace('.nii.gz', f'_{test_name}_filtered.nii.gz'),
+            img,
+            img_path.replace('.nii.gz', f'_preprocessed.nii.gz').replace('.tif', f'_preprocessed.nii.gz'),
             verbose=verbose, axes='ZYX'
         )
 

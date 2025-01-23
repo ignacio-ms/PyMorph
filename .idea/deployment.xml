@@ -7,6 +7,7 @@
         <serverdata>
           <mappings>
             <mapping deploy="/ht_morphogenesis" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/data/data" local="/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_MT/LAB/Ignacio" web="/" />
           </mappings>
         </serverdata>
       </paths>

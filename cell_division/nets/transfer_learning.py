@@ -301,6 +301,34 @@ class CNN:
         else:
             raise ValueError(f"Unsupported input shape {X.shape} for 3D prediction, expected (H, W, Z) or (H, W)")
 
+    def predict3d_assessment(self, X, mask):
+        if X.ndim == 3:
+            n_slices = X.shape[2]
+
+            areas = np.array([np.sum(mask[..., z]) for z in range(n_slices)])
+            weights = (areas - np.min(areas)) / (np.max(areas) - np.min(areas))
+            weights /= np.sum(weights)
+
+            preds = []
+            for z in range(n_slices):
+                aux = cv2.cvtColor(X[..., z], cv2.COLOR_GRAY2RGB)[np.newaxis, ...]
+                aux = tf.image.resize(aux, (100, 100))
+                preds.append(self.predict_proba(aux)[0])
+
+            preds = np.array(preds)
+
+            # Majority voting with weights
+            pred = np.sum(preds * weights[:, np.newaxis], axis=0)
+            return np.argmax(pred), preds, weights, areas, pred
+
+        elif X.ndim == 2:
+            aux = cv2.cvtColor(X, cv2.COLOR_GRAY2RGB)[np.newaxis, ...]
+            aux = tf.image.resize(aux, (100, 100))
+            return self.predict(aux)[0], None, None, None, None
+
+        else:
+            raise ValueError(f"Unsupported input shape {X.shape} for 3D prediction, expected (H, W, Z) or (H, W)")
+
     def load(self, path, calibrated=False):
         if calibrated:
             self.calibrated_model = tf.keras.models.load_model(

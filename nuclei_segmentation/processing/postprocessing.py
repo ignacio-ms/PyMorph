@@ -37,7 +37,7 @@ class PostProcessing:
         return filtered_kwargs
 
     @staticmethod
-    def remove_small_objects(segmentation, percentile=5, verbose=0):
+    def remove_small_objects(segmentation, percentile=2, verbose=0):
         """
         Remove small objects from segmentation based on a computed size threshold.
 
@@ -67,7 +67,7 @@ class PostProcessing:
         return segmentation
 
     @staticmethod
-    def remove_large_objects(segmentation, percentile=95, verbose=0):
+    def remove_large_objects(segmentation, percentile=98, verbose=0):
         """
         Remove large objects from segmentation based on a computed size threshold.
 

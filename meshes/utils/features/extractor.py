@@ -150,7 +150,7 @@ class MeshFeatureExtractor:
 
         # Use Parallel to compute features in parallel
         features_rows = Parallel(n_jobs=n_jobs)(
-            delayed(compute_features)(cell_id) for cell_id in self.cell_ids
+            delayed(compute_features)(cell_id.copy()) for cell_id in self.cell_ids
         )
 
         return pd.DataFrame(

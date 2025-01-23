@@ -20,7 +20,7 @@ from util import values as v
 from meshes.utils.features.extractor import MeshFeatureExtractor
 
 
-def run(mesh_path, tissue_path, features_path, path_out=None, verbose=0, parallelize=True):
+def run(mesh_path, tissue_path, features_path, path_out=None, verbose=0, parallelize=False):
     cell_mesh = trimesh.load(mesh_path, file_type='ply')
     tissue_mesh = trimesh.load(tissue_path, file_type='ply')
     features = pd.read_csv(features_path)

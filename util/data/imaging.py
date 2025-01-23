@@ -86,7 +86,10 @@ def load_metadata(path):
             if resolution[0] is not None and resolution[1] is not None:
                 x_res = 1.0 / resolution[0].value[0] if resolution[0].value[0] != 0 else None
                 y_res = 1.0 / resolution[1].value[0] if resolution[1].value[0] != 0 else None
-                z_res = 2.9997854 # Replace by 1.0
+                z_res = 1.9998570 # Replace by 1.0
+
+                x_res *= 1e6 # Remove
+                y_res *= 1e6 # Remove
             else:
                 x_res, y_res, z_res = 1.0, 1.0, 1.0
 

@@ -6,6 +6,7 @@ import subprocess
 import numpy as np
 import trimesh
 import pymeshlab
+from pymeshlab import PercentageValue
 from scipy.spatial import cKDTree
 import open3d as o3d
 
@@ -170,6 +171,29 @@ def subdivide_mesh(mesh, target_face_count):
 
     if len(subdivided_mesh.faces) > target_face_count:
         subdivided_mesh = subdivided_mesh.simplify_quadric_decimation(target_face_count)
+
+    subprocess.run(['rm', 'temp_mesh.ply'])
+    subprocess.run(['rm', 'subdivided_mesh.ply'])
+
+    return subdivided_mesh
+
+
+def subdivision_loop(mesh, n_iters=2, thr=None):
+    if thr is None:
+        thr = PercentageValue(0.01)
+
+    mesh.export('temp_mesh.ply')
+
+    ms = pymeshlab.MeshSet()
+    ms.load_new_mesh('temp_mesh.ply')
+
+    ms.apply_filter(
+        'meshing_surface_subdivision_loop',
+        iterations=n_iters, threshold=thr
+    )
+
+    ms.save_current_mesh('subdivided_mesh.ply')
+    subdivided_mesh = trimesh.load('subdivided_mesh.ply')
 
     subprocess.run(['rm', 'temp_mesh.ply'])
     subprocess.run(['rm', 'subdivided_mesh.ply'])
