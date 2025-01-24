@@ -7,6 +7,11 @@ import cv2
 
 from util.data import imaging
 from util.misc.colors import bcolors as c
+from nuclei_segmentation.processing.intensity_calibration import (
+    compute_z_profile_no_mask, compute_z_profile,
+    logistic_inverted, fit_inverted_logistic,
+    correction_factor
+)
 
 
 def anisodiff3(stack, niter=1, kappa=50, gamma=0.1, step=(1.,1.,1.), option=1):
@@ -124,13 +129,14 @@ class Preprocessing:
             'median': self.median,
             'gamma': self.gamma,
             'rescale_intensity': self.rescale_intensity,
+            'intensity_calibration': self.intensity_calibration,
         }
 
         if pipeline is None:
             pipeline = [
+                'intensity_calibration',
                 'isotropy',
-                # 'norm_percentile',
-                'norm_minmax',
+                'norm_percentile',
                 'bilateral',
             ]
 
@@ -157,7 +163,7 @@ class Preprocessing:
     @staticmethod
     def norm_adaptative(img):
         return np.array([
-            exposure.equalize_adapthist(img[z], clip_limit=0.005)
+            exposure.equalize_adapthist(img[z], clip_limit=0.05)
             for z in range(img.shape[0])
         ])
 
@@ -248,6 +254,48 @@ class Preprocessing:
         return img_iso
 
     @staticmethod
+    def intensity_calibration(img, **kwargs):
+        default_kwargs = {
+            'mask': None,
+            'p0': None,
+            'maxfev': 50000,
+            'z_ref': 0,
+        }
+        default_kwargs.update(kwargs)
+
+        # Images are passed as ZYX; we want to transpose to XYZ
+        img = np.swapaxes(img, 0, 2)
+        z_slices, z_indices = img.shape[2], np.arange(img.shape[2])
+
+        # Compute the intensity profile along the z-axis
+        zprofile = compute_z_profile_no_mask if default_kwargs['mask'] is None else compute_z_profile
+        fg_means, bg_means = zprofile(img)
+
+        # Fit inverted logistic function
+        popt = fit_inverted_logistic(
+            z_indices, fg_means,
+            p0=default_kwargs['p0'], maxfev=default_kwargs['maxfev']
+        )
+        L, U, k, x0 = popt
+
+        if 'verbose' in kwargs:
+            print(f'{c.OKBLUE}Intensity calibration fitted parameters{c.ENDC}:')
+            print(f'\tL: {L}\n\tU: {U}\n\tk: {k}\n\tx0: {x0}')
+
+        # Calibrate image
+        calibration_factors = [
+            correction_factor(z, popt, z_ref=default_kwargs['z_ref'])
+            for z in z_indices
+        ]
+
+        img_calibrated = np.zeros_like(img, dtype=img.dtype)
+        for z, factor in zip(range(z_slices), calibration_factors):
+            img_calibrated[..., z] = img[..., z] * factor
+
+        # Transpose back to ZYX
+        return np.swapaxes(img_calibrated, 0, 2)
+
+    @staticmethod
     def gaussian(img, **kwargs):
         default_kwargs = {'sigma': 0.8}
         default_kwargs.update(kwargs)
@@ -291,6 +339,10 @@ class Preprocessing:
 
             if step in ['isotropy']:
                 img = step_func(img, metadata=metadata, verbose=verbose, **step_kwargs)
+                continue
+
+            elif step in ['intensity_calibration']:
+                img = step_func(img, verbose=verbose, **step_kwargs)
                 continue
 
             img = step_func(img, **step_kwargs)

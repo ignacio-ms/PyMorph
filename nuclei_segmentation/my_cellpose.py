@@ -188,8 +188,8 @@ def predict(
 
     # masks = filter_by_volume(masks, percentile=96, verbose=verbose)
     # Anisotropic recosntruction
-    masks_reconstructed = preprocessing.reconstruct(masks, metadata=metadata)
-    # masks_reconstructed = masks
+    # masks_reconstructed = preprocessing.reconstruct(masks, metadata=metadata)
+    masks_reconstructed = masks
 
     pp = postprocessing.PostProcessing(['clean_boundaries_opening'])
     masks_post = pp.run(masks_reconstructed, verbose=verbose)
