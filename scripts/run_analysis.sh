@@ -33,8 +33,8 @@ membrane_features=(
 #)
 
 
-# "Gr1" "Gr2" "Gr3" "Gr4" "Gr5"
-groups=("Gr6" "Gr7" "Gr8" "Gr9")
+# "Gr1" "Gr2" "Gr3" "Gr4" "Gr5" "Gr6" "Gr7" "Gr8" "Gr9"
+groups=("Gr6" "Gr7" "Gr8")
 
 
 # Run analysis for membrane features

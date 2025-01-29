@@ -4,6 +4,8 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/cell_division/models" />
       <excludeFolder url="file://$MODULE_DIR$/models/cellular_division_models/calibrated" />
+      <excludeFolder url="file://$MODULE_DIR$/models" />
+      <excludeFolder url="file://$MODULE_DIR$/scripts" />
     </content>
     <orderEntry type="jdk" jdkName="py310ml" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

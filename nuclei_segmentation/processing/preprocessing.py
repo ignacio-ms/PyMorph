@@ -90,6 +90,7 @@ class Preprocessing:
         default_kwargs.update(kwargs)
         low, high = np.percentile(img, (default_kwargs['low'], default_kwargs['high']))
 
+        print(f'\t{c.OKBLUE}Normalizing image{c.ENDC}: {low} - {high}')
         # return np.array([
         #     exposure.rescale_intensity(img[z], in_range=(low, high))
         #     for z in range(img.shape[0])
@@ -98,7 +99,6 @@ class Preprocessing:
             1.0 * img,
             in_range=(low, high), out_range=(0.0, 1.0)
         )
-
 
     @staticmethod
     def equalize(img):
