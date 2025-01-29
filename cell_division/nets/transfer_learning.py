@@ -266,12 +266,19 @@ class CNN:
 
         if hasattr(self, 'calibrated_model') and self.calibrated_model is not None:
             # Use the calibrated model for predictions
+            # print('Using calibrated model')
             return self.calibrated_model.predict(X)
         else:
             return self.model.predict(X)
 
     def predict(self, X):
         return np.argmax(self.predict_proba(X), axis=1)
+
+    def check_calibration(self):
+        if hasattr(self, 'calibrated_model') and self.calibrated_model is not None:
+            print('Predicting over the calibrated model')
+        else:
+            print('Predicting over the base model')
 
     def predict3d(self, X, mask):
         if X.ndim == 3:
@@ -336,7 +343,7 @@ class CNN:
                 custom_objects={
                     'LSEPooling': LSEPooling,
                     'ExtendedLSEPooling': ExtendedLSEPooling,
-                    'weighted_cross_entropy_with_logits': extended_w_cel_loss(),
+                    'ext_weighted_cross_entropy': extended_w_cel_loss(from_logits=True),
                     'focal_loss': focal_loss(),
                     'ext_weighted_cross_entropy_with_logits': extended_w_cel_loss_multiclass(),
                     'TemperatureScalingLayer': TemperatureScalingLayer,

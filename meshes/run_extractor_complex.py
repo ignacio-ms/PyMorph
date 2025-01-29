@@ -32,7 +32,7 @@ def run(mesh_path, tissue_path, features_path, path_out=None, verbose=0, paralle
         print(f'\t{c.BOLD}Columnarity')
 
     extractor = MeshFeatureExtractor(cell_mesh, tissue_mesh)
-    new_features = extractor.extract(n_jobs=6 if parallelize else 1)
+    new_features = extractor.extract(n_jobs=4 if parallelize else 1)
 
     if verbose:
         print(f'{c.OKGREEN}Features extracted{c.ENDC} [{len(new_features)} / {len(features)}]')

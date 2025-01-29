@@ -200,10 +200,10 @@ if __name__ == '__main__':
                 print(f'{c.OKBLUE}Running prediction on specimen{c.ENDC}: {spec}')
 
             ds = HtDataset(data_path=data_path)
-            features = run(ds, spec, type, tissue=tissue, verbose=verbose)
+            features = run(ds, spec, type, tissue=tissue, verbose=verbose, from_filtered=True)
 
             out_dir = os.path.join(
-                v.data_path, find_group(spec), 'Features',
+                data_path, find_group(spec), 'Features',
                 f'2019{spec}_cell_properties_radiomics_{type}_{tissue}.csv'
             )
 
@@ -230,6 +230,7 @@ if __name__ == '__main__':
                     features = run(ds, s, type, tissue=tissue, norm=True, verbose=verbose)
 
                     features.to_csv(out_path, index=False)
+                    print(f'{c.OKGREEN}Features saved{c.ENDC}: {out_path}')
                 except Exception as e:
                     # print(f'{c.FAIL}Error{c.ENDC}: {e}')
                     continue

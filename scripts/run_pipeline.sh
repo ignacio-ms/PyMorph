@@ -23,19 +23,17 @@ specimens=(
   "0517_E2" "0401_E1"
 )
 
-
 for specimen in "${specimens[@]}"
 do
   echo "Processing specimen $specimen"
+  conda activate py310ml
 
-  conda activate plant-seg
-  python membrane_segmentation/run_plantseg.py -v 1 -s $specimen
-
-  conda deactivate
-#  conda activate py310ml
-#
-#  python feature_extraction/run_extractor.py -s $specimen -l 'myocardium' -t 'Membrane' -v 1
-#  python meshes/run_mesh_reconstruction.py -s $specimen  -t 'myocardium' -l 'Membrane' -v 1
-#  python meshes/run_extractor_complex.py -s $specimen  -l 'Membrane' -t 'myocardium' -v 1 -m 1
-#  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
+  python feature_extraction/run_extractor.py -s $specimen -t 'Membrane' -l 'myocardium' -v 1
+  python feature_extraction/run_extractor.py -s $specimen -t 'Nuclei' -l 'myocardium' -v 1
+  python meshes/run_mesh_reconstruction.py -s $specimen  -t 'myocardium' -l 'Membrane' -v 1
+  python meshes/run_mesh_reconstruction.py -s $specimen  -t 'myocardium' -l 'Nuclei' -v 1
+  python meshes/run_extractor_complex.py -s $specimen  -l 'Membrane' -t 'myocardium' -v 1 -m 1
+  python meshes/run_extractor_complex.py -s $specimen  -l 'Nuclei' -t 'myocardium' -v 1 -m 1
+  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Membrane' -v 1
+  python filtering/run_filter_tissue.py -s $specimen -t 'myocardium' -l 'Nuclei' -v 1
 done

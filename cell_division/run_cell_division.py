@@ -62,9 +62,12 @@ def load_model():
         loss=extended_w_cel_loss(from_logits=True),
     )
 
+    model.add_calibration_layers('matrix')
+    model.compile_calibrated_model()
+
     # model_dir = './models/vgg16_nuclei_under.h5'
-    model_dir = '/app/cell_division/models/vgg16_nuclei_under.h5'
-    model.load(model_dir, calibrated=False)
+    model_dir = '/app/cell_division/models/calibrated/vgg16_nuclei_under_calibrated_matrix.h5'
+    model.load(model_dir, calibrated=True)
     return model
 
 
