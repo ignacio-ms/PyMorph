@@ -83,8 +83,8 @@ class Preprocessing:
     @staticmethod
     def norm_percentile(img, **kwargs):
         default_kwargs = {
-            'low': 0,
-            'high': 100
+            'low': 1,
+            'high': 99
         }
 
         default_kwargs.update(kwargs)

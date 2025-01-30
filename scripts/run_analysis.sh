@@ -34,7 +34,7 @@ membrane_features=(
 
 
 # "Gr1" "Gr2" "Gr3" "Gr4" "Gr5" "Gr6" "Gr7" "Gr8" "Gr9"
-groups=("Gr6" "Gr7" "Gr8")
+groups=("Gr8")
 
 
 # Run analysis for membrane features
@@ -46,7 +46,7 @@ do
     python meshes/run_atlas.py -g $group -f $feature -l "Membrane" -t "myocardium" -v 1
   done
   python meshes/utils/visualize_analysis.py -f $feature -l "Membrane" -t "myocardium" -v 1
-  python meshes/run_normalize_atlas.py -f $feature -l "Membrane" -t "myocardium" -v 1
+#  python meshes/run_normalize_atlas.py -f $feature -l "Membrane" -t "myocardium" -v 1
 done
 
 ## Run analysis for nuclei features

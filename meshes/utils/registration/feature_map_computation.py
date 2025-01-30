@@ -328,6 +328,13 @@ class FeatureMap:
             self.atlas.visual.vertex_colors = cmap(norm(face_val))
             self.atlas.export(out_path.replace('.ply', f'_{s}.ply'))
 
+            # Save .csv for face values of each specimen
+            aux_df = pd.DataFrame({
+                'tissue_face_id': np.arange(len(face_val)),
+                'value': face_val
+            })
+            aux_df.to_csv(out_path.replace('.ply', f'_{s}.csv'), index=False)
+
         bar.update()
         bar.end()
 
