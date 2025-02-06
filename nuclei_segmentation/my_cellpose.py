@@ -66,9 +66,9 @@ def run(
     model, img,
     diameter=None, channels=None,
     anisotropy=1,
-    do_3D=False,
-    stitch_threshold=.6,
-    cellprob_threshold=0,
+    do_3D=True,
+    stitch_threshold=.4,
+    cellprob_threshold=.0,
     flow_threshold=.4,
     verbose=0
 ):
@@ -107,7 +107,7 @@ def run(
             channels=channels,
             normalize=False,
             anisotropy=1,
-            do_3D=do_3D,
+            do_3D=False,
             cellprob_threshold=cellprob_threshold,
             stitch_threshold=stitch_threshold,
             flow_threshold=flow_threshold,
@@ -180,7 +180,7 @@ def predict(
         diameter=diameter,
         channels=channels,
         do_3D=kwargs['do_3D'] if 'do_3D' in kwargs else True,
-        stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else None,
+        stitch_threshold=kwargs['stitch_threshold'] if 'stitch_threshold' in kwargs else .4,
         cellprob_threshold=kwargs['cellprob_threshold'] if 'cellprob_threshold' in kwargs else .4,
         flow_threshold=kwargs['flow_threshold'] if 'flow_threshold' in kwargs else .4,
         verbose=verbose
