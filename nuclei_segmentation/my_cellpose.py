@@ -19,7 +19,7 @@ print(f"GPU activated: {use_gpu}")
 logger_setup()
 
 
-def load_img(img_path, pipeline=None, test_name=None, verbose=0, **kwargs):
+def load_img(img_path, pipeline=None, test_name=None, axes='ZYX', verbose=0, **kwargs):
     """
     Load image with preprocessing.
     :param img_path: Path to image.
@@ -34,7 +34,7 @@ def load_img(img_path, pipeline=None, test_name=None, verbose=0, **kwargs):
     """
     preprocess = preprocessing.Preprocessing(pipeline=pipeline)
     return preprocess.run(
-        img_path, test_name=test_name,
+        img_path, test_name=test_name, axes=axes,
         verbose=verbose, **kwargs
     )
 

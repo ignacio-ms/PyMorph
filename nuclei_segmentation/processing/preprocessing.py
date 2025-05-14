@@ -1,9 +1,10 @@
 import numpy as np
 
 from scipy import ndimage
-from skimage import exposure, morphology
+from skimage import exposure, morphology, filters
 from skimage.transform import rescale
 from skimage.restoration import denoise_bilateral
+from rich.progress import Progress
 import cv2
 
 from util.data import imaging
@@ -41,6 +42,8 @@ class Preprocessing:
             'rescale_intensity': self.rescale_intensity,
             'intensity_calibration': self.intensity_calibration,
             'cellpose_denoising': self.cellpose_denoising,
+            'remove_bck': self.remove_bck,
+            'resample': self.resample,
         }
 
         if pipeline is None:
@@ -74,11 +77,15 @@ class Preprocessing:
 
     @staticmethod
     def norm_adaptative(img):
-        return np.array([
-            exposure.equalize_adapthist(img[z], clip_limit=0.05)
-            for z in range(img.shape[0])
-        ])
-        # return exposure.equalize_adapthist(img, clip_limit=0.05, kernel_size=(5, 5, 5))
+        # return np.array([
+        #     exposure.equalize_adapthist(img[z], clip_limit=0.05)
+        #     for z in range(img.shape[0])
+        # ])
+        return exposure.equalize_adapthist(
+            img, clip_limit=0.05,
+            kernel_size=(21, 21, 21),
+            nbins=1024
+        )
 
     @staticmethod
     def norm_percentile(img, **kwargs):
@@ -101,8 +108,35 @@ class Preprocessing:
         )
 
     @staticmethod
-    def equalize(img):
-        return exposure.equalize_hist(img)
+    def equalize(img, **kwargs):
+        default_kwargs = {
+            'use_mask': True,
+            'disk_size': 35,
+        }
+
+        if default_kwargs['use_mask']:
+            img = np.array(exposure.rescale_intensity(
+                img,
+                in_range=(np.min(img), np.max(img)),
+                out_range=(0, 1)
+            ))
+
+            img_tophat = np.zeros(img.shape)
+            for z in range(img.shape[0]):
+                img_tophat[z] = morphology.white_tophat(
+                    img[z], footprint=morphology.disk(default_kwargs['disk_size'])
+                )
+
+            threshold = filters.threshold_otsu(img_tophat)
+            init_mask = img_tophat > threshold
+
+            mask_closed = np.empty_like(init_mask)
+            for z in range(init_mask.shape[0]):
+                mask_closed[z] = morphology.dilation(
+                    init_mask[z], morphology.disk(5)
+                )
+
+        return exposure.equalize_hist(img, nbins=1024, mask=mask_closed if default_kwargs['use_mask'] else None)
 
     @staticmethod
     def anisodiff(img, **kwargs):
@@ -131,9 +165,12 @@ class Preprocessing:
     @staticmethod
     def bilateral(img, **kwargs):
         default_kwargs = {
-            'win_size': 3,
+            'win_size': 5,
             'sigma_color': .1,
-            'sigma_spatial': 10
+            'sigma_spatial': 15
+            # 'win_size': 7,
+            # 'sigma_color': .15,
+            # 'sigma_spatial': 15
         }
 
         default_kwargs.update(kwargs)
@@ -145,6 +182,44 @@ class Preprocessing:
             denoise_bilateral(img[z], **default_kwargs)
             for z in range(img.shape[0])
         ])
+
+    @staticmethod
+    def remove_bck(img, **kwargs):
+        default_kwargs = {
+            'disk_size': 35,
+            'closing_size': 5,
+            'threshold': 'otsu',
+            # 'disk_size': 7,
+            # 'closing_size': 5,
+            # 'threshold': 'otsu',
+        }
+        default_kwargs.update(kwargs)
+
+        img = np.array(exposure.rescale_intensity(
+            img,
+            in_range=(np.min(img), np.max(img)),
+            out_range=(0, 1)
+        ))
+
+        img_tophat = np.zeros(img.shape)
+        for z in range(img.shape[0]):
+            img_tophat[z] = morphology.white_tophat(
+                img[z], footprint=morphology.disk(default_kwargs['disk_size'])
+            )
+
+        if default_kwargs['threshold'] == 'otsu':
+            threshold = filters.threshold_otsu(img_tophat)
+        else:
+            raise ValueError('Invalid threshold method.')
+        init_mask = img_tophat > threshold
+
+        mask_closed = np.empty_like(init_mask)
+        for z in range(init_mask.shape[0]):
+            mask_closed[z] = morphology.closing( # dilation
+                init_mask[z], morphology.disk(default_kwargs['closing_size'])
+            )
+
+        return img * mask_closed
 
     @staticmethod
     def isotropy(img, **kwargs):
@@ -180,6 +255,37 @@ class Preprocessing:
             print(f'\tResampled shape: {img_iso.shape}')
 
         return img_iso
+
+    @staticmethod
+    def resample(img, **kwargs):
+        default_kwargs = {
+            'spacing': (1.0, .67, .67),
+            'order': 3,
+            'mode': 'edge',
+            'clip': True,
+            'anti_aliasing': False,
+            'preserve_range': True,
+        }
+        default_kwargs.update(kwargs)
+
+        spacing = default_kwargs['spacing']
+
+        prev_shape = img.shape
+        img = rescale(
+            img, spacing,
+            order=default_kwargs['order'],
+            mode=default_kwargs['mode'],
+            clip=default_kwargs['clip'],
+            anti_aliasing=default_kwargs['anti_aliasing'],
+            preserve_range=default_kwargs['preserve_range']
+        )
+
+        print(f'{c.OKBLUE}Resampling image with spacing:{c.ENDC} {spacing}')
+        print(f'\tOriginal shape: {prev_shape}')
+        print(f'\tResampled shape: {img.shape}')
+
+        return img
+
 
     @staticmethod
     def intensity_calibration(img, **kwargs):
@@ -226,8 +332,9 @@ class Preprocessing:
     @staticmethod
     def cellpose_denoising(img, **kwargs):
         default_kwargs = {
-            'diameter': 17,
+            'diameter': 40,
             'channels': [0, 0],
+            'model_type': 'denoise_cyto3',
         }
         default_kwargs.update(kwargs)
 
@@ -241,49 +348,61 @@ class Preprocessing:
 
     @staticmethod
     def median(img, **kwargs):
-        default_kwargs = {'size': 3}
+        default_kwargs = {'size': 5}
         default_kwargs.update(kwargs)
         return ndimage.median_filter(img, **kwargs)
 
     @staticmethod
     def gamma(img, **kwargs):
-        default_kwargs = {'gamma': 0.5}
+        default_kwargs = {'gamma': 2}
         default_kwargs.update(kwargs)
         return exposure.adjust_gamma(img, **kwargs)
 
     @staticmethod
     def rescale_intensity(img, **kwargs):
         default_kwargs = {
-            'in_range': (np.percentile(img, 5), np.percentile(img, 95)),
-            'out_range': (0, 1)
+            'in_range': (np.min(img), np.max(img)),
+            'out_range': (0.0, 1.0)
         }
         default_kwargs.update(kwargs)
         return exposure.rescale_intensity(img, **kwargs)
 
-    def run(self, img_path, test_name=None, verbose=0, **kwargs):
+    def run(self, img_path, test_name=None, axes='ZYX', verbose=0, **kwargs):
         try:
             img = kwargs['image']
             assert img is not None
         except Exception:
             img = imaging.read_image(img_path, axes='ZYX', verbose=verbose)
+        if img.ndim == 2:
+            raise ValueError(f'Invalid image shape: {img.shape}')
         img = img.astype(np.uint16)
         metadata, _ = imaging.load_metadata(img_path)
 
-        for step in self.pipeline:
-            print(f'{c.OKGREEN}Running pro-processing step{c.ENDC}: {step}')
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Running pre-processing steps...", total=len(self.pipeline))
+            for step in self.pipeline:
+                # print(f'{c.OKGREEN}Running pre-processing step{c.ENDC}: {step}')
+                progress.print(f'[green]Step: [/green]{step}')
 
-            step_func = self.mapped_pipeline[step]
-            step_kwargs = self.filter_kwargs(step_func, kwargs)
+                step_func = self.mapped_pipeline[step]
+                step_kwargs = self.filter_kwargs(step_func, kwargs)
 
-            if step in ['isotropy']:
-                img = step_func(img, metadata=metadata, verbose=verbose, **step_kwargs)
-                continue
+                try:
+                    if step in ['isotropy']:
+                        img = step_func(img, metadata=metadata, verbose=verbose, **step_kwargs)
+                        progress.update(task, advance=1)
+                        continue
+                    elif step in ['intensity_calibration']:
+                        img = step_func(img, verbose=verbose, **step_kwargs)
+                        progress.update(task, advance=1)
+                        continue
 
-            elif step in ['intensity_calibration']:
-                img = step_func(img, verbose=verbose, **step_kwargs)
-                continue
-
-            img = step_func(img, **step_kwargs)
+                    img = step_func(img, **step_kwargs)
+                except Exception as e:
+                    print(f'{c.FAIL}Error at step{c.ENDC}: {step} - {c.WARNING}Skipping{c.ENDC}')
+                    continue
+                finally:
+                    progress.update(task, advance=1)
 
         if test_name:
             imaging.save_nii(
@@ -291,11 +410,28 @@ class Preprocessing:
                 verbose=verbose, axes='ZYX'
             )
 
-        imaging.save_nii(
-            img,
-            img_path.replace('.nii.gz', f'_preprocessed.nii.gz').replace('.tif', f'_preprocessed.nii.gz'),
-            verbose=verbose, axes='ZYX'
-        )
+        try:
+            if 'save' in kwargs and kwargs['save']:
+                imaging.save_nii(
+                    img,
+                    img_path.replace('.nii.gz', f'_preprocessed.nii.gz').replace('.tif', f'_preprocessed.nii.gz'),
+                    verbose=verbose, axes='ZYX'
+                )
+        except Exception:
+            print(f'{c.WARNING}Error saving preprocessed image{c.ENDC}')
 
-        return img.astype(np.float16)
+        if axes == 'ZYX':
+            return img.astype(np.float16 if not 'dtype' in kwargs else kwargs['dtype'])
 
+        elif axes == 'XYZ':
+            # print(img.shape)
+            # imaging.save_nii(np.swapaxes(
+            #     img, 0, 2
+            # ), 'proc_img.nii.gz', axes='XYZ')
+            # exit(0)
+            return np.swapaxes(
+                img, 0, 2
+            )#.astype(np.float16 if not 'dtype' in kwargs else kwargs['dtype'])
+
+        else:
+            raise ValueError('Invalid axes parameter.')

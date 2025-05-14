@@ -15,7 +15,7 @@ except NameError:
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
 from util.data.imaging import (
-    read_nii, read_tiff,
+    read_nii, read_tiff, read_image,
     save_prediction, load_metadata
 )
 from util.misc.timer import LoadingBar
@@ -35,7 +35,7 @@ def get_margins(line_path, img_path, tissue=None, ma=10, resolution=1024, verbos
     :return:
     """
     metadata_line, _ = load_metadata(line_path)
-    line = read_nii(line_path)
+    line = read_image(line_path)
     metadata_img, _ = load_metadata(img_path)
 
     if verbose:
@@ -47,7 +47,11 @@ def get_margins(line_path, img_path, tissue=None, ma=10, resolution=1024, verbos
         if isinstance(tissue, list):
             coords = np.where(np.isin(line, [v.lines[t] for t in tissue]))
         else:
-            coords = np.where(line == v.lines[tissue] if tissue else line > 0)
+            if isinstance(tissue, str):
+                t = v.lines[tissue]
+            else:
+                t = tissue
+            coords = np.where(line == t if tissue else line > 0)
     except KeyError:
         print(f'{c.FAIL}Invalid tissue{c.ENDC}: {tissue}')
         print(f'{c.BOLD}Available tissues{c.ENDC}: {list(v.lines.keys())}')
@@ -151,7 +155,13 @@ def restore_img(img, margins, depth, resolution=1024, axes='XYZ', verbose=0):
     else:  # axes == 'ZYX':
         shape = (depth, resolution, resolution)
 
+    print(f'Shape: {shape}')
+    print(f'Depth: {depth} - Resolution: {resolution}')
     restored = np.zeros(shape, dtype=img.dtype)
+
+    print(f'Image shape: {img.shape}')
+    print(f'Restored shape: {restored.shape}')
+    print(f'Margins: {margins}')
 
     restored[
         int(margins[0][0]):int(margins[1][0]),

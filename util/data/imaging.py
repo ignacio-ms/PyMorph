@@ -1,7 +1,7 @@
 import glob
 import os
 
-import cv2
+# import cv2
 import numpy as np
 import nibabel as nib
 from scipy.ndimage import zoom
@@ -60,7 +60,7 @@ def read_nii_batch(paths):
     return X
 
 
-def load_metadata(path):
+def load_metadata(path, z_res=None):
     """
     Load metadata from (NIfTI | Tif) file without loading the image.
     :param path: Path to image.
@@ -86,10 +86,15 @@ def load_metadata(path):
             if resolution[0] is not None and resolution[1] is not None:
                 x_res = 1.0 / resolution[0].value[0] if resolution[0].value[0] != 0 else None
                 y_res = 1.0 / resolution[1].value[0] if resolution[1].value[0] != 0 else None
-                z_res = 1.9998570 # Replace by 1.0
+                z_res = 1.9998570 if not z_res else z_res
+                # z_res = 1.0399826 # Replace by 1.0 Irene Legs
 
+                # x_res /= 1e3 # Remove
                 x_res *= 1e6 # Remove
+#                 y_res /= 1e3 # Remove
                 y_res *= 1e6 # Remove
+
+                # print(f'{c.OKGREEN}Resolution{c.ENDC}: {x_res}, {y_res}, {z_res}')
             else:
                 x_res, y_res, z_res = 1.0, 1.0, 1.0
 
@@ -199,34 +204,34 @@ def resize_xy_05(img_path):
     print(f'{c.OKBLUE}Saving resized image{c.ENDC}: {img_path}')
 
 
-# def resample_img(img, mask, raw_img_path):
-#     """
-#     Resample the image and mask. The resampling is done based on the XYZ resolutions.
-#     :param img: Image.
-#     :param mask: Mask.
-#     :param raw_img_path: Raw image path.
-#     :param verbose: Verbosity level. (default: 0)
-#     :return: Resampled image and mask.
-#     """
-#     metadata, _ = cr.load_metadata(raw_img_path)
-#     spacing = [
-#         float(metadata['x_res']),
-#         float(metadata['y_res']),
-#         float(metadata['z_res'])
-#     ]
-#
-#     resampler = sitk.ResampleImageFilter()
-#     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
-#     resampler.SetSize([
-#         int(round(img.GetSize()[0] * spacing[0])),
-#         int(round(img.GetSize()[1] * spacing[1])),
-#         int(round(img.GetSize()[2] * spacing[2]))
-#     ])
-#
-#     img = resampler.Execute(img)
-#     mask = resampler.Execute(mask)
-#
-#     return img, mask
+#def resample_img(img, mask, raw_img_path):
+#    """
+#    Resample the image and mask. The resampling is done based on the XYZ resolutions.
+#    :param img: Image.
+#    :param mask: Mask.
+#    :param raw_img_path: Raw image path.
+#    :param verbose: Verbosity level. (default: 0)
+#    :return: Resampled image and mask.
+#    """
+#    metadata, _ = cr.load_metadata(raw_img_path)
+#    spacing = [
+#        float(metadata['x_res']),
+#        float(metadata['y_res']),
+#        float(metadata['z_res'])
+#    ]
+
+#    resampler = sitk.ResampleImageFilter()
+#    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+#    resampler.SetSize([
+#        int(round(img.GetSize()[0] * spacing[0])),
+#        int(round(img.GetSize()[1] * spacing[1])),
+#        int(round(img.GetSize()[2] * spacing[2]))
+#    ])
+
+#    img = resampler.Execute(img)
+#    mask = resampler.Execute(mask)
+
+#    return img, mask
 
 
 def read_tiff(path, axes='XYZ', verbose=0):
@@ -289,8 +294,8 @@ def save_prediction(labels, out_path, axes='XYZ', verbose=0):
     if labels.shape[0] < labels.shape[1]:
         labels = np.swapaxes(labels, 0, 2)
 
-    if labels.ndim == 2:
-        labels = np.expand_dims(labels, axis=2)
+    # if labels.ndim == 2:
+    #     labels = np.expand_dims(labels, axis=2)
 
     save_tiff_imagej_compatible(out_path, labels, axes=axes)
 
@@ -337,32 +342,28 @@ def save_nii(labels, out_path, axes='XYZ', affine=None, metadata=None, verbose=0
 
 
 def nii2h5(img, out_path, axes='XYZ', verbose=0):
-    """
-    Save image as HDF5 file.
-    :param img: Image.
-    :param out_path: Path to save image.
-    :param axes: Axes of the image. (Default: XYZ)
-    :param verbose: Verbosity level.
-    """
-    if out_path.endswith('.nii.gz'):
-        out_path = out_path.replace('.nii.gz', '.h5')
-
-    if os.path.exists(out_path):
-        print(f"File {out_path} already exists. Skipping conversion.")
-        return
-
-    if axes == 'ZXY':
-        img = np.swapaxes(np.swapaxes(img, 0, 2), 1, 2)
-    elif axes == 'ZYX':
-        img = np.swapaxes(img, 0, 2)
-    elif axes not in ['XYZ', 'ZXY', 'ZYX']:
-        print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - HDF5')
-
-    with h5py.File(out_path, 'a') as hf:
-        _ = hf.create_dataset('raw', data=img)
-
-    if verbose:
-        print(f'\n{c.OKGREEN}Saving image{c.ENDC}: {out_path}')
+   """
+   Save image as HDF5 file.
+   :param img: Image.
+   :param out_path: Path to save image.
+   :param axes: Axes of the image. (Default: XYZ)
+   :param verbose: Verbosity level.
+   """
+   if out_path.endswith('.nii.gz'):
+       out_path = out_path.replace('.nii.gz', '.h5')
+   # if os.path.exists(out_path):
+   #     print(f"File {out_path} already exists. Skipping conversion.")
+   #     return
+   if axes == 'ZXY':
+       img = np.swapaxes(np.swapaxes(img, 0, 2), 1, 2)
+   elif axes == 'ZYX':
+       img = np.swapaxes(img, 0, 2)
+   elif axes not in ['XYZ', 'ZXY', 'ZYX']:
+       print(f'{c.FAIL}Invalid axes{c.ENDC}: {axes} (XYZ, ZXY, ZYX) - HDF5')
+   with h5py.File(out_path, 'w') as hf:
+       _ = hf.create_dataset('raw', data=img)
+   if verbose:
+       print(f'\n{c.OKGREEN}Saving image{c.ENDC}: {out_path}')
 
 
 def crop(img, x1, x2, y1, y2, z1, z2):
