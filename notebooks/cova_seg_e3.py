@@ -3,12 +3,14 @@ import subprocess
 import sys
 
 import numpy as np
-import torch
+import tensorflow as tf
+
 from skimage.restoration import denoise_bilateral
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
-from cellpose import denoise, models
-# from stardist.models import StarDist3D, StarDist2D
+
+from stardist.models import StarDist3D, StarDist2D
+from csbdeep.utils import normalize as deep_normalize
 
 
 try:
@@ -17,53 +19,41 @@ except NameError:
     current_dir = os.getcwd()
 sys.path.append(os.path.abspath(os.path.join(current_dir, os.pardir)))
 
-# from util.gpu.gpu_tf import increase_gpu_memory, set_gpu_allocator
+from util.gpu.gpu_tf import increase_gpu_memory, set_gpu_allocator
 from nuclei_segmentation.processing.intensity_calibration import compute_z_profile_no_mask, fit_inverted_logistic, \
     correction_factor, compute_z_profile
 from util.data import imaging
 from util.misc.colors import bcolors as c
-# from membrane_segmentation.my_plantseg import predict
 
 
 os.environ["XLA_FLAGS"] = "--xla_gpu_cuda_data_dir=/usr/local/cuda-11.8/"
-use_gpu = torch.cuda.is_available()
-print(f"GPU activated: {use_gpu}")
+
+use_gpu = tf.config.list_physical_devices('GPU')
+print(f"GPU activated: {'True' if use_gpu else 'False'}")
 
 _skip_existing = True
 _type = 'GDO enh2' # EBI TFP    FPN enh7-3        GDO enh2
-base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/6.5E'
+base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/3.5E'
 raw_dir = os.path.join(base_dir, _type)
 out_dir = os.path.join(base_dir, 'Segmentation', _type)
 
 params = {
-    'model_type': 'cellpose',
+    'model_type': 'stardist',
     'do_3d': True,
-    'diameter': 17,
-    'channels': [0, 0],
-    'flow_threshold': 0.4,
-    'cellprob_threshold': 0.4,
-    'stitch_threshold': 0.4,
 }
 
-def load_model(model_type='nuclei'):
-    print(f'{c.OKBLUE}Loading model{c.ENDC}: {model_type}')
-    if model_type in ['nuclei', 'cyto', 'cyto2', 'cyto3']:
-        return models.Cellpose(gpu=use_gpu, model_type=model_type)
-
-    return models.CellposeModel(model_type, diam_mean=17)
-
-# def load_stardist_model(do_3D):
-#     try:
-#         increase_gpu_memory()
-#         set_gpu_allocator()
-#     except Exception as e:
-#         print(f'{c.WARNING}GPU mem. growth not available{c.ENDC}')
-#     if do_3D:
-#         _model_name = 'n2_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)'
-#         _model_path = os.path.join(current_dir, "..", "models", "stardist_models")
-#         return StarDist3D(None, name=_model_name, basedir=_model_path)
-#     _model_name = '2D_versatile_fluo'
-#     return StarDist2D.from_pretrained(_model_name)
+def load_stardist_model(do_3D):
+    try:
+        increase_gpu_memory()
+        set_gpu_allocator()
+    except Exception as e:
+        print(f'{c.WARNING}GPU mem. growth not available{c.ENDC}')
+    if do_3D:
+        _model_name = 'n2_stardist_96_(1.6, 1, 1)_(48, 64, 64)_(1, 1, 1)'
+        _model_path = os.path.join(current_dir, "..", "models", "stardist_models")
+        return StarDist3D(None, name=_model_name, basedir=_model_path)
+    _model_name = '2D_versatile_fluo'
+    return StarDist2D.from_pretrained(_model_name)
 
 def volume(mask):
     vol_dict = {}
@@ -90,60 +80,43 @@ def intensity_calibration(img, **kwargs):
     }
     default_kwargs.update(kwargs)
 
-    z_slices, z_indices = img.shape[2], np.arange(img.shape[2])
+    try:
+        z_slices, z_indices = img.shape[2], np.arange(img.shape[2])
 
-    # Compute the intensity profile along the z-axis
-    zprofile = compute_z_profile_no_mask if default_kwargs['mask'] is None else compute_z_profile
-    fg_means, bg_means = zprofile(img)
+        # Compute the intensity profile along the z-axis
+        zprofile = compute_z_profile_no_mask if default_kwargs['mask'] is None else compute_z_profile
+        fg_means, bg_means = zprofile(img)
 
-    # Fit inverted logistic function
-    popt = fit_inverted_logistic(
-        z_indices, fg_means,
-        p0=default_kwargs['p0'], maxfev=default_kwargs['maxfev']
-    )
-    L, U, k, x0 = popt
+        # Fit inverted logistic function
+        popt = fit_inverted_logistic(
+            z_indices, fg_means,
+            p0=default_kwargs['p0'], maxfev=default_kwargs['maxfev']
+        )
+        L, U, k, x0 = popt
 
-    if 'verbose' in kwargs:
-        print(f'{c.OKBLUE}Intensity calibration fitted parameters{c.ENDC}:')
-        print(f'\tL: {L}\n\tU: {U}\n\tk: {k}\n\tx0: {x0}')
+        if 'verbose' in kwargs:
+            print(f'{c.OKBLUE}Intensity calibration fitted parameters{c.ENDC}:')
+            print(f'\tL: {L}\n\tU: {U}\n\tk: {k}\n\tx0: {x0}')
 
-    # Calibrate image
-    calibration_factors = [
-        correction_factor(z, popt, z_ref=default_kwargs['z_ref'])
-        for z in z_indices
-    ]
+        # Calibrate image
+        calibration_factors = [
+            correction_factor(z, popt, z_ref=default_kwargs['z_ref'])
+            for z in z_indices
+        ]
 
-    img_calibrated = np.zeros_like(img, dtype=img.dtype)
-    for z, factor in zip(range(z_slices), calibration_factors):
-        img_calibrated[..., z] = img[..., z] * factor
+        img_calibrated = np.zeros_like(img, dtype=img.dtype)
+        for z, factor in zip(range(z_slices), calibration_factors):
+            img_calibrated[..., z] = img[..., z] * factor
 
-    # Transpose back to ZYX
-    return img_calibrated
-
-def cellpose_denoising(img, **kwargs):
-    default_kwargs = {
-        'diameter': 30,
-        'channels': [0, 0],
-        'model_type': 'denoise_cyto3',
-    }
-    default_kwargs.update(kwargs)
-
-    model = denoise.DenoiseModel(model_type='denoise_cyto3', gpu=use_gpu)
-    denoised = np.swapaxes(np.swapaxes([
-        model.eval(img[..., z], **kwargs)
-        for z in range(img.shape[-1])
-    ], 0, 1), 1, 2)
-
-    if denoised.ndim == 4:
-        denoised = denoised[..., 0]
-
-    return denoised
+        # Transpose back to ZYX
+        return img_calibrated
+    except Exception as e: return img
 
 def bilateral(img, **kwargs):
     default_kwargs = {
         'win_size': 3,
         'sigma_color': None,
-        'sigma_spatial': 7
+        'sigma_spatial': 10
     }
     default_kwargs.update(kwargs)
 
@@ -239,20 +212,21 @@ def preprocess(img_path, verbose=0):
     #     'bilateral'  # 3/.1/10
     # }
     img = imaging.read_image(img_path).astype(np.float16)
-    metadata, _ = imaging.load_metadata(img_path, z_res=1.9998570)
+    metadata, _ = imaging.load_metadata(img_path, z_res=2.9997855)
 
-    img_preprocessed = resample(img, spacing=(0.5, 0.5, 1.0), verbose=verbose)
+    img_preprocessed = resample(img, spacing=(0.25, 0.25, 1.0), verbose=verbose)
     metadata['x_res'] *= 2
     metadata['y_res'] *= 2
+    # img_preprocessed = img
 
     print(f'{c.OKBLUE}Image shape{c.ENDC}: {img_preprocessed.shape}')
     print(f'{c.OKBLUE}Meta: {c.ENDC} {metadata}')
 
     img_preprocessed = intensity_calibration(img_preprocessed, verbose=verbose)
-    img_preprocessed = cellpose_denoising(img_preprocessed)
-    img_preprocessed = isotropy(img_preprocessed, metadata=metadata, verbose=verbose)
-    img_preprocessed = norm_percentile(img_preprocessed, low=1, high=99, verbose=verbose)
-    img_preprocessed = bilateral(img_preprocessed, win_size=3, sigma_color=.1, sigma_spatial=10)
+    # img_preprocessed = isotropy(img_preprocessed, metadata=metadata, verbose=verbose)
+    # img_preprocessed = norm_percentile(img_preprocessed, low=1, high=99, verbose=verbose)
+    img_preprocessed = deep_normalize(img_preprocessed, 1, 99.8, axis=(0, 1, 2))
+    img_preprocessed = bilateral(img_preprocessed, win_size=5, sigma_color=0.15, sigma_spatial=15)
 
     imaging.save_tiff_imagej_compatible(
         f'{img_path.replace(".tif", "_preprocessed.tif")}',
@@ -266,39 +240,46 @@ def predict(img_path, out_path, verbose=0):
         img = np.swapaxes(img, 0, 2)
 
     if params['model_type'] == 'stardist':
-        # model = load_stardist_model(params['do_3d'])
-        # mask, _ = model.predict_instances(
-        #     img, axes='XYZ',
-        #     n_tiles=(1, 1, 1),
-        #     verbose=verbose
-        # )
-        raise NotImplementedError('Stardist model not implemented yet.')
-    else:
-        model = load_model(model_type='nuclei')
-        mask, _, _, _ = model.eval(
-            img,
-            diameter=params['diameter'],
-            channels=params['channels'],
-            normalize=False,
-            do_3D=params['do_3d'],
-            cellprob_threshold=params['cellprob_threshold'],
-            stitch_threshold=params['stitch_threshold'],
-            flow_threshold=params['flow_threshold'],
+        model = load_stardist_model(params['do_3d'])
+        _img = np.swapaxes(img, 0, 2)
+        print(f'{c.OKBLUE}Image shape{c.ENDC}: {_img.shape}')
+        _mask, _ = model.predict_instances(
+            _img,
+            verbose=verbose,
+
         )
+        print(f'{c.OKBLUE}Mask shape{c.ENDC}: {_mask.shape}')
+        mask = np.swapaxes(_mask, 0, 2)
+        print(f'{c.OKBLUE}Mask shape{c.ENDC}: {mask.shape}')
+    #     raise NotImplementedError('Stardist model not implemented yet.')
+    # else:
+    #     model = load_model(model_type='nuclei')
+    #     mask, _, _, _ = model.eval(
+    #         img,
+    #         diameter=params['diameter'],
+    #         channels=params['channels'],
+    #         normalize=False,
+    #         do_3D=params['do_3d'],
+    #         cellprob_threshold=params['cellprob_threshold'],
+    #         stitch_threshold=params['stitch_threshold'],
+    #         flow_threshold=params['flow_threshold'],
+    #     )
+    else: raise NotImplementedError('Model type not implemented yet.')
 
     if verbose:
         print(f'{c.OKGREEN}Masks shape{c.ENDC}: {mask.shape}')
     # Save mask
-    imaging.save_tiff_imagej_compatible(
-        out_path,
-        mask, axes='ZYX' if params['model_type'] == 'cellpose' else 'XYZ',
+    imaging.save_nii(
+        mask, out_path,
+        axes='ZYX' if params['model_type'] == 'cellpose' else 'XYZ',
     )
 
 
 def process_image(raw_path, out_path):
     """Runs the whole pipeline (preprocess + predict) on one image."""
-    predict(raw_path, out_path, verbose=1)
-    print(f'{c.OKGREEN}Mask saved{c.ENDC}: {out_path}')
+    with tf.device('/CPU:0'):
+        predict(raw_path, out_path, verbose=1)
+        print(f'{c.OKGREEN}Mask saved{c.ENDC}: {out_path}')
 
 
 def main():
@@ -322,32 +303,7 @@ def main():
         try:
             if not raw_name.endswith('.tif') or 'preprocessed' in raw_name:
                 continue
-            if raw_name in [
-                'FPN393_1_dapi.tif',
-                'FPN405_2_dapi.tif',
-                'FPN408_2_dapi.tif',
-                'FPN393_2_dapi.tif',
-                'FPN405_5_dapi.tif',
-                'FPN408_3_dapi.tif',
-                'FPN393_4_dapi.tif',
-                'FPN405_6_dapi.tif',
-                'FPN408_4_dapi.tif',
-                'FPN400_2_dapi.tif',
-                'FPN406_1_dapi.tif',
-                'FPN408_6_dapi.tif',
-                'FPN400_3_dapi.tif',
-                'FPN406_3_dapi.tif',
-                'FPN418_1_dapi.tif',
-                'FPN400_5_dapi.tif',
-                'FPN406_4_dapi.tif',
-                'FPN418_2_dapi.tif',
-                'FPN400_6_dapi.tif',
-                'FPN406_5_dapi.tif',
-                'FPN418_3_dapi.tif',
-                'FPN400_8_dapi.tif',
-                'FPN408_1_dapi.tif',
-                'FPN418_4_dapi.tif',
-            ]:
+            if raw_name in []:
                 continue
 
             raw_path = os.path.join(raw_dir, raw_name)
@@ -372,6 +328,8 @@ def main():
             if result.returncode != 0:
                 print(f'{c.FAIL}Memory or other error on {raw_name}, skipping{c.ENDC}')
                 continue
+
+            # exit(0)
 
         except Exception as e:
             print(f'{c.FAIL}Error processing {raw_name}: {e}{c.ENDC}')

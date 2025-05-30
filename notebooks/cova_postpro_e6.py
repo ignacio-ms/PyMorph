@@ -17,14 +17,17 @@ from util.data import imaging
 from util.misc.colors import bcolors as c
 
 
-_type = 'EBI TFP' # EBI TFP      FPN enh7-3
-base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_MT/RESULTADOS/U_Bioinformatica/Morena/CovaNacho/'
-raw_dir = os.path.join(base_dir, 'Raw', _type)
+_type = 'FPN enh7-3' # EBI TFP      FPN enh7-3      GDO enh2
+base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/6.5E/'
+raw_dir = os.path.join(base_dir, _type)
 cells_dir = os.path.join(base_dir, 'Segmentation', _type)
 tissue_dir = os.path.join(base_dir, 'Segmentation', 'Tissue', 'Interpolated', _type)
 
 out_dir = os.path.join(base_dir, 'Results', _type)
 out_path = os.path.join(out_dir, 'intersected_cells.csv')
+
+_skip_existing = True
+
 
 def isotropy(img, **kwargs):
     assert kwargs['metadata'] is not None, 'Metadata is required for isotropy step.'
@@ -216,6 +219,7 @@ def main():
             if not img.endswith('.tif') or 'preprocessed' in img or 'EBI618' in img:
                 continue
 
+            img = img.replace(' ', '')
             img_name = img.split('.')[0]
             cells_path = os.path.join(cells_dir, img)
             raw_path = os.path.join(raw_dir, img_name.replace('_mask', '.tif'))
@@ -224,6 +228,18 @@ def main():
             else:
                 tissue_path = os.path.join(tissue_dir, img_name.replace('_dapi_mask', '_Labels.tif'))
             out_img_path = os.path.join(out_dir, img_name + '_intersected_cells.tif')
+
+            if _skip_existing and os.path.exists(out_img_path):
+                print(f'{c.OKGREEN}Skipping existing image{c.ENDC}: {img_name}')
+                continue
+
+            print(f'{c.OKBLUE}Checking files{c.ENDC}:')
+            print(img)
+            print(f'Cells path: {cells_path}')
+            print(f'Tissue path: {tissue_path}')
+            print(f'Output path: {out_img_path}')
+            print(f'Raw path: {raw_path}')
+            print(f'Name: {img_name}')
 
             print(f'{c.OKBLUE}Processing{c.ENDC}: {img_name}')
             cmd = [
