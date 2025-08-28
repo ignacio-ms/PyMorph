@@ -1,0 +1,51 @@
+Bootstrap: docker
+From: miniforge3
+
+%files
+    
+
+%startscript
+	. /opt/conda/bin/activate
+ 
+%runscript
+	. /opt/conda/bin/activate
+
+%environment
+	CONDA_BIN_PATH="/opt/conda/bin"
+	export PATH="$CONDA_BIN_PATH:$PATH"
+
+%post
+	apt-get update -y
+	apt install -y build-essential 
+	export PATH="/opt/conda/bin:$PATH"
+
+	conda install python=3.11 -y
+	. /opt/conda/bin/activate 
+
+	wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+	sudo dpkg -i cuda-keyring_1.1-1_all.deb
+	sudo apt update
+
+	sudo apt install cuda-toolkit-12-8 -y
+	sudo apt install cudnn9-cuda-12 -y
+
+	export PATH="/usr/local/cuda-12.8/bin:${PATH}"
+	export LD_LIBRARY_PATH="/usr/local/cuda-12.8/lib64:${LD_LIBRARY_PATH}"
+	export CUDA_HOME="/usr/local/cuda-12.8:${CUDA_HOME}"
+	
+	wget https://developer.download.nvidia.com/compute/cutensor/2.2.0/local_installers/cutensor-local-repo-ubuntu2204-2.2.0_1.0-1_amd64.deb
+	sudo dpkg -i cutensor-local-repo-ubuntu2204-2.2.0_1.0-1_amd64.deb
+	sudo cp /var/cutensor-local-repo-ubuntu2204-2.2.0/cutensor-*-keyring.gpg /usr/share/keyrings/
+	sudo apt-get update
+	sudo apt-get install libcutensor2 -y
+	sudo apt install libnccl2=2.25.1-1+cuda12.8 -y
+	sudo apt install libcusparse-12-8 -y
+	
+	pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+	pip3 install cupy-cuda12x
+	pip3 install scipy
+	
+	
+	
+	
+	

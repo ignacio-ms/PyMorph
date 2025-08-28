@@ -15,10 +15,11 @@ sys.path.insert(0, str(project_root))
 from util.misc.timer import LoadingBar
 from util.data import imaging
 from scipy.ndimage import binary_fill_holes
+OVERLAP_THRESHOLD = 0.8
 
 
 _skip_existing = False
-_type = 'FPN enh7-3' # EBI TFP    FPN enh7-3        GDO enh2
+_type = 'GDO enh2' # EBI TFP    FPN enh7-3        GDO enh2
 base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/3.5E'
 seg_dir = os.path.join(base_dir, 'Segmentation', _type)
 out_hull_dir = os.path.join(base_dir, 'Segmentation', 'Tissue', _type)
@@ -57,18 +58,15 @@ def convex_hull_3d(segmentation: np.ndarray):
     # Fill any holes to ensure a closed mask
     hull_mask = binary_fill_holes(hull_mask)
     hull_mask = ndi.binary_dilation(hull_mask, structure=np.ones((3, 3, 3)))
-    # Extract the hull contour by subtracting eroded hull
-    eroded = ndi.binary_erosion(hull_mask, structure=np.ones((3, 3, 3)))
-    contour_mask = hull_mask & ~eroded
-
-    # Identify labels intersecting the hull contour and remove them
-    labels = np.unique(segmentation[contour_mask])
-    labels = labels[labels != 0]
     cleaned = segmentation.copy()
-    if labels.size > 0:
-        mask = np.isin(segmentation, labels)
-        cleaned[mask] = 0
-    return cleaned, contour_mask
+    for label in np.unique(segmentation):
+        if label == 0:
+            continue
+        total = np.sum(segmentation == label)
+        inside = np.sum((segmentation == label) & hull_mask)
+        if inside / total < OVERLAP_THRESHOLD:
+            cleaned[segmentation == label] = 0
+    return cleaned, hull_mask
 
 
 def _vox2micron(metadata):
@@ -134,6 +132,8 @@ if __name__ == "__main__":
         try:
             if not img.endswith('.tif') and not img.endswith('.nii.gz'):
                 continue
+            # if not img in ['EBI603_6_dapi_mask.nii.gz']: continue
+
             img_path = os.path.join(seg_dir, img)
             out_hull_path = os.path.join(out_hull_dir, img.replace('.nii.gz', '_hull_mask.nii.gz'))
             out_seg_path = os.path.join(out_seg_dir, img.replace('.nii.gz', '_filtered_hull.nii.gz'))

@@ -26,12 +26,13 @@ from util.misc.colors import bcolors as c
 
 
 os.environ["XLA_FLAGS"] = "--xla_gpu_cuda_data_dir=/usr/local/cuda-11.8/"
-use_gpu = torch.cuda.is_available()
+use_gpu = False
+# use_gpu = torch.cuda.is_available()
 print(f"GPU activated: {use_gpu}")
 
 _skip_existing = True
-_type = 'GDO enh2' # EBI TFP    FPN enh7-3        GDO enh2
-base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/6.5E'
+_type = 'FPN' # EBI TFP    FPN enh7-3        GDO enh2
+base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/6.5E_2'
 raw_dir = os.path.join(base_dir, _type)
 out_dir = os.path.join(base_dir, 'Segmentation', _type)
 

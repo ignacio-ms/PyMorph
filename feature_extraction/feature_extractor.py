@@ -144,14 +144,7 @@ def standard_features(lines, props, centroids, centroids_labels, type, verbose=0
     Compute shape features:
         - cell_in_props
         - volumes
-        - sphericities
-        - original_labels
-        - centroids
-        - lines
-        - axis_major_length
-        - axis_minor_length
-        - solidity
-        - feret_diameter_max
+        ...
     :param lines: Lines image.
     :param props: Properties.
     :param centroids: Centroids.

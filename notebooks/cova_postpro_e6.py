@@ -17,8 +17,8 @@ from util.data import imaging
 from util.misc.colors import bcolors as c
 
 
-_type = 'FPN enh7-3' # EBI TFP      FPN enh7-3      GDO enh2
-base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/6.5E/'
+_type = 'GDO' # EBI TFP      FPN enh7-3      GDO enh2
+base_dir = f'/run/user/1003/gvfs/smb-share:server=tierra.cnic.es,share=sc/LAB_FSC/LAB/PERSONAL/imarcoss/LabMT/CovaBlasto/6.5E_2/'
 raw_dir = os.path.join(base_dir, _type)
 cells_dir = os.path.join(base_dir, 'Segmentation', _type)
 tissue_dir = os.path.join(base_dir, 'Segmentation', 'Tissue', 'Interpolated', _type)
@@ -101,7 +101,7 @@ def load_data(img_path, metadata, type='cells'):
         img = isotropy(img, metadata=metadata)
 
         imaging.save_tiff_imagej_compatible(
-            img_path.replace('.tif', '_resampled-tif'), img,
+            img_path.replace('.tif', '_resampled.tif'), img,
             metadata=metadata, axes='XYZ'
         )
 
@@ -216,17 +216,17 @@ def main():
 
     for img in os.listdir(cells_dir):
         try:
-            if not img.endswith('.tif') or 'preprocessed' in img or 'EBI618' in img:
+            if not img.endswith('.tif') or 'preprocessed' in img:
                 continue
 
             img = img.replace(' ', '')
             img_name = img.split('.')[0]
             cells_path = os.path.join(cells_dir, img)
             raw_path = os.path.join(raw_dir, img_name.replace('_mask', '.tif'))
-            if _type == 'FPN enh7-3':
-                tissue_path = os.path.join(tissue_dir, img_name.replace('_dapi_mask', '_labels.tif'))
-            else:
-                tissue_path = os.path.join(tissue_dir, img_name.replace('_dapi_mask', '_Labels.tif'))
+            #if _type == 'FPN enh7-3':
+            #    tissue_path = os.path.join(tissue_dir, img_name.replace('_dapi_mask', '_labels.tif'))
+            #else:
+            tissue_path = os.path.join(tissue_dir, img_name.replace('_dapi_mask', '_labels.tif'))
             out_img_path = os.path.join(out_dir, img_name + '_intersected_cells.tif')
 
             if _skip_existing and os.path.exists(out_img_path):
@@ -234,7 +234,6 @@ def main():
                 continue
 
             print(f'{c.OKBLUE}Checking files{c.ENDC}:')
-            print(img)
             print(f'Cells path: {cells_path}')
             print(f'Tissue path: {tissue_path}')
             print(f'Output path: {out_img_path}')

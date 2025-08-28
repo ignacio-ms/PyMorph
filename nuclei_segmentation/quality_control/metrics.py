@@ -6,7 +6,6 @@ import pandas as pd
 import networkx as nx
 
 from timagetk.components.labelled_image import LabelledImage
-from timagetk.components.spatial_image import SpatialImage
 from ctrl.algorithm.image_overlap import cell_overlap
 
 # Custom packages
