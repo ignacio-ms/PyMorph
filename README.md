@@ -1,121 +1,255 @@
-# Heart tube morphogenesis characterization
+Heart tube morphogenesis characterization (PyMorph)
 
-The objective is to characterize the morphogenesis of the heart tube in the early stages of development. 
-The heart tube is the first structure that forms during heart development and it is the precursor of the heart.
+This repository contains code to characterize early morphogenesis of the mouse heart tube from 3D confocal stacks: segmentation of nuclei and cell membranes, single-cell feature extraction, 3D mesh reconstruction and registration, and feature mapping on tissue surfaces.
+
+For context, rationale and the full scientific pipeline, see `Master_thesis_IMS.pdf` (included in this repo). The README below focuses on how to set up the environment, organize data, and run each pipeline step end-to-end on your dataset.
 
 ## Data
 
-The data is composed of 3D stacks of confocal microscopy images of the heart tube. 
-There was imaged 52 embryos in cardiac development stages ranging from the early cardica crescent until heart 
-looping. The collection represents nominal ages from approximately E7.75 to E8.5 (18h).
-The embryos are classified into 10 stages, 1-4 corresponding to the cardiac crescent development, 
-5-8 to linear heart tube stages and 9-10 to heart looping stages. 
+The dataset comprises 3D stacks of confocal microscopy images across early cardiac development. 52 embryos were imaged covering stages from early cardiac crescent to heart looping (approx. E7.75–E8.5, ~18 hours). Specimens are grouped into 10 nominal stages (1–4 crescent, 5–8 linear heart tube, 9–10 looping).
 
-The mouse transgenic line of these specimens labels all the mesoderm in the head and cardiogenic area 
-with membrane-GFP and cytoplasmic Tomato, while the rest of the tissues were labeled only with membrane Tomato.
-All nuclei were stained using DAPI. Raw data from the three channels of all specimens, as well as some 
-auxiliary files for tissue references, were provided.
+- Membranes: membrane-GFP in mesoderm (cardiogenic/cranial), membrane Tomato elsewhere
+- Nuclei: DAPI
+- Volumes typically span ~1 mm in XY and ~677 μm in Z (varies by specimen)
+- XY resolution 0.38–0.49 μm; Z resolution 0.49–2.0 μm (stage-dependent)
 
-The imaged volumes cover ~1mm in the X and Y dimension and a depth of ~677μm (depending on the specimen 
-absolute size), which includes the whole spatial domain of the cardiogenic region and associated tissues. 
-The XY pixel resolution varies from 0.38μm to 0.49μm and from 0.49μm to 2.0μm in Z, depending on the stage. 
-A 1024x1024 resized version of the raw images was used for segmentation. Due to time limitations and the 
-scope of this project, only the specimens identified as Stage Group Representatives (SGR) were used; that is, 
-the medoid shape of each one of the 10 stages.
+Only Stage Group Representatives (SGR; medoid of each stage) were used for some analyses in the thesis due to time constraints. You can run the full pipeline on any subset (by group or by specimen).
 
-## Methodology
+## Repository organization
 
-- Nuclei segmentation
-- Cell-based membrane segmentation
-- Single-cell feature extraction - Radiomics features
-  - single-cell feature extraction - Complex features
-  - Single-cell feature extraction - Cell division
-- Mesh reconstruction
-- Mesh filtering
-- Mesh registration
-- Mesh feature mapping
-
-Most of the implemented functions are located in the `utils` module. Method specific functions are located
-in the respective module. Additionally, there are some `notebooks` that can be used as playgrounds to test the
-implemented functions.
-
-*Note: All data are located on the server and are not available in this repository. The `utils/values.py` 
-file contains the path to the data, is the data is on a different location, the path must be changed.*
-
-Organization of the project:
+Most general-purpose code lives in `util/`. Method-specific code is under each module. Interactive demos and QA are in `notebooks/`.
 
 ```
 .
 ├── cell_division
-│   ├── calibration_plots
-│   ├── layers
-│   └── nets
+│   ├── calibration_plots
+│   ├── layers
+│   └── nets
 ├── environments
-│   └── containers
+│   ├── containers
+│   └── *.yaml  # conda environments
 ├── feature_extraction
 ├── filtering
 ├── membrane_segmentation
 ├── meshes
-│   ├── surface_map
-│   └── utils
-│       ├── annotation
-│       ├── features
-│       └── registration
+│   ├── surface_map
+│   └── utils
+│       ├── annotation
+│       ├── features
+│       └── registration
 ├── notebooks
 ├── nuclei_segmentation
-│   ├── processing
-│   └── quality_control
-├── scripts
-└── utils
+│   ├── processing
+│   └── quality_control
+└── util
     ├── data
     ├── gpu
     └── misc
 ```
 
-### 1. Nuclei segmentation
+## Environment setup
 
-Directory: `nuclei_segmentation`.
+Conda (mamba recommended) environments are provided in `environments/`.
 
-The nuclei were segmented using **Cellpose**, to run the segmentation, use the following command:
+1) Create the main environment (CPU/GPU-friendly):
 
 ```bash
-python nuclei_segmentation/run_cellpose.py
-
-usage: run_cellpose.py -i <image> -s <specimen> -gr <group> -m <model> -n <normalize> -e <equalize> -d <diameter> -c <channels> -v <verbose>
-
-Options:
-<image>: Path to image.
-<specimen>: Specimen to predict.
-	If <image> is not provided, <specimen> is used.
-	Specimen must be in the format: XXXX_EY
-<group>: Group to predict all remaining images.
-	If <group> is not provided, <image> is used.
-	In not <group> nor <image> nor <specimen> is provided, all remaining images are predicted.
-<model>: Model to use. (Default: nuclei)
-<normalize>: Normalize image. (Default: True)
-<equalize>: Histogram equalization over image. (Default: True)
-<diameter>: Diameter of nuclei. (Default: 17)
-<channels>: Channels to use. (Default: [0, 0])
-	Channels must be a list of integers.
-	0 = Grayscale - 1 = Red - 2 = Green - 3 = Blue
-<verbose>: Verbosity level. (Default: 0)
+mamba env create -f environments/py10ml.yaml
+conda activate py310ml
 ```
 
-### 2. Cell-based membrane segmentation
+2) Optional: containerized tools for surface mapping are under `environments/containers/` and `meshes/surface_map/`. See `meshes/surface_map/README.md` for the prebuilt binaries and libraries required by SurfaceMapComputation. A Singularity/Apptainer definition (`environments/containers/singularity_gpu_base.def`) and Dockerfile are included.
 
-### 3. Single-cell feature extraction - Radiomics features
+## Configure data path
 
-### 3.1. Single-cell feature extraction - Complex features
+Set your dataset root in `util/values.py`:
 
-### 3.2. Single-cell feature extraction - Cell division
+```
+data_path = '/absolute/path/to/your/dataset/root/'
+```
 
-### 4. Mesh reconstruction
+The repository ships with a server path that will not exist on your machine. Update it to your local or network location.
 
-### 5. Mesh filtering
+Specimen grouping and labels (e.g., `Gr1`…`Gr10`) are also defined in `util/values.py` (`specimens`, `specimens_to_analyze`, etc.). Update these if your cohort differs.
 
-### 6. Mesh registration
+## Expected data layout
 
-### 7. Mesh feature mapping
+The pipeline expects the following on-disk structure under `data_path` (created incrementally by the scripts):
 
+```
+{data_path}/
+  GrX/
+    RawImages/
+      Nuclei/
+        2019{SPEC}_DAPI_decon_0.5.nii.gz
+      Membrane/
+        2019{SPEC}_mGFP_decon_0.5.nii.gz
+    Segmentation/
+      Nuclei/
+        2019{SPEC}_mask.nii.gz
+      Membrane/
+        2019{SPEC}_mask.nii.gz
+      LinesTissue/
+        2019{SPEC}_lines.nii.gz              # tissue reference labels
+    Features/
+      2019{SPEC}_cell_properties_radiomics_{Level}_{tissue}.csv
+      Filtered/
+        2019{SPEC}_cell_properties_radiomics_{Level}_{tissue}.csv
+    3DShape/
+      Membrane/{tissue}/
+        2019{SPEC}_{tissue}.ply              # cell meshes (optionally *_filtered.ply)
+      Tissue/{tissue}/
+        2019{SPEC}_{tissue}.ply              # tissue mesh
+        cell_map/{SPEC}_cell_map.csv
+        map/{SPEC}/{Level}_{feature}.ply     # colored feature map
+        map/{SPEC}/{Level}_{feature}.csv     # per-face values
+```
 
+Where:
+
+- `{SPEC}` is the specimen identifier, e.g., `0806_E3`
+- `{Level}` is `Nuclei` or `Membrane`
+- `{tissue}` is usually `myocardium` (see `util/values.py:lines` for available labels)
+
+## End-to-end pipeline
+
+All runner scripts accept `-p/--data_path` (optional) to override `util/values.data_path`. You can run by image (`-i`), by specimen (`-s`), by group (`-g`), or for all missing items (default behavior when neither `-i`, `-s`, nor `-g` are specified).
+
+### 1) Nuclei segmentation
+
+Option A — Cellpose:
+
+```bash
+python nuclei_segmentation/run_cellpose.py \
+  -g Gr3 -m nuclei -n True -e True -d 17 -c "[0,0]" -v 1
+```
+
+Option B — StarDist 3D:
+
+```bash
+python nuclei_segmentation/run_stardist.py \
+  -g Gr3 -m 0 -a XYZ -e True -c True -t "8,8,8" -v 1
+```
+
+Notes:
+- Use `-s 0806_E3` to run a single specimen, or `-i relative/path/from/data_path.nii.gz` to run a single image.
+- StarDist supports GPU via TensorFlow (`-c True`), and tile-based inference via `-t`.
+
+### 2) Membrane segmentation (PlantSeg)
+
+```bash
+python membrane_segmentation/run_plantseg.py \
+  -g Gr3 -t myocardium -v 1
+```
+
+If `-t/--tissue` is omitted, default tissues `["myocardium", "splanchnic"]` are used to crop/filter when relevant.
+
+### 3) Single‑cell feature extraction — radiomics
+
+Extract radiomics at the cell level for `Membrane` or `Nuclei` labels. Also filters connected components and can tissue-mask when requested.
+
+```bash
+python feature_extraction/run_extractor.py \
+  -g Gr3 -t Membrane -l myocardium -v 1
+```
+
+Per‑specimen example (from already filtered segmentation):
+
+```bash
+python feature_extraction/run_extractor.py \
+  -s 0806_E3 -t Membrane -l myocardium -v 1
+```
+
+### 3.1) Single‑cell feature extraction — complex (mesh‑based)
+
+Compute geometric features (perpendicularity, sphericity, columnarity) on reconstructed meshes and merge into the radiomics table:
+
+```bash
+python meshes/run_extractor_complex.py \
+  -g Gr3 -l Membrane -t myocardium -v 1
+```
+
+Direct paths (single case):
+
+```bash
+python meshes/run_extractor_complex.py \
+  -e /abs/path/to/cells.ply \
+  -p /abs/path/to/tissue.ply \
+  -r /abs/path/to/features.csv \
+  -o /abs/path/to/output.csv -v 1
+```
+
+### 4) Mesh reconstruction
+
+Reconstruct meshes from segmentations and raw images:
+
+```bash
+python meshes/run_mesh_reconstruction.py \
+  -g Gr3 -l Membrane -t myocardium -v 1
+```
+
+Direct paths (single case):
+
+```bash
+python meshes/run_mesh_reconstruction.py \
+  -e /abs/path/to/2019{SPEC}_mask.nii.gz \
+  -r /abs/path/to/2019{SPEC}_mGFP_decon_0.5.nii.gz \
+  -o /abs/path/to/2019{SPEC}_myocardium.ply -v 1
+```
+
+### 5) Mesh/feature filtering (tissue intersection)
+
+Filter features to keep only cells intersecting the tissue mesh (saves under `Features/Filtered/`):
+
+```bash
+python filtering/run_filter_tissue.py \
+  -g Gr3 -l Membrane -t myocardium -v 1
+```
+
+You can also supply explicit paths (`-m/--mesh_path`, `-t/--tissue_path`, `-f/--features_path`).
+
+### 6) Atlas‑based surface map registration
+
+Register each specimen tissue mesh to its stage atlas and compute surface maps:
+
+```bash
+python meshes/run_surface_map.py \
+  -g Gr3 -t myocardium -v 1
+```
+
+This expects atlas meshes and landmarks under:
+```
+{data_path}/ATLAS/{tissue}/ATLAS_{Gr}.ply
+{data_path}/Landmarks/ATLAS/ATLAS_{Gr}_landmarks.pinned
+{data_path}/Landmarks/2019{SPEC}_landmarks.pinned
+```
+
+See `meshes/surface_map/README.md` for SurfaceMapComputation dependencies/binaries.
+
+### 7) Feature mapping and visualization
+
+Map any per‑cell feature onto the tissue surface and export colored meshes/CSVs:
+
+```bash
+python meshes/run_feature_map.py \
+  -g Gr3 -l Membrane -t myocardium -f columnarity -v 1
+```
+
+Outputs under `{group}/3DShape/Tissue/{tissue}/map/{SPEC}/`.
+
+## Tips & troubleshooting
+
+- Invalid group/specimen: check `util/values.py` (`specimens`, `specimens_to_analyze`).
+- No images found: verify `data_path` and expected filenames under `RawImages/`.
+- GPU unavailable (StarDist/TensorFlow): install proper CUDA drivers or set `-c False` to run on CPU with tiling.
+- PlantSeg memory errors: run fewer cases, downsample, or adjust configuration inside `membrane_segmentation`.
+- Atlas registration: ensure atlas/tissue meshes and `.pinned` landmark files exist with consistent group labels.
+
+## How to cite
+
+If you use this code, please cite the accompanying thesis (see `Master_thesis_IMS.pdf`).
+
+## Acknowledgements
+
+This codebase builds upon open-source tools including Cellpose, StarDist, PlantSeg, scikit-image, SimpleITK, pyRadiomics, trimesh, and others. Many thanks to all contributors and to the imaging facility for data acquisition.
 
